@@ -60,7 +60,19 @@ metadata:
 4. `memory/areas.md` — 12 life domains (для Health Action / Family Touchpoint)
 5. `memory/projects.md` — active projects (filter priority=high → Top 3 Business)
 6. `memory/risks.md` — для Main Risk Today
-7. `memory/daily_log.md` last 3 entries — for Energy Warning + carry-over
+7. `memory/daily_log.md` last 3 entries — для Energy Warning + carry-over + **morning combo**
+
+## Morning combo — yesterday recap on top (NEW)
+
+Если в `daily_log.md` есть entry за **предыдущий день** (`yesterday = today - 1`)
+с секцией `### Evening (HH:MM)` — извлеки:
+- Энергия / Стресс scores
+- Lesson learned (одна строка)
+- Carry-over для сегодня
+- Не-выполненное вчера
+
+Показывай это **в самом начале** briefing как «Вчера в 2 строки», чтобы CEO мог
+быстро contextualize не лезя в archive.
 
 Используй helper:
 
@@ -90,6 +102,10 @@ Telegram MarkdownV2, ≤4096 char. Headers и метки — **только ру
 
 *Дата:* {YYYY-MM-DD} ({день недели на русском})
 
+*Вчера:* (только если есть yesterday evening)
+Энергия {N}/10 · Стресс {N}/10 · Урок: {lesson short}
+Carry-over: {1-2 items от вчера на сегодня}
+
 *Главный фокус:*
 {одно предложение — что главное сегодня. Извлекается из memory.md::Active Priorities или manual override}
 
@@ -116,6 +132,8 @@ Telegram MarkdownV2, ≤4096 char. Headers и метки — **только ру
 *Главный риск сегодня:* {top severity*probability риск из risks.md status=active}
 
 *Один важный вопрос:* {LLM генерирует 1 reflective вопрос based на context — что worth pondering today}
+
+Что дальше? · /capture — мысль/задача · /projects high — статусы · /evening вечером
 ```
 
 **Запрещено:** имена членов семьи в outputе. ВСЕ упоминания супруги → "Супруга". Родители → "родители" / "Мама" / "Папа" (без ФИО).

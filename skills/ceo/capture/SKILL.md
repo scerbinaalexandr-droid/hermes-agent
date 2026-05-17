@@ -37,9 +37,14 @@ metadata:
 
 **Purpose.** Поймать мысль / задачу / решение / инсайт / recap встречи и
 положить в правильный файл memory без когнитивной нагрузки на user'а.
-Per blueprint §06 + memory/soul.md::Voice memo template.
+Per blueprint §06 + memory/soul.md::Voice memo template + UX rules.
 
-**Trigger.** `/capture <text>` или voice memo с шаблоном.
+**Trigger.** `/capture <text>` ИЛИ voice memo ИЛИ просто фраза в чате
+(когда сообщение выглядит как thought/task/decision без явной команды).
+
+## Voice-first flow (DEFAULT)
+
+CEO диктует голосом — НЕ требуй template. **Auto-detect** и покажи черновик.
 
 ---
 
@@ -50,39 +55,52 @@ strictly.
 
 ---
 
-## Step 1 — Parse intent
+## Step 1 — Parse intent (auto)
 
-Voice memo template:
+Если user явно дал template `[тип]: ... [контекст]: ... [содержание]: ...` — забери поля как есть.
+
+**Иначе (default)** — auto-detect из free-form текста / транскрипта voice:
+
+1. **Тип** (priority order, первое совпадение wins):
+   - "решил / решили / договорились / decision / выбрал" → `decision`
+   - "встретился / встреча / созвон / meeting / call / поговорил с" → `meeting`
+   - "итоги встречи / recap / summary / резюме" → `recap`
+   - "сделать / нужно / todo / напомнить / задача" → `task`
+   - всё остальное про мысль / идею / наблюдение → `insight`
+
+2. **Контекст** — first proper noun или project name (Tandem Casa, Kitchen by Tandem, Brasov, Pharma RO, Lean Kitchen, etc.). Если нет — `(unspecified)`.
+
+3. **Содержание** — основной message. **Apply privacy guard** из `soul.md`:
+   - **семейные имена** (имя супруги, родителей) → ВСЕГДА "Супруга", "Мама", "Папа"
+   - незнакомые партнёры → "партнёр X" / "поставщик Y" (исключения: Живко и др. tandem-context-known names)
+   - точные цены договоров → диапазоны
+   - banking / passwords / medical raw → НЕ сохраняй, спроси переформулировать
+
+## Step 2 — Show draft (CRITICAL — НЕ сохраняй сразу)
+
+Покажи user'у **черновик распознанного** с inline кнопками-like prompts:
+
 ```
-[тип]: meeting | decision | insight | recap | task
-[контекст]: с кем / о чём / какой проект
-[содержание]: суть
+🎤 Распознал:
+*Тип:* {type}
+*Контекст:* {context}
+*Содержание:* {content_after_redaction}
+→ Сохранить в `{target_file}::{target_section}`
+
+Подтверди: «✅ да» / «✏️ поправь: <что>»  (или просто `/capture` снова с новым текстом)
 ```
 
-Если user явно дал template — забери поля.
-Если free-form (`/capture <text>` или просто текст без template):
+Дай ~30 секунд (или до следующего сообщения user'а). Если user ответил:
+- **«да» / «ok» / «✅» / «сохрани» / эмодзи галочки** → выполни сохранение (Step 3)
+- **«поправь: тип task»** / **«нет, это task»** → re-route к новому типу, покажи новый draft
+- **«отмена» / «cancel» / «нет»** → НЕ сохраняй, ответь «отменено» одной строкой
+- **новое сообщение про другое** → старый capture отменён без сохранения
 
-1. **Определи `тип`** по эвристикам:
-   - содержит "решил / decided / decision" → `decision`
-   - содержит "встреча / meeting / созвон / call" → `meeting`
-   - содержит "сделать / todo / нужно / напоминание" → `task`
-   - содержит "понял / insight / идея / обратил внимание" → `insight`
-   - содержит "итоги / recap / summary встречи" → `recap`
-   - иначе → `insight` (default safe choice)
-
-2. **Извлеки `контекст`** — кто / о чём / какой проект (если упоминается). Если нет — `(unspecified)`.
-
-3. **Извлеки `содержание`** — суть. **Apply privacy guard:**
-   - имена незнакомых партнёров → "партнёр X", "поставщик Y", "клиент Z" (исключения: общеизвестные имена в Tandem context — Живко и пр.)
-   - точные цены договоров → диапазоны или "(see external doc)"
-   - чужие цитаты с встреч → переформулируй как "своё суждение"
-
-4. **Когда `тип` определён эвристикой (не явно дан)** — подтверди user'у в финальном reply: «Записал как `<тип>`. Если не то — поправь.»
+## Step 3 — Save (после явного approve)
 
 ---
 
-## Step 2 — Save
-
+Команда:
 ```bash
 python skills/ceo/capture/scripts/capture.py --type <тип> --context "<context>" --content "<content>"
 ```
@@ -100,21 +118,17 @@ Returns `{file, action, snippet}`.
 
 ---
 
-## Step 3 — Confirm to user
+## Step 4 — Acknowledge (после save)
 
-Короткий ответ:
+≤2 строки + next-steps:
 
 ```
-✅ {file} ← {action}
-   "{snippet shortened to ≤120 char}"
+✅ {file}::{section} ← {2-3 word summary}
 
-   Tip: для structured input используй template:
-   [тип]: ...
-   [контекст]: ...
-   [содержание]: ...
+Что дальше? · /brief · /capture · /projects {if context был project}
 ```
 
-`Tip:` показывай ТОЛЬКО если user слал free-form (не template). После 3 free-forms подряд (per soul.md rule) — спроси «нужна другая структура?»
+**НЕ** показывай шаблон structured input — user уже понимает что voice-first работает.
 
 ---
 

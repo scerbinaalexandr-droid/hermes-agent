@@ -61,36 +61,68 @@ Returns JSON with:
 
 ---
 
-## Step 2 — Prompt structure (one Telegram message ≤4096 char, **ВСЁ на русском**)
+## Step 2 — Compact prompt (voice-first)
+
+В Telegram короткое приглашение, **не** 14-question list:
 
 ```
-📅 Еженедельный обзор CEO — {iso_week} (неделя завершается {week_end})
+📅 Weekly Review {iso_week} (неделя завершается {week_end})
 
-Прошлая неделя по daily_log (highlights):
-{1-3 строки top events из daily_log_entries_this_week}
+Прошлая неделя по daily_log:
+{1-2 строки top events}
 
-Топ открытых рисков:
-{top 3 risks с severity}
+Топ рисков: {top 3 names с severity}
 
-Ответь одним сообщением (blocks):
+Расскажи неделю голосом (1-3 voice memo, 30-60 сек каждый) или текстом —
+свободно. Я разберу на 14 секций сам:
 
-1. *Бизнес:* (общая картина — 1-2 строки)
-2. *Cashflow:* (статус, концерны)
-3. *Продажи:* (TC360 / TANDEM)
-4. *Производство:* (Kitchen by Tandem lean статус)
-5. *Маркетинг:* (TikTok / бренд)
-6. *Команда:* (ключевые люди, найм, конфликты)
-7. *Проекты:* (status changes per active project — name: новый статус)
-8. *Здоровье:* (спорт / сон / labs)
-9. *Семья:* (touchpoints с Супругой / родителями этой недели)
-10. *Восстановление:* (вышел ли с энергией на новую неделю)
-11. *Обучение:* (что прочитал / понял)
-12. *Изменения по рискам:* (new / escalated / closed)
-13. *Ключевые решения:* (что зафиксировал в decisions.md этой неделей)
-14. *Фокус следующей недели:* (1-3 priorities)
+бизнес / cashflow / продажи / производство / маркетинг / команда /
+проекты (status) / здоровье / семья / recovery / обучение /
+изменения рисков / ключевые решения / фокус следующей недели
+
+(или /skip чтобы пропустить этой неделей)
 ```
 
-**Запрещено:** имена членов семьи в output. Используй "Супруга", "родители".
+## Step 3 — Parse free-form into 14 fields
+
+User говорит потоком о неделе. Извлеки 14 полей (LLM reasoning):
+
+- **Бизнес** — общая картина бизнеса этой недели (revenue/momentum/feel)
+- **Cashflow** — упоминания денег / runway / concerns
+- **Продажи** — упоминания TC360, sales pipeline, conversion
+- **Производство** — Kitchen by Tandem, lean, OEE, defects
+- **Маркетинг** — TikTok, brand, content
+- **Команда** — key people movements, hiring, conflicts, mentions of names → roles
+- **Проекты** — extract pairs `<имя проекта>: <новый статус / progress note>`. Если user сказал "Tandem Casa активный +12%" → {name: "Tandem Casa 360°", status: "active", note: "+12%"}
+- **Здоровье** — спорт sessions, sleep, labs, energy trend
+- **Семья** — touchpoints (БЕЗ имён, redact в "Супруга" / "родители")
+- **Recovery** — пришёл ли с энергией / выгорел
+- **Обучение** — что прочитал / book / podcast / insight
+- **Изменения по рискам** — new risks, escalations, closures (mentioned by user)
+- **Ключевые решения** — explicit "решил / договорились / decision" фразы
+- **Фокус следующей недели** — "на следующей неделе нужно / буду / приоритет"
+
+Поле не упомянуто → `(не упомянуто)`. Не выдумывай.
+
+## Step 4 — Show draft
+
+```
+📅 Распознал weekly review {iso_week}:
+
+*Бизнес:* {x}
+*Cashflow:* {x}
+*Продажи:* {x}
+...
+*Проекты обновлены:*
+  - Tandem Casa 360°: active — pipeline +12%
+  - Brasov Apartment: blocked — contractor delay
+*Семья:* {x — после redaction}
+*Фокус следующей недели:* {x}
+
+Сохранить? «✅ да» / «✏️ поправь: <поле>: <новое>»
+```
+
+## Step 5 — Save (после approve)
 
 ---
 
@@ -134,15 +166,16 @@ Helper writes:
 
 ---
 
-## Step 4 — Confirm (на русском)
+## Step 6 — Acknowledge
+
+≤4 строки + next-steps:
 
 ```
-✅ Еженедельный обзор {iso_week} сохранён.
-   Обновлено проектов: {N matched}, не найдено: [{names}]
-   Изменения по рискам: {key_risks_changed first line}
-   Фокус следующей недели: {next_week_focus first line}
+✅ Weekly {iso_week} сохранён.
+Проектов обновлено: {N matched} | не найдено: [{names if any}]
+Фокус: {next_week_focus first 70 chars}
 
-Хорошей недели.
+Что дальше? · /brief завтра 07:30 · /capture decision <следующий шаг>
 ```
 
 ---
