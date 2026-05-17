@@ -40,9 +40,19 @@ EOF
 elif ! grep -qF "    - $CEO_SKILLS_DIR" "$CONFIG"; then
   if grep -qE "^skills:" "$CONFIG"; then
     if grep -qE "^[[:space:]]*external_dirs:" "$CONFIG"; then
+      # Normalize inline empty list (`external_dirs: []`) to block-start
+      # (`external_dirs:`) BEFORE appending — otherwise mixing produces
+      # invalid YAML (block sequence under flow mapping).
       TMP="$(mktemp)"
       awk -v p="$CEO_SKILLS_DIR" '
-        /^[[:space:]]*external_dirs:/ {
+        /^[[:space:]]*external_dirs:[[:space:]]*\[\][[:space:]]*$/ {
+          sub(/:[[:space:]]*\[\][[:space:]]*$/, ":")
+          print
+          print "    - " p
+          inserted = 1
+          next
+        }
+        /^[[:space:]]*external_dirs:[[:space:]]*$/ {
           print
           print "    - " p
           inserted = 1
