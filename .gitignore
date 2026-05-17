@@ -15,8 +15,26 @@ __pycache__/
 export*
 __pycache__/model_tools.cpython-310.pyc
 __pycache__/web_tools.cpython-310.pyc
-logs/
 data/
+
+# CEO OS Layer — runtime logs (keep dirs, exclude content)
+logs/daily/*
+!logs/daily/.gitkeep
+logs/weekly/*
+!logs/weekly/.gitkeep
+logs/telegram_inputs/*
+!logs/telegram_inputs/.gitkeep
+
+# CEO OS Layer — backups (keep dir, exclude content)
+backups/*
+!backups/.gitkeep
+
+# Generic secret patterns (CEO OS hardening 2026-05-17)
+tokens/
+credentials.json
+secrets.yaml
+*.key
+.hermes/
 .pytest_cache/
 tmp/
 temp_vision_images/

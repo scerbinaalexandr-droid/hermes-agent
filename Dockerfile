@@ -79,5 +79,8 @@ RUN uv venv && \
 ENV HERMES_WEB_DIST=/opt/hermes/hermes_cli/web_dist
 ENV HERMES_HOME=/opt/data
 ENV PATH="/opt/data/.local/bin:${PATH}"
-VOLUME [ "/opt/data" ]
-ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/opt/hermes/docker/entrypoint.sh" ]
+# CEO OS Layer wrapper — seeds HERMES_HOME/config.yaml with skills.external_dirs
+# on first boot (idempotent) then exec's upstream docker/entrypoint.sh "$@".
+# Upstream entrypoint untouched to keep merge clean with NousResearch/hermes-agent.
+ENTRYPOINT [ "/usr/bin/tini", "-g", "--", "/opt/hermes/docker/ceo-os-entrypoint.sh" ]
+CMD [ "gateway", "run" ]

@@ -23,8 +23,25 @@ ui-tui/packages/hermes-ink/dist/
 
 *.md
 
+# CEO OS Layer (V1 Executive OS) — re-include skill SKILL.md files, SOP docs,
+# memory templates, and CLAUDE.md project rules. Without these, Hermes skill
+# loader cannot scan /opt/hermes/skills/ceo at runtime (see
+# agent/skill_commands.py::scan_skill_commands).
+!skills/ceo/**/SKILL.md
+!skills/ceo/**/*.py
+!skills/ceo/**/*.txt
+!SOP/**/*.md
+!memory/**/*.md
+!CLAUDE.md
+!docker/SOUL.md
+
 # Runtime data (bind-mounted at /opt/data; must not leak into build context)
 data/
+
+# CEO OS runtime artefacts (gitignored locally; also keep out of image)
+logs/
+backups/
+.wiki/
 
 # Compose/profile runtime state (bind-mounted; avoid ownership/secret issues)
 hermes-config/

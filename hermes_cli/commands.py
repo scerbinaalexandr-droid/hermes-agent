@@ -203,6 +203,13 @@ COMMAND_REGISTRY: list[CommandDef] = [
                cli_only=True, aliases=("exit",)),
 ]
 
+# CEO OS Layer (V1 Executive OS) registers its commands via the skills mechanism
+# (skills/ceo/<name>/SKILL.md, scanned by agent.skill_commands.scan_skill_commands).
+# See CLAUDE.md, .wiki/AUDIT_2026-05-17.md, blueprint at
+# ~/Downloads/hermes_claude_code_sequential_files_blueprint.md. No CommandDef
+# entries here — Hermes auto-discovers /brief, /evening, /week, /projects,
+# /risks, /capture, /backup from their SKILL.md `name:` field.
+
 
 # ---------------------------------------------------------------------------
 # Derived lookups -- rebuilt once at import time, refreshed by rebuild_lookups()
