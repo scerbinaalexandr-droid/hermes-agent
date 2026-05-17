@@ -693,6 +693,28 @@ def _collect_gateway_skill_entries(
 # Platform-specific wrappers
 # ---------------------------------------------------------------------------
 
+# CEO OS Layer (V1 Executive OS): whitelist of slash commands visible in the
+# Telegram bot menu. The CEO is a busy non-developer — exposing 80+ upstream
+# admin/session commands in the popup is a UX failure (`/new` accidentally
+# resets the session, `/branch` / `/compress` / `/rollback` confuse).
+#
+# Commands NOT in this whitelist are still typeable manually (`/retry`,
+# `/agents`, etc. all still work) — they just don't appear in the menu
+# suggestion popup. The Telegram-side suggestion is what the user sees and
+# accidentally taps; hiding it is pure UX without removing functionality.
+#
+# When upstream Hermes adds new CEO-relevant commands, extend this set.
+_CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
+    # CEO skills (auto-loaded by skill_commands.scan_skill_commands)
+    "menu", "start", "brief", "evening", "week",
+    "projects", "risks", "capture", "find", "remind", "backup",
+    # Hermes core — safety net only (kill stuck task, NOT destructive).
+    # `/new` (session reset) and other admin commands deliberately excluded
+    # from menu — they remain typeable but CEO won't accidentally tap them.
+    "stop",
+})
+
+
 def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str]], int]:
     """Return Telegram menu commands capped to the Bot API limit.
 
@@ -705,6 +727,10 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
     User-installed hub skills are excluded — accessible via /skills.
     Skills disabled for the ``"telegram"`` platform (via ``hermes skills
     config``) are excluded from the menu entirely.
+
+    CEO OS filter (#_CEO_TELEGRAM_MENU_NAMES) trims the final result to a
+    CEO-relevant whitelist — typeable commands still work, only the popup
+    suggestion is curated.
 
     Returns:
         (menu_commands, hidden_count) where hidden_count is the number of
@@ -724,7 +750,29 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
     )
     # Drop the cmd_key — Telegram only needs (name, desc) pairs.
     all_commands.extend((n, d) for n, d, _k in entries)
-    return all_commands[:max_commands], hidden_count
+
+    # CEO OS Layer filter: keep only whitelisted entries.
+    filtered = [(n, d) for n, d in all_commands if n in _CEO_TELEGRAM_MENU_NAMES]
+
+    # Sort: /menu first (anchor), then alphabetical for predictability.
+    def _sort_key(pair):
+        name = pair[0]
+        if name == "menu":
+            return (0, name)
+        if name == "start":
+            return (1, name)
+        if name in {"brief", "evening", "week"}:
+            return (2, name)   # daily/weekly ritual
+        if name in {"projects", "risks", "find"}:
+            return (3, name)   # view
+        if name in {"capture", "remind"}:
+            return (4, name)   # write
+        if name == "backup":
+            return (5, name)   # admin
+        return (6, name)       # safety net (stop, new)
+
+    filtered.sort(key=_sort_key)
+    return filtered[:max_commands], hidden_count
 
 
 def discord_skill_commands(
