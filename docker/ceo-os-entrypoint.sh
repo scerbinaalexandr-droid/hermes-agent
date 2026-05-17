@@ -87,6 +87,19 @@ else
   echo "[ceo-os-init] $HERMES_HOME/memory already populated — skipping seed"
 fi
 
+# ---- 2b. Ensure hermes user can write the CEO data --------------------------
+# Wrapper runs as root (via tini); upstream entrypoint will drop to hermes
+# user (UID 10000 — see Dockerfile). chown all CEO-owned paths so the bot
+# can write daily_log.md / decisions.md / per-day logs.
+HERMES_UID="${HERMES_UID:-10000}"
+HERMES_GID="${HERMES_GID:-10000}"
+for path in "$HERMES_HOME/memory" "$HERMES_HOME/logs/daily" "$HERMES_HOME/logs/weekly" "$HERMES_HOME/logs/telegram_inputs" "$HERMES_HOME/backups"; do
+  if [ -e "$path" ]; then
+    chown -R "$HERMES_UID:$HERMES_GID" "$path" 2>/dev/null || true
+  fi
+done
+echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership on CEO data dirs"
+
 # ---- 3. Point skills/ceo/_lib/memory.py at persistent volume ----------------
 export HERMES_CEO_MEMORY_ROOT="$HERMES_HOME/memory"
 echo "[ceo-os-init] HERMES_CEO_MEMORY_ROOT=$HERMES_CEO_MEMORY_ROOT"
