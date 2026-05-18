@@ -35,6 +35,11 @@ import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(_REPO))
+# Production fallback: skills/ceo/_lib/ lives only in /opt/hermes (built
+# into image). Hermes skill-sync to /opt/data copies only skill dirs with
+# SKILL.md; _lib/ has no SKILL.md so it stays in image path.
+if pathlib.Path("/opt/hermes/skills/ceo/_lib/memory.py").exists() and "/opt/hermes" not in sys.path:
+    sys.path.insert(0, "/opt/hermes")
 
 from skills.ceo._lib.memory import (  # noqa: E402
     _normalize_rank_token,

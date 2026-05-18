@@ -15,6 +15,8 @@ import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(_REPO))
+if pathlib.Path("/opt/hermes/skills/ceo/_lib/memory.py").exists() and "/opt/hermes" not in sys.path:
+    sys.path.insert(0, "/opt/hermes")
 
 from skills.ceo._lib.memory import (  # noqa: E402
     all_projects,
