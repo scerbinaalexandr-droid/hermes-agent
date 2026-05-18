@@ -5,15 +5,18 @@ Hard rules (enforced by code, not relying on LLM):
   - No hardcoded competitor / market / news strings
   - Empty sections render explicit "(нет данных за период)" — never fabricated
   - HTML self-contained (Chart.js via CDN <script> tag, no other deps)
+  - Optional PDF rendering via headless Chromium CLI (no Python playwright
+    binding required; uses /opt/hermes/.playwright/* binary baked in image)
 
 Usage:
   python generate_report.py --period week --output /opt/data/reports
   python generate_report.py --period month
   python generate_report.py --period quarter
   python generate_report.py --period all
+  python generate_report.py --period week --pdf   # also writes .pdf
 
 Returns JSON to stdout:
-  {"file_path": "...", "size_kb": N, "filled": [...], "empty": [...]}
+  {"html_path": "...", "pdf_path": "..." | null, ...}
 """
 
 from __future__ import annotations
@@ -21,10 +24,13 @@ from __future__ import annotations
 import argparse
 import collections
 import datetime as _dt
+import glob
 import html
 import json
 import pathlib
 import re
+import shutil
+import subprocess
 import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -42,6 +48,79 @@ from skills.ceo._lib.memory import (  # noqa: E402
 
 
 PERIOD_DAYS = {"week": 7, "month": 30, "quarter": 90, "all": 36500}
+
+
+# ── Chromium discovery + PDF generation ──────────────────────────────────────
+
+
+def find_chromium_binary() -> str | None:
+    """Locate a usable headless Chromium binary.
+
+    Tries Playwright-bundled binaries (from `npx playwright install chromium
+    --only-shell` in Hermes Dockerfile line 53), then system chromium / chrome
+    if available. Returns absolute path or None.
+    """
+    # 1. Playwright bundled paths (most reliable in Hermes container)
+    playwright_root = "/opt/hermes/.playwright"
+    patterns = [
+        f"{playwright_root}/chromium_headless_shell-*/chrome-linux/headless_shell",
+        f"{playwright_root}/chromium-*/chrome-linux/chrome",
+        f"{playwright_root}/chromium-*/chrome-linux/headless_shell",
+    ]
+    for pat in patterns:
+        matches = sorted(glob.glob(pat))
+        if matches:
+            return matches[-1]  # latest version
+
+    # 2. System chromium / chrome
+    for name in ("chromium", "chromium-browser", "google-chrome", "chrome"):
+        path = shutil.which(name)
+        if path:
+            return path
+
+    return None
+
+
+def html_to_pdf(html_path: pathlib.Path, pdf_path: pathlib.Path, timeout: int = 60) -> dict:
+    """Render HTML to PDF via headless Chromium CLI. Returns status dict."""
+    chromium = find_chromium_binary()
+    if not chromium:
+        return {
+            "ok": False,
+            "reason": "Chromium binary not found. Install via "
+                      "`npx playwright install chromium --only-shell` or add to image.",
+        }
+
+    cmd = [
+        chromium,
+        "--headless=new",
+        "--disable-gpu",
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--virtual-time-budget=8000",   # wait up to 8s for Chart.js to render
+        "--run-all-compositor-stages-before-draw",
+        f"--print-to-pdf={pdf_path}",
+        "--no-pdf-header-footer",
+        f"file://{html_path.resolve()}",
+    ]
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if proc.returncode != 0 or not pdf_path.exists():
+            return {
+                "ok": False,
+                "reason": f"chromium exit {proc.returncode}: {proc.stderr.strip()[:300]}",
+                "binary": chromium,
+            }
+        return {
+            "ok": True,
+            "binary": chromium,
+            "size_kb": round(pdf_path.stat().st_size / 1024, 1),
+        }
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "reason": f"chromium timeout after {timeout}s", "binary": chromium}
+    except Exception as e:
+        return {"ok": False, "reason": f"{type(e).__name__}: {e}", "binary": chromium}
 
 
 def _today() -> _dt.date:
@@ -548,6 +627,10 @@ def main() -> int:
     parser.add_argument("--period", choices=list(PERIOD_DAYS.keys()), default="week")
     parser.add_argument("--output", default=None,
                         help="Output directory. Defaults to /opt/data/reports/ or repo/reports/")
+    parser.add_argument("--pdf", action="store_true",
+                        help="Also render PDF via headless Chromium (best with JS charts).")
+    parser.add_argument("--no-pdf", action="store_true",
+                        help="Force-disable PDF generation even if chromium is available.")
     args = parser.parse_args()
 
     days = PERIOD_DAYS[args.period]
@@ -598,13 +681,25 @@ def main() -> int:
         out_dir = _REPO / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    file_name = f"tandem-report-{args.period}-{today_iso()}.html"
-    file_path = out_dir / file_name
+    stem = f"tandem-report-{args.period}-{today_iso()}"
+    file_path = out_dir / f"{stem}.html"
     file_path.write_text(html_content, encoding="utf-8")
 
+    # ---- Optional PDF rendering ----
+    pdf_path = None
+    pdf_status: dict = {"requested": False}
+    want_pdf = args.pdf and not args.no_pdf
+    if want_pdf:
+        pdf_path_candidate = out_dir / f"{stem}.pdf"
+        pdf_status = {"requested": True, **html_to_pdf(file_path, pdf_path_candidate)}
+        if pdf_status.get("ok"):
+            pdf_path = pdf_path_candidate
+
     result = {
-        "file_path": str(file_path),
-        "size_kb": round(file_path.stat().st_size / 1024, 1),
+        "html_path": str(file_path),
+        "html_size_kb": round(file_path.stat().st_size / 1024, 1),
+        "pdf_path": str(pdf_path) if pdf_path else None,
+        "pdf_status": pdf_status,
         "period": args.period,
         "period_label": period_label,
         "cutoff": cutoff.isoformat(),

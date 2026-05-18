@@ -51,36 +51,51 @@ period = parse_arg(user_input)  # "week" | "month" | "quarter" | "all"
 days = {"week": 7, "month": 30, "quarter": 90, "all": 9999}[period]
 ```
 
-## Step 2 — Generate
+## Step 2 — Generate (HTML + PDF)
 
-Запусти helper:
+Запусти helper **с --pdf флагом**:
 
 ```bash
-python skills/ceo/report/scripts/generate_report.py --period <week|month|quarter|all> --output /opt/data/reports/
+python skills/ceo/report/scripts/generate_report.py --period <week|month|quarter|all> --pdf --output /opt/data/reports/
 ```
 
 Helper делает:
 1. Читает `memory/*.md` + `logs/daily/*.md` + `logs/weekly/*.md`
 2. Фильтрует entries по дате в окне period
 3. Аггрегирует: captures by type, decisions, weekly summaries, project status, risks, energy/stress trend (если есть evening reviews)
-4. Рендерит HTML через Jinja2 template + Chart.js CDN (no external dep install)
-5. Сохраняет `/opt/data/reports/tandem-report-<period>-<YYYY-MM-DD>.html`
-6. Returns JSON `{file_path, size_kb, sections_filled, sections_empty}`
+4. Рендерит HTML через inline template + Chart.js CDN
+5. Если `--pdf` — рендерит **PDF через headless Chromium** (`/opt/hermes/.playwright/chromium*/chrome-linux/headless_shell --print-to-pdf`). Chart.js charts реально выполняются и появляются в PDF.
+6. Сохраняет `/opt/data/reports/tandem-report-<period>-<YYYY-MM-DD>.html` (+ .pdf если --pdf успешно)
+7. Returns JSON `{html_path, pdf_path, pdf_status, filled, empty, stats}`
 
-## Step 3 — Send as Telegram document
+Если `pdf_status.ok == false` (Chromium не найден или timeout) — продолжай только с HTML, не падай. В caption Telegram упомяни: «PDF не сгенерирован: {reason}, HTML работает».
+
+## Step 3 — Send as Telegram document(s)
 
 После helper:
 
-1. Используй Hermes `telegram_send_document` (или `messages_send` с `attachment=`) для отправки `.html` файла **прикреплённым документом** (не inline preview).
-2. Caption: ≤200 char, на русском:
+1. **Если PDF создан** (`pdf_status.ok == true`) — отправляй **сначала PDF, потом HTML** двумя `telegram_send_document` вызовами:
+   - PDF — для шеринга команде (single click, открывается везде, фиксированный layout)
+   - HTML — для interactive Chart.js (если хочешь zoom/click charts)
+2. **Если PDF не создан** — только HTML.
+3. Caption на первом attachment (≤300 char, русский):
 
 ```
-📊 Отчёт за <period> готов
-{filled} секций с данными, {empty} пустых (см. внутри как заполнить)
-Открой файл — работает на Mac (Chrome) и iPhone (Safari/Telegram preview).
+📊 Отчёт за <период> готов
+
+{filled_count} секций с данными: {filled_list}
+{empty_count} пустых (см. внутри как заполнить)
+
+Файлы:
+• PDF — для шеринга команде ({pdf_size_kb} KB)
+• HTML — interactive с charts ({html_size_kb} KB)
+
+Открывай на Mac и iPhone — выглядит одинаково.
 ```
 
-3. **НЕ** дублируй summary в чат текстом — single source of truth = HTML file.
+Если только HTML — caption без PDF строки + reason почему PDF не сделан.
+
+4. **НЕ** дублируй summary в чат текстом — single source of truth = файлы.
 
 ## Step 4 — Acknowledge
 
