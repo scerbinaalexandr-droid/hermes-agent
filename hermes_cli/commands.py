@@ -707,7 +707,7 @@ def _collect_gateway_skill_entries(
 _CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
     # CEO skills (auto-loaded by skill_commands.scan_skill_commands)
     "menu", "start", "brief", "evening", "week",
-    "projects", "risks", "capture", "find", "remind", "backup",
+    "projects", "risks", "capture", "find", "remind", "report", "backup",
     # Hermes core — safety net only (kill stuck task, NOT destructive).
     # `/new` (session reset) and other admin commands deliberately excluded
     # from menu — they remain typeable but CEO won't accidentally tap them.
@@ -767,9 +767,11 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
             return (3, name)   # view
         if name in {"capture", "remind"}:
             return (4, name)   # write
+        if name == "report":
+            return (5, name)   # share artefacts
         if name == "backup":
-            return (5, name)   # admin
-        return (6, name)       # safety net (stop, new)
+            return (6, name)   # admin
+        return (7, name)       # safety net (stop)
 
     filtered.sort(key=_sort_key)
     return filtered[:max_commands], hidden_count

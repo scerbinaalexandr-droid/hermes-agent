@@ -49,6 +49,7 @@ reference. Показывает все CEO commands со one-line описани
 
 *Утилиты:*
 ⏰ /remind <когда> <что> — напоминание (через 3ч / завтра в 10:00)
+📊 /report [week|month|quarter] — HTML отчёт из памяти (для команды)
 💾 /backup — manual backup (Stage 7, in progress)
 
 ---
