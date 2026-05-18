@@ -93,12 +93,25 @@ fi
 # can write daily_log.md / decisions.md / per-day logs.
 HERMES_UID="${HERMES_UID:-10000}"
 HERMES_GID="${HERMES_GID:-10000}"
-for path in "$HERMES_HOME/memory" "$HERMES_HOME/logs/daily" "$HERMES_HOME/logs/weekly" "$HERMES_HOME/logs/telegram_inputs" "$HERMES_HOME/backups"; do
+
+# Ensure /opt/data/reports exists (used by /report skill output)
+mkdir -p "$HERMES_HOME/reports" 2>/dev/null || true
+
+for path in "$HERMES_HOME/memory" \
+            "$HERMES_HOME/logs/daily" "$HERMES_HOME/logs/weekly" "$HERMES_HOME/logs/telegram_inputs" \
+            "$HERMES_HOME/backups" \
+            "$HERMES_HOME/reports" \
+            "$HERMES_HOME/cron"; do
   if [ -e "$path" ]; then
     chown -R "$HERMES_UID:$HERMES_GID" "$path" 2>/dev/null || true
   fi
 done
-echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership on CEO data dirs"
+
+# Also chown /opt/data/cron/jobs.json specifically (file may exist outside
+# the cron/ dir as a single file in some Hermes setups).
+[ -f "$HERMES_HOME/cron/jobs.json" ] && chown "$HERMES_UID:$HERMES_GID" "$HERMES_HOME/cron/jobs.json" 2>/dev/null || true
+
+echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership on CEO data dirs (memory, logs, backups, reports, cron)"
 
 # ---- 3. Point skills/ceo/_lib/memory.py at persistent volume ----------------
 export HERMES_CEO_MEMORY_ROOT="$HERMES_HOME/memory"
