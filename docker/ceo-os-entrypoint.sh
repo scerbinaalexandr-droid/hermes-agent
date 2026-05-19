@@ -73,18 +73,31 @@ else
   echo "[ceo-os-init] $CONFIG already has $CEO_SKILLS_DIR — no change"
 fi
 
-# ---- 2. Seed memory templates on first boot ---------------------------------
-# Only if memory dir is absent OR empty. Never overwrites existing files.
-if [ ! -d "$HERMES_HOME/memory" ] || [ -z "$(ls -A "$HERMES_HOME/memory" 2>/dev/null)" ]; then
-  if [ -d "$SEED_MEMORY" ]; then
-    mkdir -p "$HERMES_HOME/memory"
-    cp -rn "$SEED_MEMORY"/. "$HERMES_HOME/memory"/
-    echo "[ceo-os-init] Seeded $HERMES_HOME/memory from $SEED_MEMORY (first boot only)"
+# ---- 2. Seed memory templates (per-file merge) ------------------------------
+# For each baked-in template file, copy into the persistent volume only when
+# the target is absent OR has zero bytes. Never overwrites populated user
+# content. Fixes the case where /opt/data/memory existed from an earlier
+# deploy but was missing the 10 default projects / 8 risks templates.
+mkdir -p "$HERMES_HOME/memory"
+if [ -d "$SEED_MEMORY" ]; then
+  seeded_count=0
+  for src in "$SEED_MEMORY"/*.md; do
+    [ -f "$src" ] || continue
+    fname="$(basename "$src")"
+    dst="$HERMES_HOME/memory/$fname"
+    if [ ! -e "$dst" ] || [ ! -s "$dst" ]; then
+      cp "$src" "$dst"
+      seeded_count=$((seeded_count + 1))
+      echo "[ceo-os-init] Seeded missing/empty: memory/$fname"
+    fi
+  done
+  if [ "$seeded_count" -eq 0 ]; then
+    echo "[ceo-os-init] All memory/*.md already populated — nothing to seed"
   else
-    echo "[ceo-os-init] WARNING: $SEED_MEMORY missing from image — memory not seeded"
+    echo "[ceo-os-init] Seeded $seeded_count memory file(s) from $SEED_MEMORY"
   fi
 else
-  echo "[ceo-os-init] $HERMES_HOME/memory already populated — skipping seed"
+  echo "[ceo-os-init] WARNING: $SEED_MEMORY missing from image — memory not seeded"
 fi
 
 # ---- 2b. Ensure hermes user can write the CEO data --------------------------

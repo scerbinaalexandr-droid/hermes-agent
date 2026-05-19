@@ -151,8 +151,34 @@ def _within_window(entry_date: _dt.date | None, cutoff: _dt.date) -> bool:
 # ── Section collectors ───────────────────────────────────────────────────────
 
 
+_DECISION_FIELD_ALIASES = {
+    "decision": "decision",
+    "содержание": "decision",
+    "[содержание]": "decision",
+    "reason": "reason",
+    "контекст": "reason",
+    "[контекст]": "reason",
+    "expected_result": "expected_result",
+    "review_date": "review_date",
+    "status": "status",
+    "тип": "kind",
+    "[тип]": "kind",
+    "date": "date_field",
+}
+
+
+def _flatten_inline_brackets(text: str) -> str:
+    """Convert single-line `[ключ]: value [ключ2]: value` into multi-line key:value."""
+    return re.sub(r"\s+(\[[а-яa-z_]+\]:)", r"\n\1", text, flags=re.IGNORECASE)
+
+
 def collect_decisions(cutoff: _dt.date) -> list[dict]:
-    """Pull decisions.md entries with date >= cutoff."""
+    """Pull decisions.md entries with date >= cutoff.
+
+    Tolerates two formats:
+      1. Formal blueprint shape: 'Decision: ...', 'Reason: ...', 'Status: ...'
+      2. Capture template shape: '[тип]: decision', '[контекст]: ...', '[содержание]: ...'
+    """
     text = load_memory(["decisions"])["decisions"]
     blocks = re.split(r"^##\s+", text, flags=re.MULTILINE)
     out = []
@@ -164,21 +190,42 @@ def collect_decisions(cutoff: _dt.date) -> list[dict]:
         date = _parse_date_header(header)
         if not _within_window(date, cutoff):
             continue
-        body = "\n".join(lines[1:]).strip()
-        # Pull Decision / Reason / Status from key:value lines
-        fields = {}
-        for line in lines[1:]:
-            s = line.strip()
-            if ":" in s and not s.startswith("-"):
-                k, _, v = s.partition(":")
-                fields[k.strip().lower().replace(" ", "_")] = v.strip()
+        body_raw = "\n".join(lines[1:]).strip()
+        body = _flatten_inline_brackets(body_raw)
+        fields: dict[str, str] = {}
+        current_key: str | None = None
+        for line in body.splitlines():
+            s = line.rstrip()
+            if not s.strip():
+                current_key = None
+                continue
+            m = re.match(r"^\s*\[?([A-Za-zА-Яа-я_]+)\]?\s*:\s*(.*)$", s)
+            if m and m.group(1).strip().lower() in _DECISION_FIELD_ALIASES:
+                canonical = _DECISION_FIELD_ALIASES[m.group(1).strip().lower()]
+                fields[canonical] = m.group(2).strip()
+                current_key = canonical
+            elif current_key and s.startswith((" ", "\t")) or (current_key and not re.match(r"^\s*\[?[A-Za-zА-Яа-я_]+\]?\s*:", s)):
+                # continuation of previous field (multi-line content)
+                fields[current_key] = (fields.get(current_key, "") + "\n" + s.strip()).strip()
+            else:
+                current_key = None
+        decision_text = fields.get("decision", "").strip()
+        if not decision_text:
+            # Last-ditch fallback: take first non-empty body line that isn't a `[label]:` token
+            for ln in body.splitlines():
+                ln_s = ln.strip()
+                if ln_s and not re.match(r"^\[?[A-Za-zА-Яа-я_]+\]?\s*:", ln_s):
+                    decision_text = ln_s
+                    break
+            if not decision_text:
+                decision_text = body_raw[:200] or "(пусто)"
         out.append({
             "header": header.strip(),
             "date": date.isoformat() if date else "",
-            "decision": fields.get("decision", body[:200]),
-            "reason": fields.get("reason", ""),
-            "status": fields.get("status", "—"),
-            "review_date": fields.get("review_date", "—"),
+            "decision": decision_text[:400],
+            "reason": fields.get("reason", "")[:300],
+            "status": fields.get("status", "—") or "—",
+            "review_date": fields.get("review_date", "—") or "—",
         })
     out.sort(key=lambda x: x["date"], reverse=True)
     return out
@@ -286,9 +333,16 @@ def collect_evening_trend(cutoff: _dt.date) -> dict:
 
 
 def collect_top_risks(top_n: int = 5) -> list[dict]:
-    """Return top N risks by severity × probability (uses lib helper)."""
+    """Return top N risks by severity × probability.
+
+    Fallback: if no risk has severity filled, return all risks (so user sees
+    them on dashboard and remembers to fill fields).
+    """
     from skills.ceo._lib.memory import risks_by_severity
     rs = risks_by_severity("low")[:top_n]
+    if not rs:
+        # No severities filled — show what we have so user knows what's missing
+        rs = [r for r in all_risks() if (r.get("status") or "").lower() != "closed"][:top_n]
     out = []
     for r in rs:
         if (r.get("status") or "").lower() == "closed":
@@ -366,15 +420,23 @@ def render_html(data: dict) -> str:
         captures_chart_data = "{}"
 
     # ---- Decisions ----
+    MUTED_DASH_DEC = '<span class="muted">—</span>'
     if decisions:
         rows = ['<table class="data"><thead><tr><th>Дата</th><th>Решение</th><th>Статус</th><th>Review</th></tr></thead><tbody>']
         for d in decisions:
+            status = (d["status"] or "").strip()
+            review = (d["review_date"] or "").strip()
+            status_cell = (
+                f'<span class="status status-{_esc(status.lower())}">{_esc(status)}</span>'
+                if status and status != "—" else MUTED_DASH_DEC
+            )
+            review_cell = _esc(review) if review and review != "—" else MUTED_DASH_DEC
+            reason_html = f'<br><small class="reason">{_esc(d["reason"])}</small>' if d["reason"] else ""
             rows.append(
                 f'<tr><td>{_esc(d["date"])}</td>'
-                f'<td><strong>{_esc(d["decision"])}</strong>'
-                + (f'<br><small class="reason">{_esc(d["reason"])}</small>' if d["reason"] else "")
-                + f'</td><td><span class="status status-{_esc(d["status"].lower())}">{_esc(d["status"])}</span></td>'
-                f'<td>{_esc(d["review_date"])}</td></tr>'
+                f'<td><strong>{_esc(d["decision"])}</strong>{reason_html}</td>'
+                f'<td>{status_cell}</td>'
+                f'<td>{review_cell}</td></tr>'
             )
         rows.append("</tbody></table>")
         decisions_html = "\n".join(rows)
@@ -395,17 +457,38 @@ def render_html(data: dict) -> str:
         weekly_html = '<p class="empty">Нет weekly reviews за период. Запускай <code>/week</code> в воскресенье 18:00 — bot сам напомнит (cron).</p>'
 
     # ---- Projects ----
+    def _badge_or_dash(value: str, css_class: str) -> str:
+        v = (value or "").strip()
+        if not v or v == "—":
+            return '<span class="muted">—</span>'
+        return f'<span class="{css_class} {css_class}-{_esc(v)}">{_esc(v)}</span>'
+
+    MUTED_DASH = '<span class="muted">—</span>'
     if projects:
         rows = ['<table class="data"><thead><tr><th>Проект</th><th>Приоритет</th><th>Статус</th><th>Дедлайн</th><th>Next Action</th></tr></thead><tbody>']
         for p in projects:
+            next_act = p["next_action_first"][:80] if p["next_action_first"] else ""
+            deadline_cell = _esc(p["deadline"]) if p["deadline"] and p["deadline"] != "—" else MUTED_DASH
+            next_cell = _esc(next_act) if next_act else MUTED_DASH
             rows.append(
                 f'<tr><td><strong>{_esc(p["name"])}</strong></td>'
-                f'<td><span class="priority priority-{_esc(p["priority"])}">{_esc(p["priority"])}</span></td>'
-                f'<td>{_esc(p["status"])}</td>'
-                f'<td>{_esc(p["deadline"])}</td>'
-                f'<td><small>{_esc(p["next_action_first"][:80])}</small></td></tr>'
+                f'<td>{_badge_or_dash(p["priority"], "priority")}</td>'
+                f'<td>{_badge_or_dash(p["status"], "status")}</td>'
+                f'<td>{deadline_cell}</td>'
+                f'<td><small>{next_cell}</small></td></tr>'
             )
         rows.append("</tbody></table>")
+        empty_count = sum(
+            1 for p in projects
+            if p["priority"] == "—" and p["status"] == "—" and p["deadline"] in ("", "—")
+        )
+        if empty_count:
+            rows.append(
+                f'<p class="hint">⚠ {empty_count} проект(а/ов) без полей. '
+                f'Заполни priority/status/deadline через прямое редактирование '
+                f'<code>memory/projects.md</code> или скажи боту в чате '
+                f'«обнови проект &lt;name&gt;: priority=high, deadline=2026-07-01».</p>'
+            )
         projects_html = "\n".join(rows)
     else:
         projects_html = '<p class="empty">Нет active проектов в memory/projects.md.</p>'
@@ -414,14 +497,30 @@ def render_html(data: dict) -> str:
     if risks:
         rows = ['<table class="data"><thead><tr><th>Категория</th><th>Title</th><th>Severity</th><th>Probability</th><th>Mitigation</th></tr></thead><tbody>']
         for r in risks:
+            cat = (r["category"] or "").strip()
+            prob = (r["probability"] or "").strip()
+            mit = (r["mitigation"] or "").strip()
+            cat_cell = _esc(cat) if cat and cat != "—" else MUTED_DASH
+            prob_cell = _esc(prob) if prob and prob != "—" else MUTED_DASH
+            mit_cell = _esc(mit) if mit else MUTED_DASH
             rows.append(
-                f'<tr><td>{_esc(r["category"])}</td>'
+                f'<tr><td>{cat_cell}</td>'
                 f'<td><strong>{_esc(r["title"])}</strong></td>'
-                f'<td><span class="severity sev-{_esc(r["severity"])}">{_esc(r["severity"])}</span></td>'
-                f'<td>{_esc(r["probability"])}</td>'
-                f'<td><small>{_esc(r["mitigation"])}</small></td></tr>'
+                f'<td>{_badge_or_dash(r["severity"], "sev")}</td>'
+                f'<td>{prob_cell}</td>'
+                f'<td><small>{mit_cell}</small></td></tr>'
             )
         rows.append("</tbody></table>")
+        empty_count = sum(
+            1 for r in risks
+            if r["severity"] == "—" and (r["probability"] or "—") == "—" and not (r["mitigation"] or "").strip()
+        )
+        if empty_count:
+            rows.append(
+                f'<p class="hint">⚠ {empty_count} риск(а/ов) без полей. '
+                f'Заполни severity/probability/mitigation через прямое редактирование '
+                f'<code>memory/risks.md</code>.</p>'
+            )
         risks_html = "\n".join(rows)
     else:
         risks_html = '<p class="empty">Нет рисков в memory/risks.md.</p>'
@@ -552,6 +651,9 @@ def render_html(data: dict) -> str:
   .footer a {{ color: #a1a1aa; }}
   .filled-summary {{ background: #052e16; border-left: 4px solid #16a34a; padding: 14px 18px; margin: 16px 0; border-radius: 4px; font-size: 14px; }}
   .empty-summary {{ background: #1e1b06; border-left: 4px solid #ca8a04; padding: 14px 18px; margin: 16px 0; border-radius: 4px; font-size: 14px; }}
+  .muted {{ color: #52525b; font-style: italic; }}
+  .hint {{ color: #a1a1aa; font-size: 12px; padding: 12px 14px; margin-top: 14px; background: #18181b; border: 1px solid #27272a; border-radius: 4px; }}
+  .hint code {{ background: #27272a; padding: 1px 6px; border-radius: 3px; color: #fbbf24; }}
   .charts-row {{ display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 24px; }}
   @media (max-width: 768px) {{ .charts-row {{ grid-template-columns: 1fr; }} .container {{ padding: 20px 16px 60px; }} header h1 {{ font-size: 28px; }} }}
   @media print {{ body {{ background: #fff; color: #111; }} section {{ background: #fafafa; border-color: #c4a747; }} table.data th {{ background: #f4f4f5; color: #111; }} }}
