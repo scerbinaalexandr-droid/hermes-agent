@@ -24,3 +24,36 @@ Append-only лог событий. Karpathy convention.
 ## [2026-05-17] stage-6 | Railway production deploy подготовлен: (a) .dockerignore whitelist `!skills/ceo/**/SKILL.md`, `!SOP/**/*.md`, `!memory/**/*.md`, `!CLAUDE.md` (фикс блокирующего `*.md` который рекурсивно исключал все markdown); (b) docker/ceo-os-entrypoint.sh — wrapper который на boot seedит /opt/data/config.yaml::skills.external_dirs + /opt/data/memory templates (idempotent, не overwrites user content) + export HERMES_CEO_MEMORY_ROOT=/opt/data/memory; (c) Dockerfile ENTRYPOINT — 1 line swap на wrapper, upstream docker/entrypoint.sh не тронут; (d) scripts/ceo-os/deploy-to-railway.sh — orchestrator с pre-flight + preview + `railway link` + `railway up --detach` + post-deploy checklist. Sandbox smoke test 3 сценариев (first boot / restart с user content / config без external_dirs) — все idempotent.
 
 ## [2026-05-17] session-end | No commits (main)
+
+## [2026-05-17] session-end | 2 commits on main
+
+## [2026-05-17] session-end | 3 commits on main
+
+## [2026-05-17] session-end | 4 commits on main
+
+## [2026-05-17] session-end | 5 commits on main
+
+## [2026-05-17] session-end | 6 commits on main
+
+## [2026-05-18] session-end | 1 commits on main
+
+## [2026-05-18] session-end | 2 commits on main
+
+## [2026-05-18] session-end | 3 commits on main
+
+## [2026-05-18] session-end | 4 commits on main
+
+## [2026-05-19] session-end | No commits (main)
+
+## [2026-05-18] feat | UX Layer 1+2: voice-first capture/evening/week, /menu /start /find /remind skills, compact mode rules. Commit c25fcc24b.
+## [2026-05-18] fix | Telegram bot menu whitelist (_CEO_TELEGRAM_MENU_NAMES — 12 commands). После того как user случайно тапнул /new и сбросил сессию. Commit 44a21daa3.
+## [2026-05-18] feat | /report HTML dashboard skill + honesty harness §4a in soul.md (после fake-data report incident). Commits 3291f6f45 + 07d58eb08 (PDF support).
+## [2026-05-18] fix | chown reports/ + cron/ dirs in entrypoint. Commit addc7079e.
+## [2026-05-19] fix | sys.path fallback /opt/hermes в 7 CEO scripts (Hermes sync skips _lib/). Commit 9d4737163.
+## [2026-05-19] snapshot | Pre-/compact: CONTEXT.md обновлён. 4 token leaks этой сессии. Production deploy 9d4737163 — TBD by user (manual Redeploy needed).
+
+## [2026-05-19] session-end | 1 commits on main
+
+## [2026-05-19] fix | /report парсер capture template + UX clean-up empty cells. Commit f95084d28. Local preview: ~/Downloads/tandem-report-FIXED-PREVIEW.html
+## [2026-05-19] roadmap | Зафиксированы 2 L3-направления: /dashboard (CEO cockpit v2) + /intel week (research report). Trigger для старта — отдельный запрос user'а.
+## [2026-05-19] session-end | Stop point: prod work via Telegram, тестинг в процессе. Следующая сессия — по запросу user'а.

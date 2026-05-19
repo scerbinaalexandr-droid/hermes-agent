@@ -126,3 +126,66 @@
 **Risk if wrong:** При смене repo location config.yaml ломается. Mitigation: документировано в CLAUDE.md deployment секции, на VPS — отдельный absolute path.
 **Reversal cost:** trivial (удалить config.yaml).
 **Decided by:** user (issue triage) → AI (fix executed) 2026-05-17.
+
+---
+
+## [2026-05-19] ceo-executive-dashboard-v2
+**Type:** L3 (roadmap)
+**Domain:** Product / UX (CEO OS Layer)
+**Context:** Текущий /report даёт линейную таблицу decisions/projects/risks. User (CEO группы компаний) хочет executive cockpit, а не просто архив. Нужно покрыть все типы задач + planning forward + надиктованный backlog (чтобы ничего не терять).
+**Options considered:**
+  - A: Расширить текущий /report → добавить секции (Weekly Plan, Backlog, Focus, Health trend). Минимальный код-impact.
+  - B: Новый skill /dashboard как evolution /report — сохраняет /report как archival, /dashboard как live cockpit.
+  - C: Полная переработка /report. Risk: ломаем текущий рабочий MVP.
+**Decision:** B + A hybrid — оставляем /report как retrospective (что было), добавляем /dashboard как forward-looking cockpit (что предстоит + bottom-line).
+**Why:** User фокус — "не потерять задачи + видеть план + изучать удобно". Retrospective и forward-looking разные UX-режимы, mixing их в одну страницу = когнитивная перегрузка.
+**Sections для /dashboard (V2):**
+  1. **Top of mind today** — главный focus + 1 question (из briefing)
+  2. **Backlog надиктованного** — все /capture task: за последние 30 дней, сгруппированные по: новые / в работе / готовы / отложено
+  3. **Weekly Plan** — что запланировано на эту неделю (из памяти /week + Active Priorities)
+  4. **Active projects** — карточки с progress bar + next action + дедлайн
+  5. **Risks watching** — top 5 по severity × probability
+  6. **Health & Energy trend** — Chart.js линия за 30 дней
+  7. **Decisions log** — last 10
+  8. **Quick capture box** — visual reminder как добавить task голосом
+**How to apply:**
+  - Engineering: новый skill skills/ceo/dashboard/SKILL.md + scripts/build_dashboard.py
+  - Re-use existing collectors из generate_report.py (decisions, projects, risks, trend)
+  - NEW collectors: weekly_plan (from memory/memory.md::Active Priorities), backlog (from memory/memory.md::Active Priorities filtered by [ ] checkbox state)
+  - Karpathy guideline: surgical, не ломать /report
+**Risk if wrong:** Низкий — /report остаётся как есть, /dashboard аддитивный.
+**Reversal cost:** Низкий — отдельный skill, можно удалить директорию.
+**Decided by:** user (Александр), confirmed 2026-05-19
+**Status:** roadmap (не реализовано, следующая сессия)
+
+---
+
+## [2026-05-19] weekly-intelligence-report
+**Type:** L3 (roadmap)
+**Domain:** Product / Research (CEO OS Layer Phase 4)
+**Context:** User хочет weekly digest по двум темам: (1) конкуренты — что они делают (новые продукты, кампании, цены), (2) экономика — макро Молдова/Румыния/ЕС, курсы валют, ставки, рынок мебели. Phase 4 из блюпринта ("Research Cron"), запускается после стабильного Phase 1 Memory Hub (≥30 дней).
+**Options considered:**
+  - A: Brave Search / Perplexity / Tavily MCP + curated source list (RSS / Telegram channels / industry sites). Структурированный LLM-pass.
+  - B: Только LLM генерация без real sources. ❌ Нарушает soul.md §4a NO FAKE DATA.
+  - C: Manual digest — user сам собирает, бот форматирует. Слабый ROI.
+**Decision:** A — research-cron skill `/intel week` с реальными источниками.
+**Why:** soul.md §4a banит fake stats. Без verified sources весь intelligence report = выдумка. User конкретно сказал "по всем типам задач" — значит честный, реальный, изучаемый. И вторая причина — это Phase 4 блюпринта, user готов когда Phase 1 стабилизируется.
+**Sections для /intel week (V1):**
+  1. **Competitor watch** — таблица: компания / что нового / источник (ссылка) / impact на нас (LLM judgment, marked as opinion)
+  2. **Industry signals** — мебель MD+RO+EU, новые тренды, B2B-сигналы
+  3. **Macro Moldova** — курс лей/евро, инфляция, ставка НБМ, политика
+  4. **Macro Romania** — лей RO/евро, BNR rate, retail data, политика
+  5. **EU furniture market** — Eurostat, IKEA earnings if available, design trends
+  6. **Curated reads** — 3-5 ссылок недели "обязательно прочитать"
+  7. **Source list** — явно, какие источники запрошены, какие не дали ответ
+**How to apply:**
+  - Tech stack: MCP — Brave Search + Tavily (для structured search) + WebFetch (для конкретных URL)
+  - User должен дать список конкурентов (10-15) + источников (URL/RSS)
+  - Skill: skills/ceo/intel/SKILL.md + scripts/fetch_intel.py + render_intel_report.py
+  - LLM-pass с строгим промптом: каждый факт = inline citation (URL); если источник не дал данных = явно "(нет данных)"; opinion sections маркированы
+  - Cron: суббота 17:00 → /intel week → отправка в Telegram + сохранение в /opt/data/reports/intel/
+**Risk if wrong:** Средний — fake stats через faulty source parsing. Mitigator — strict citation requirement в LLM prompt + manual review первые 4 недели.
+**Reversal cost:** Низкий — отдельный skill.
+**Dependencies:** Brave/Tavily MCP setup, user-supplied source list (10-15 competitors + 10-15 macro sources).
+**Decided by:** user (Александр), confirmed 2026-05-19
+**Status:** roadmap (после стабилизации Phase 1, оценка: 2-3 недели тестирования /report текущего перед стартом)
