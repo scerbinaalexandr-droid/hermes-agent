@@ -72,42 +72,39 @@ Helper делает:
 
 ## Step 3 — Send as Telegram document(s) + public URL
 
-После helper:
+После helper — **КРИТИЧНО**:
 
-1. **Если PDF создан** (`pdf_status.ok == true`) — отправляй **сначала PDF, потом HTML** двумя `telegram_send_document` вызовами.
-2. **Если PDF не создан** — только HTML.
-3. **ВСЕГДА** показывай `public_url` в caption (если `upload_status.ok == true`). Это решает кейс «отчёт пришёл в один телефон, не в другой» — по URL открывается на любом устройстве.
+Helper возвращает JSON с полем `telegram_caption` — это **готовая строка** для Telegram caption. Используй её **БЕЗ ИЗМЕНЕНИЙ**:
 
-### Caption template (≤500 char, русский)
+- ❌ НЕ переписывай caption своими словами
+- ❌ НЕ сокращай (там уже всё нужное в правильном формате)
+- ❌ НЕ убирай URL (это критичный элемент для multi-device доступа)
+- ❌ НЕ переводи русские/английские части
+- ✅ Возьми `result["telegram_caption"]` как есть и используй для первого attachment
 
-```
-📊 **Отчёт за <период>** готов
+### Алгоритм отправки
 
-📈 Данные: <filled_count>/<total> секций (<filled_list>)
-{if empty_count > 0} ⚠ Пустые: <empty_list> (как заполнить — внутри){endif}
+1. **Если `result["pdf_path"]` != null** → `telegram_send_document(pdf_path, caption=result["telegram_caption"])`. Потом `telegram_send_document(html_path)` без caption (caption только на первом файле).
+2. **Если только HTML** → `telegram_send_document(html_path, caption=result["telegram_caption"])`.
+3. **НЕ** дублируй summary текстом в чат — caption + файлы = single source of truth.
 
-🔗 **Открыть по ссылке:** <public_url>
-   Работает на любом устройстве, ссылка persistent (не expires)
+### Пример correct flow
 
-📎 Файлы во вложении:
-• PDF — для шеринга команде (<pdf_size_kb> KB)
-• HTML — interactive с charts (<html_size_kb> KB)
-```
+User: `/report week`
 
-Если `upload_status.ok == false` — НЕ скрывай это. Добавь строку:
-```
-⚠ Публичная ссылка не загрузилась: <reason>. Только файлы во вложении.
-```
+Bot internal:
+1. `python3 .../generate_report.py --period week --pdf` → returns JSON
+2. Read `result["telegram_caption"]` (готовая строка, ~400 char)
+3. `telegram_send_document(result["pdf_path"], caption=result["telegram_caption"])`
+4. `telegram_send_document(result["html_path"])`
+5. **Не пиши** дополнительных text-сообщений с дублированием.
 
-4. **НЕ** дублируй summary в чат текстом — single source of truth = файлы + URL.
+## Step 4 — Acknowledge (короткое)
 
-## Step 4 — Acknowledge
-
-≤3 строки:
+После двух attachments **одна** строка подтверждения (НЕ повторяй URL — он в caption):
 
 ```
-✅ Отчёт отправлен — PDF, HTML и публичная ссылка выше.
-Что дальше? · /capture новые insights · /report month — за месяц
+✅ Готово · Что дальше? · /capture новые insights · /report month — за месяц
 ```
 
 ## Sections в отчёте (HTML)

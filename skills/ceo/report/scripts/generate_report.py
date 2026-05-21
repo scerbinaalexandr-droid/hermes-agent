@@ -890,12 +890,47 @@ def main() -> int:
             )
             file_path.write_text(html_with_url, encoding="utf-8")
 
+    # ---- Build ready-to-send Telegram caption (deterministic, не зависит от LLM) ----
+    filled_str = ", ".join(filled) if filled else "—"
+    empty_str = ", ".join(empty) if empty else "—"
+    html_size_kb = round(file_path.stat().st_size / 1024, 1)
+    pdf_size_kb = round(pdf_path.stat().st_size / 1024, 1) if pdf_path else 0
+
+    cap_lines = [
+        f"📊 **Отчёт за {period_label.lower()}** готов",
+        "",
+        f"📈 Данные: {len(filled)}/6 секций ({filled_str})",
+    ]
+    if empty:
+        cap_lines.append(f"⚠ Пустые: {empty_str} (как заполнить — внутри отчёта)")
+
+    cap_lines.append("")
+    if public_url:
+        cap_lines.append("🔗 **Открыть по ссылке (любое устройство):**")
+        cap_lines.append(public_url)
+        cap_lines.append("   Persistent URL, не expires.")
+    elif upload_status.get("requested"):
+        cap_lines.append(f"⚠ Публичная ссылка не загрузилась: {upload_status.get('reason', 'unknown')}")
+        cap_lines.append("   Открой HTML файл во вложении.")
+
+    cap_lines.append("")
+    cap_lines.append("📎 Файлы во вложении:")
+    if pdf_path:
+        cap_lines.append(f"• PDF — для шеринга команде ({pdf_size_kb} KB)")
+    elif pdf_status.get("requested"):
+        cap_lines.append(f"⚠ PDF не сгенерирован: {pdf_status.get('reason', 'unknown')[:120]}")
+        cap_lines.append("  Открой HTML в Chrome → Print → Save as PDF")
+    cap_lines.append(f"• HTML — interactive с charts ({html_size_kb} KB)")
+
+    telegram_caption = "\n".join(cap_lines)
+
     result = {
         "html_path": str(file_path),
-        "html_size_kb": round(file_path.stat().st_size / 1024, 1),
+        "html_size_kb": html_size_kb,
         "public_url": public_url,
         "upload_status": upload_status,
         "pdf_path": str(pdf_path) if pdf_path else None,
+        "pdf_size_kb": pdf_size_kb,
         "pdf_status": pdf_status,
         "period": args.period,
         "period_label": period_label,
@@ -911,6 +946,9 @@ def main() -> int:
             "risks": len(risks),
             "evening_datapoints": trend["count"],
         },
+        # CRITICAL: bot должен использовать это поле как Telegram caption
+        # БЕЗ изменений. Не переформулировать, не сокращать, не убирать URL.
+        "telegram_caption": telegram_caption,
     }
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
