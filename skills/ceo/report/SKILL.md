@@ -70,39 +70,43 @@ Helper делает:
 
 Если `pdf_status.ok == false` (Chromium не найден или timeout) — продолжай только с HTML, не падай. В caption Telegram упомяни: «PDF не сгенерирован: {reason}, HTML работает».
 
-## Step 3 — Send as Telegram document(s)
+## Step 3 — Send as Telegram document(s) + public URL
 
 После helper:
 
-1. **Если PDF создан** (`pdf_status.ok == true`) — отправляй **сначала PDF, потом HTML** двумя `telegram_send_document` вызовами:
-   - PDF — для шеринга команде (single click, открывается везде, фиксированный layout)
-   - HTML — для interactive Chart.js (если хочешь zoom/click charts)
+1. **Если PDF создан** (`pdf_status.ok == true`) — отправляй **сначала PDF, потом HTML** двумя `telegram_send_document` вызовами.
 2. **Если PDF не создан** — только HTML.
-3. Caption на первом attachment (≤300 char, русский):
+3. **ВСЕГДА** показывай `public_url` в caption (если `upload_status.ok == true`). Это решает кейс «отчёт пришёл в один телефон, не в другой» — по URL открывается на любом устройстве.
+
+### Caption template (≤500 char, русский)
 
 ```
-📊 Отчёт за <период> готов
+📊 **Отчёт за <период>** готов
 
-{filled_count} секций с данными: {filled_list}
-{empty_count} пустых (см. внутри как заполнить)
+📈 Данные: <filled_count>/<total> секций (<filled_list>)
+{if empty_count > 0} ⚠ Пустые: <empty_list> (как заполнить — внутри){endif}
 
-Файлы:
-• PDF — для шеринга команде ({pdf_size_kb} KB)
-• HTML — interactive с charts ({html_size_kb} KB)
+🔗 **Открыть по ссылке:** <public_url>
+   Работает на любом устройстве, ссылка persistent (не expires)
 
-Открывай на Mac и iPhone — выглядит одинаково.
+📎 Файлы во вложении:
+• PDF — для шеринга команде (<pdf_size_kb> KB)
+• HTML — interactive с charts (<html_size_kb> KB)
 ```
 
-Если только HTML — caption без PDF строки + reason почему PDF не сделан.
+Если `upload_status.ok == false` — НЕ скрывай это. Добавь строку:
+```
+⚠ Публичная ссылка не загрузилась: <reason>. Только файлы во вложении.
+```
 
-4. **НЕ** дублируй summary в чат текстом — single source of truth = файлы.
+4. **НЕ** дублируй summary в чат текстом — single source of truth = файлы + URL.
 
 ## Step 4 — Acknowledge
 
-≤2 строки:
+≤3 строки:
 
 ```
-✅ Отчёт отправлен файлом.
+✅ Отчёт отправлен — PDF, HTML и публичная ссылка выше.
 Что дальше? · /capture новые insights · /report month — за месяц
 ```
 

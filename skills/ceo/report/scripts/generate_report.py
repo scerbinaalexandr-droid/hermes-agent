@@ -27,11 +27,15 @@ import datetime as _dt
 import glob
 import html
 import json
+import mimetypes
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+import urllib.error
+import urllib.request
+import uuid as _uuid
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(_REPO))
@@ -126,6 +130,70 @@ def html_to_pdf(html_path: pathlib.Path, pdf_path: pathlib.Path, timeout: int = 
         return {"ok": False, "reason": f"chromium timeout after {timeout}s", "binary": chromium}
     except Exception as e:
         return {"ok": False, "reason": f"{type(e).__name__}: {e}", "binary": chromium}
+
+
+# ── Public URL upload (catbox.moe — free, no auth, no expiration) ───────────
+
+
+_CATBOX_URL = "https://catbox.moe/user/api.php"
+_UPLOAD_UA = "Hermes-Report-Uploader/0.1 (alexandr.scerbina@gmail.com)"
+
+
+def upload_to_catbox(file_path: pathlib.Path, timeout: int = 30) -> dict:
+    """Upload a file to catbox.moe. Returns dict with ok/url/error.
+
+    catbox.moe is a free public file host. URLs have random 6-char hashes,
+    not guessable. No registration, no expiration. Max 200MB per file.
+
+    Returns:
+      {ok: True, url: "https://files.catbox.moe/xxxxxx.html"}
+      {ok: False, reason: "..."}
+    """
+    if not file_path.exists():
+        return {"ok": False, "reason": f"File not found: {file_path}"}
+
+    try:
+        # Build multipart/form-data manually (stdlib only)
+        boundary = f"----HermesBoundary{_uuid.uuid4().hex}"
+        ctype, _ = mimetypes.guess_type(str(file_path))
+        ctype = ctype or "application/octet-stream"
+
+        file_bytes = file_path.read_bytes()
+
+        body_parts = []
+        # Field: reqtype=fileupload
+        body_parts.append(f"--{boundary}\r\n".encode())
+        body_parts.append(b'Content-Disposition: form-data; name="reqtype"\r\n\r\n')
+        body_parts.append(b"fileupload\r\n")
+        # Field: fileToUpload=@file
+        body_parts.append(f"--{boundary}\r\n".encode())
+        body_parts.append(
+            f'Content-Disposition: form-data; name="fileToUpload"; filename="{file_path.name}"\r\n'.encode()
+        )
+        body_parts.append(f"Content-Type: {ctype}\r\n\r\n".encode())
+        body_parts.append(file_bytes)
+        body_parts.append(b"\r\n")
+        body_parts.append(f"--{boundary}--\r\n".encode())
+
+        body = b"".join(body_parts)
+        headers = {
+            "User-Agent": _UPLOAD_UA,
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Content-Length": str(len(body)),
+        }
+
+        req = urllib.request.Request(_CATBOX_URL, data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            response_text = resp.read().decode("utf-8", errors="replace").strip()
+
+        if response_text.startswith("https://") and "catbox.moe" in response_text:
+            return {"ok": True, "url": response_text, "size_kb": round(len(file_bytes) / 1024, 1)}
+        return {"ok": False, "reason": f"Unexpected response: {response_text[:200]}"}
+
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        return {"ok": False, "reason": f"upload error: {type(e).__name__}: {e}"}
+    except Exception as e:
+        return {"ok": False, "reason": f"{type(e).__name__}: {e}"}
 
 
 def _today() -> _dt.date:
@@ -738,6 +806,8 @@ def main() -> int:
                         help="Also render PDF via headless Chromium (best with JS charts).")
     parser.add_argument("--no-pdf", action="store_true",
                         help="Force-disable PDF generation even if chromium is available.")
+    parser.add_argument("--no-upload", action="store_true",
+                        help="Skip catbox.moe upload (no public URL in result).")
     args = parser.parse_args()
 
     days = PERIOD_DAYS[args.period]
@@ -802,9 +872,29 @@ def main() -> int:
         if pdf_status.get("ok"):
             pdf_path = pdf_path_candidate
 
+    # ---- Public URL upload (catbox.moe — free, persistent) ----
+    public_url = None
+    upload_status: dict = {"requested": False}
+    if not args.no_upload:
+        upload_status = {"requested": True, **upload_to_catbox(file_path)}
+        if upload_status.get("ok"):
+            public_url = upload_status["url"]
+            # Re-write HTML with public URL embedded in footer (so anyone who opens
+            # the catbox URL also sees the share link at the bottom).
+            html_with_url = html_content.replace(
+                "Открой в Chrome → File → Print → Save as PDF для PDF-версии.",
+                f'Открой в Chrome → File → Print → Save as PDF для PDF-версии.</p>'
+                f'<p>🔗 <a href="{public_url}" style="color:#5eead4">Публичная ссылка на этот отчёт</a></p>'
+                f'<p style="color:#52525b;font-size:11px">Ссылка работает на любом устройстве. URL содержит '
+                f'random hash — не угадаешь без знания.',
+            )
+            file_path.write_text(html_with_url, encoding="utf-8")
+
     result = {
         "html_path": str(file_path),
         "html_size_kb": round(file_path.stat().st_size / 1024, 1),
+        "public_url": public_url,
+        "upload_status": upload_status,
         "pdf_path": str(pdf_path) if pdf_path else None,
         "pdf_status": pdf_status,
         "period": args.period,
