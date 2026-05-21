@@ -130,5 +130,18 @@ echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership on CEO data dirs (
 export HERMES_CEO_MEMORY_ROOT="$HERMES_HOME/memory"
 echo "[ceo-os-init] HERMES_CEO_MEMORY_ROOT=$HERMES_CEO_MEMORY_ROOT"
 
+# ---- 3b. Force re-sync of CEO skills on every boot --------------------------
+# Hermes skill-sync copies external_dirs into /opt/data/skills/ for execution.
+# If a skill file was updated in the image (new commit), the volume copy may
+# remain stale. Wipe + re-link the ceo bundle so each deploy ships fresh code.
+# Symlink instead of copy → instant freshness from in-image dir.
+if [ -L "$HERMES_HOME/skills/ceo" ] || [ -d "$HERMES_HOME/skills/ceo" ]; then
+  rm -rf "$HERMES_HOME/skills/ceo"
+fi
+mkdir -p "$HERMES_HOME/skills"
+ln -s "$CEO_SKILLS_DIR" "$HERMES_HOME/skills/ceo"
+chown -h "$HERMES_UID:$HERMES_GID" "$HERMES_HOME/skills/ceo" 2>/dev/null || true
+echo "[ceo-os-init] Linked $HERMES_HOME/skills/ceo → $CEO_SKILLS_DIR (fresh per deploy)"
+
 # ---- 4. Hand off to upstream entrypoint -------------------------------------
 exec /opt/hermes/docker/entrypoint.sh "$@"
