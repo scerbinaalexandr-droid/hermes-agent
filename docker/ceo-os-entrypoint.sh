@@ -143,5 +143,23 @@ ln -s "$CEO_SKILLS_DIR" "$HERMES_HOME/skills/ceo"
 chown -h "$HERMES_UID:$HERMES_GID" "$HERMES_HOME/skills/ceo" 2>/dev/null || true
 echo "[ceo-os-init] Linked $HERMES_HOME/skills/ceo → $CEO_SKILLS_DIR (fresh per deploy)"
 
+# ---- 3c. Start reports HTTP server in background ----------------------------
+# Serves /opt/data/reports/<uuid>.html via Railway public domain.
+# Listens on $PORT (Railway default) or $REPORTS_PORT. Daemonized — survives
+# parent entrypoint exec. Logs go to /opt/data/logs/reports_server.log.
+mkdir -p "$HERMES_HOME/logs" "$HERMES_HOME/reports"
+chown "$HERMES_UID:$HERMES_GID" "$HERMES_HOME/logs" "$HERMES_HOME/reports" 2>/dev/null || true
+
+REPORTS_LOG="$HERMES_HOME/logs/reports_server.log"
+if [ -f /opt/hermes/docker/reports_server.py ]; then
+  # Run as hermes user (gosu drops privs); daemonize via nohup
+  nohup gosu "$HERMES_UID:$HERMES_GID" python3 /opt/hermes/docker/reports_server.py \
+    >> "$REPORTS_LOG" 2>&1 &
+  REPORTS_PID=$!
+  echo "[ceo-os-init] Started reports_server (PID $REPORTS_PID), log: $REPORTS_LOG"
+else
+  echo "[ceo-os-init] WARNING: docker/reports_server.py missing — public URL disabled"
+fi
+
 # ---- 4. Hand off to upstream entrypoint -------------------------------------
 exec /opt/hermes/docker/entrypoint.sh "$@"

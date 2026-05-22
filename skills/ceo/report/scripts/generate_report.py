@@ -27,14 +27,12 @@ import datetime as _dt
 import glob
 import html
 import json
-import mimetypes
+import os
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
-import urllib.error
-import urllib.request
 import uuid as _uuid
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -132,68 +130,28 @@ def html_to_pdf(html_path: pathlib.Path, pdf_path: pathlib.Path, timeout: int = 
         return {"ok": False, "reason": f"{type(e).__name__}: {e}", "binary": chromium}
 
 
-# ── Public URL upload (catbox.moe — free, no auth, no expiration) ───────────
+# ── Public URL via Hermes' own reports server (Railway public domain) ──────
 
 
-_CATBOX_URL = "https://catbox.moe/user/api.php"
-_UPLOAD_UA = "Hermes-Report-Uploader/0.1 (alexandr.scerbina@gmail.com)"
+def public_report_url(uuid_filename: str) -> str | None:
+    """Build public URL for the given uuid HTML filename.
 
-
-def upload_to_catbox(file_path: pathlib.Path, timeout: int = 30) -> dict:
-    """Upload a file to catbox.moe. Returns dict with ok/url/error.
-
-    catbox.moe is a free public file host. URLs have random 6-char hashes,
-    not guessable. No registration, no expiration. Max 200MB per file.
+    Reads HERMES_PUBLIC_HOST env var (set by user in Railway Variables after
+    enabling Public Networking). If unset, returns None — bot will show
+    fallback message that public URL not configured.
 
     Returns:
-      {ok: True, url: "https://files.catbox.moe/xxxxxx.html"}
-      {ok: False, reason: "..."}
+      "https://hermes-agent-xxxx.up.railway.app/reports/<uuid>.html"
+      or None if HERMES_PUBLIC_HOST not set.
     """
-    if not file_path.exists():
-        return {"ok": False, "reason": f"File not found: {file_path}"}
-
-    try:
-        # Build multipart/form-data manually (stdlib only)
-        boundary = f"----HermesBoundary{_uuid.uuid4().hex}"
-        ctype, _ = mimetypes.guess_type(str(file_path))
-        ctype = ctype or "application/octet-stream"
-
-        file_bytes = file_path.read_bytes()
-
-        body_parts = []
-        # Field: reqtype=fileupload
-        body_parts.append(f"--{boundary}\r\n".encode())
-        body_parts.append(b'Content-Disposition: form-data; name="reqtype"\r\n\r\n')
-        body_parts.append(b"fileupload\r\n")
-        # Field: fileToUpload=@file
-        body_parts.append(f"--{boundary}\r\n".encode())
-        body_parts.append(
-            f'Content-Disposition: form-data; name="fileToUpload"; filename="{file_path.name}"\r\n'.encode()
-        )
-        body_parts.append(f"Content-Type: {ctype}\r\n\r\n".encode())
-        body_parts.append(file_bytes)
-        body_parts.append(b"\r\n")
-        body_parts.append(f"--{boundary}--\r\n".encode())
-
-        body = b"".join(body_parts)
-        headers = {
-            "User-Agent": _UPLOAD_UA,
-            "Content-Type": f"multipart/form-data; boundary={boundary}",
-            "Content-Length": str(len(body)),
-        }
-
-        req = urllib.request.Request(_CATBOX_URL, data=body, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            response_text = resp.read().decode("utf-8", errors="replace").strip()
-
-        if response_text.startswith("https://") and "catbox.moe" in response_text:
-            return {"ok": True, "url": response_text, "size_kb": round(len(file_bytes) / 1024, 1)}
-        return {"ok": False, "reason": f"Unexpected response: {response_text[:200]}"}
-
-    except (urllib.error.URLError, TimeoutError, OSError) as e:
-        return {"ok": False, "reason": f"upload error: {type(e).__name__}: {e}"}
-    except Exception as e:
-        return {"ok": False, "reason": f"{type(e).__name__}: {e}"}
+    host = (os.environ.get("HERMES_PUBLIC_HOST") or "").strip()
+    if not host:
+        return None
+    host = host.rstrip("/")
+    # Ensure scheme — assume https unless user explicitly set http://
+    if not host.startswith(("http://", "https://")):
+        host = "https://" + host
+    return f"{host}/reports/{uuid_filename}"
 
 
 def _today() -> _dt.date:
@@ -858,37 +816,56 @@ def main() -> int:
         out_dir = _REPO / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    stem = f"tandem-report-{args.period}-{today_iso()}"
-    file_path = out_dir / f"{stem}.html"
-    file_path.write_text(html_content, encoding="utf-8")
+    # File naming: uuid4-based for unguessable URL via Hermes reports server.
+    # Also create a friendly symlink for human browsing of local /opt/data/reports/.
+    uuid_filename = f"{_uuid.uuid4()}.html"
+    file_path = out_dir / uuid_filename
+    friendly_name = f"tandem-report-{args.period}-{today_iso()}.html"
+    friendly_path = out_dir / friendly_name
+
+    # Build public URL first so we can embed it in the HTML footer
+    public_url = None if args.no_upload else public_report_url(uuid_filename)
+
+    if public_url:
+        # Embed self-link in footer so user opening the URL can re-share it
+        html_with_url = html_content.replace(
+            "Открой в Chrome → File → Print → Save as PDF для PDF-версии.",
+            f'Открой в Chrome → File → Print → Save as PDF для PDF-версии.</p>'
+            f'<p>🔗 <a href="{public_url}" style="color:#5eead4">Публичная ссылка на этот отчёт</a></p>'
+            f'<p style="color:#52525b;font-size:11px">Ссылка содержит random uuid — невозможно угадать. '
+            f'Хостится на твоём Railway endpoint.',
+        )
+    else:
+        html_with_url = html_content
+
+    file_path.write_text(html_with_url, encoding="utf-8")
+
+    # Friendly symlink — overwrite if exists, so latest report always reachable
+    # under predictable local path. URL still uses uuid filename.
+    try:
+        if friendly_path.exists() or friendly_path.is_symlink():
+            friendly_path.unlink()
+        friendly_path.symlink_to(uuid_filename)
+    except OSError:
+        # Filesystem may not support symlinks — skip, not critical
+        pass
+
+    upload_status = {
+        "requested": not args.no_upload,
+        "ok": bool(public_url),
+        "reason": "" if public_url else "HERMES_PUBLIC_HOST env var not set in Railway",
+        "url": public_url,
+    }
 
     # ---- Optional PDF rendering ----
     pdf_path = None
     pdf_status: dict = {"requested": False}
     want_pdf = args.pdf and not args.no_pdf
     if want_pdf:
-        pdf_path_candidate = out_dir / f"{stem}.pdf"
+        pdf_path_candidate = out_dir / f"tandem-report-{args.period}-{today_iso()}.pdf"
         pdf_status = {"requested": True, **html_to_pdf(file_path, pdf_path_candidate)}
         if pdf_status.get("ok"):
             pdf_path = pdf_path_candidate
-
-    # ---- Public URL upload (catbox.moe — free, persistent) ----
-    public_url = None
-    upload_status: dict = {"requested": False}
-    if not args.no_upload:
-        upload_status = {"requested": True, **upload_to_catbox(file_path)}
-        if upload_status.get("ok"):
-            public_url = upload_status["url"]
-            # Re-write HTML with public URL embedded in footer (so anyone who opens
-            # the catbox URL also sees the share link at the bottom).
-            html_with_url = html_content.replace(
-                "Открой в Chrome → File → Print → Save as PDF для PDF-версии.",
-                f'Открой в Chrome → File → Print → Save as PDF для PDF-версии.</p>'
-                f'<p>🔗 <a href="{public_url}" style="color:#5eead4">Публичная ссылка на этот отчёт</a></p>'
-                f'<p style="color:#52525b;font-size:11px">Ссылка работает на любом устройстве. URL содержит '
-                f'random hash — не угадаешь без знания.',
-            )
-            file_path.write_text(html_with_url, encoding="utf-8")
 
     # ---- Build ready-to-send Telegram caption (deterministic, не зависит от LLM) ----
     filled_str = ", ".join(filled) if filled else "—"
@@ -908,10 +885,11 @@ def main() -> int:
     if public_url:
         cap_lines.append("🔗 **Открыть по ссылке (любое устройство):**")
         cap_lines.append(public_url)
-        cap_lines.append("   Persistent URL, не expires.")
+        cap_lines.append("   Persistent URL, хостится на твоём Railway endpoint.")
     elif upload_status.get("requested"):
-        cap_lines.append(f"⚠ Публичная ссылка не загрузилась: {upload_status.get('reason', 'unknown')}")
-        cap_lines.append("   Открой HTML файл во вложении.")
+        cap_lines.append(f"⚠ Публичная ссылка отключена: {upload_status.get('reason', 'unknown')}")
+        cap_lines.append("   Чтобы включить: Railway → hermes → Settings → Networking → Generate Domain")
+        cap_lines.append("   Потом Variables → добавь HERMES_PUBLIC_HOST = <domain>")
 
     cap_lines.append("")
     cap_lines.append("📎 Файлы во вложении:")
