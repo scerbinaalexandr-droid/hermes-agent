@@ -189,3 +189,79 @@
 **Dependencies:** Brave/Tavily MCP setup, user-supplied source list (10-15 competitors + 10-15 macro sources).
 **Decided by:** user (Александр), confirmed 2026-05-19
 **Status:** roadmap (после стабилизации Phase 1, оценка: 2-3 недели тестирования /report текущего перед стартом)
+
+---
+
+## [2026-05-22] own-railway-reports-endpoint
+**Type:** L3 (architecture)
+**Domain:** Engineering / Privacy
+**Context:** /report week отчёты приходят на один Telegram device, не на другой (multi-device sync issue Telegram client). Нужна публичная URL для отчёта работающая на любом устройстве с интернетом. Также нужно не отдавать CEO data на 3rd-party file hosts.
+**Options considered:**
+  - A: catbox.moe — free, 3rd-party. ❌ FAIL — HTTP 412 в проде с Railway IP.
+  - B: 0x0.st / temp.sh — free, 3rd-party, volunteer-run. ❌ user не одобрил privacy concern, Claude Code auto-mode заблокировал тест.
+  - C: Telegraph (Telegram own service) — статичный HTML без Chart.js.
+  - D: **Свой Railway HTTP endpoint** — full control, privacy, persistent, бесплатно в pro plan.
+**Decision:** D — `docker/reports_server.py` (stdlib http.server) запускается в background из entrypoint, отдаёт `/reports/<uuid>.html` через Railway public domain.
+**Why:**
+  - CEO data никогда не покидает user'скую инфраструктуру (privacy)
+  - uuid4 в URL = 128-bit entropy, unguessable
+  - Нет listing endpoint (`/reports/` без файла → 404)
+  - Никаких pip-deps (stdlib only)
+  - User отдельно контролирует domain (Railway Settings → Generate Domain)
+**Reversal cost:** Средне — нужно поменять generate_report.py и удалить background process из entrypoint.
+**Risk if wrong:** Низкий — endpoint можно отключить removed=true на Railway, скрипт упадёт обратно на «только файлы в Telegram».
+**Decided by:** User (Александр) — выбран через AskUserQuestion 2026-05-22
+**Status:** реализовано commit `1d5ec900e`. Domain `hermes-production-99b8.up.railway.app` verified health=200 OK.
+
+---
+
+## [2026-05-22] fabrication-identifiers-ban
+**Type:** L3 (behavior / safety)
+**Domain:** Honesty / soul.md
+**Context:** Bot выдумал «Cron job 1a1379fdc38d — Weekly Inflation Report Romania, runs Mon 09:00 UTC+3» в ответе user'у. User проверил через /cron list — этой команды вообще не существует. Job был полностью fabricated. Это нарушение existing §4a NO FAKE DATA правила, но §4a покрывало только stats/quotes/sources, не identifiers.
+**Options considered:**
+  - A: Усилить §4a (расширить scope) — risk: слишком общее правило, hard to follow.
+  - B: Добавить новый §4c — конкретный список запрещённых типов identifiers с примерами. ✓
+  - C: Hard-code blocked patterns в bot prompt — fragile.
+**Decision:** B — soul.md §4c с 10-row table запрещённых identifiers (cron IDs / tool names / file paths / process IDs / DB rows / API endpoints / external IDs / settings / dates / person names) + mandatory citation pattern для каждого упомянутого ID.
+**Why:** Repository state pollution через fake identifiers создаёт false trust → user может trust что cron запланирован → реальная задача не выполнится → реальный business risk.
+**Reversal cost:** Легко (один файл markdown).
+**Risk if wrong:** Низкий — если правило слишком strict, можно ослабить за 1 edit.
+**Decided by:** Claude Opus 4.7 после incident review
+**Status:** реализовано commit `fe5f385de`. Marked L0 priority (above other rules).
+
+---
+
+## [2026-05-22] response-design-system-codified
+**Type:** L3 (UX standard)
+**Domain:** Bot communication style
+**Context:** User увидел эталонный bot ответ (2026-05-21, курс RON/EUR с ECB URL + Telegram link preview) — попросил применить тот же дизайн ко всем ответам. Существующий soul.md §1-8 не покрывал visual structure.
+**Decision:** Добавить soul.md §9 (Response Design System) + §10 (Self-eval checklist).
+  - §9: универсальный template (emoji + bold title + sections), 18 функциональных emoji с значением, formatting rules, length budget, mandatory sections в порядке, forbidden patterns, 2 эталонных примера
+  - §10: 4-вопрос pre-send checklist (scannable / honest / sourced / actionable)
+**Why:** Каждый CEO skill читает soul.md через _lib/memory.py — правила применяются автоматически без правки 12+ SKILL.md файлов. Single source of truth.
+**Reversal cost:** Легко.
+**Decided by:** User (Александр), confirmed 2026-05-22
+**Status:** реализовано commit `e909e02d9`.
+
+---
+
+## [2026-05-23] model-source-is-config-yaml-not-env
+**Type:** L3 (architecture / ops)
+**Domain:** Engineering / Deploy
+**Context:** Prod bot @Hermes_Alex21_bot падал на каждом LLM-вызове: `HTTP 400: claude-haiku-4-5 is not a valid model ID`. Railway env `HERMES_MODEL=claude-sonnet-4-6` был выставлен 22 мая, но бот его игнорировал — `/new` показывал `Model: claude-haiku-4-5`, Provider: anthropic.
+**Root cause:** Hermes резолвит дефолтную модель gateway ТОЛЬКО из `config.yaml` (`model.default`) в HERMES_HOME (`/opt/data` = Railway volume), а НЕ из env. Подтверждено кодом:
+  - `gateway/run.py:839 _resolve_gateway_model` — *"Read model from config.yaml — single source of truth"*
+  - `auth.py:4109 _save_model_choice` — *"stored in config.yaml only — NOT in .env. avoids conflicts where env vars would stomp each other"*
+  В volume оставался сид от 17 мая с `model: claude-haiku-4-5` (голый id невалиден для Anthropic direct — требуется dated `claude-haiku-4-5-20251001` либо другая модель). Idempotent `ceo-os-entrypoint.sh` не перезатирает существующий volume config → правка env была no-op.
+**Options considered:**
+  - A: менять Railway env `HERMES_MODEL` — ❌ Hermes его не читает для gateway default.
+  - B: shell в контейнер + править `/opt/data/config.yaml` — ❌ нет CLI-доступа (мёртвый `RAILWAY_API_TOKEN` в `~/.zshrc:14` блокировал `railway login`).
+  - C: **`/model <id> --global` из Telegram** — ✓ Level-2 gateway handler (как `/new`), пишет `config.yaml.model.default` на volume, БЕЗ LLM-вызова, без редеплоя.
+**Decision:** C — `/model claude-sonnet-4-6 --global` в Telegram.
+**Why (на будущее):** Менять модель/провайдера прода НЕ через Railway env `HERMES_MODEL` — только через `/model <id> --global` или правку `config.yaml` на volume.
+**How to apply:** Смена модели на проде → `/model <valid-id> --global` в Telegram → проверить `/whoami` (он делает реальный LLM-вызов). Для Anthropic direct использовать canonical id (`claude-sonnet-4-6`, `claude-opus-4-7`), не укороченные без даты.
+**Reversal cost:** Легко (повторный `/model … --global`).
+**Risk if wrong:** Низкий.
+**Decided by:** Claude Opus 4.7 (диагностика по коду) + User (Александр) выполнил fix-команды.
+**Status:** ✅ verified prod 2026-05-23 23:13 — `/whoami` отвечает без HTTP 400, `/model` → `Current: claude-sonnet-4-6 on Anthropic`. Деплоя/коммита кода не требовалось (config-only fix на volume).

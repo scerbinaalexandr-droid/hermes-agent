@@ -57,3 +57,34 @@ Append-only лог событий. Karpathy convention.
 ## [2026-05-19] fix | /report парсер capture template + UX clean-up empty cells. Commit f95084d28. Local preview: ~/Downloads/tandem-report-FIXED-PREVIEW.html
 ## [2026-05-19] roadmap | Зафиксированы 2 L3-направления: /dashboard (CEO cockpit v2) + /intel week (research report). Trigger для старта — отдельный запрос user'а.
 ## [2026-05-19] session-end | Stop point: prod work via Telegram, тестинг в процессе. Следующая сессия — по запросу user'а.
+
+## [2026-05-19] session-end | 2 commits on main
+## [2026-05-21] feat | Phase 1: /web skill (search/fetch/render) — без платных API. Commit 4c85d87d8. DuckDuckGo lite + httpx + stdlib HTML parser + Chromium для JS.
+
+## [2026-05-21] session-end | 1 commits on main
+
+## [2026-05-21] session-end | 2 commits on main
+
+## [2026-05-21] session-end | 3 commits on main
+
+## [2026-05-21] session-end | 4 commits on main
+
+## [2026-05-21] session-end | 5 commits on main
+
+## [2026-05-21] session-end | 6 commits on main
+
+## [2026-05-22] session-end | 7 commits on main
+
+## [2026-05-22] session-end | 8 commits on main
+
+## [2026-05-22] session-end | 2 commits on main
+
+## [2026-05-22] session-end | 1 commits on main
+## [2026-05-22] feat | /web stdlib-only + symlink skills + own Railway endpoint + soul.md §4c §9-10. Commits eeb6fa0d7, 9c9ad2351, 1d5ec900e, fe5f385de, e909e02d9, 302efa835, 809ab6173.
+## [2026-05-22] config | HERMES_PUBLIC_HOST=hermes-production-99b8.up.railway.app set. Health endpoint verified (curl 200).
+## [2026-05-22] config | HERMES_MODEL: claude-haiku-4-5 → claude-sonnet-4-6 (Anthropic direct, no openrouter prefix)
+## [2026-05-22] snapshot | Pre-/compact: контекст ~85%. Снимок в CONTEXT.md. Phase 1 capabilities закрыты, ждём final /report week test.
+## [2026-05-23] snapshot | Delta pre-/compact. No new activity since prev snapshot — ждём verification /report week с sonnet-4-6.
+
+## [2026-05-23] session-end | No commits (main)
+## [2026-05-23] fix-prod | @Hermes_Alex21_bot HTTP 400 "claude-haiku-4-5 is not a valid model ID" устранён. ROOT CAUSE: gateway резолвит модель из config.yaml на Railway volume (/opt/data), НЕ из env HERMES_MODEL — by design (gateway/run.py:839 _resolve_gateway_model, auth.py:4109 _save_model_choice). Volume хранил haiku-сид от 17 мая; env-правка 22 мая была no-op. FIX: `/model claude-sonnet-4-6 --global` в Telegram (Level-2 handler, config-only, без редеплоя). Verified: /whoami OK, /model → Current claude-sonnet-4-6 on Anthropic. Деплой идёт via GitHub auto (не ручной railway up — инструкция ошибалась). Side-find: мёртвый RAILWAY_API_TOKEN в ~/.zshrc:14 блокировал railway login (CLI недоступен). Хвосты: убрать токен из .zshrc, включить 2FA Railway.
