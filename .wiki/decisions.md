@@ -300,3 +300,30 @@
 **Reversal cost:** Средне.
 **Decided by:** Claude Opus 4.7 (локальная репродукция) + User (Александр).
 **Status:** ✅ verified prod 2026-05-24 — бот отвечает с `claude-sonnet-4-5-20250929`. TODO: ensure_config fallback → датированный + HERMES_MODEL env fix.
+
+---
+
+## [2026-05-24] true-root-cause-inference-provider
+**Type:** L3 (ops / incident — ИСТИННАЯ причина модельной саги)
+**Domain:** Deploy / Provider routing
+**Context:** Несмотря на фиксы выше, бот продолжал падать «HTTP 400: <model> is not a valid model ID» по любой модели (haiku → claude-sonnet-4-6 → claude-sonnet-4-5-20250929), причём паттерн «работает пару часов после /model, потом /new/redeploy — снова ломается».
+**Root cause (истинный):** Railway env **`HERMES_INFERENCE_PROVIDER=openrouter`**. `gateway/run.py:568` передаёт его как `requested` в `resolve_requested_provider` (runtime_provider.py:299), и explicit `requested` ПЕРЕБИВАЕТ `config.yaml model.provider`. → ВСЕ запросы gateway шли в **OpenRouter**, который НЕ принимает голые Anthropic-ID (нужен `anthropic/...` slug) → 400. Ошибка несла OpenRouter-style `user_id`. `/model --provider anthropic --global` чинил только текущую сессию → сброс возвращал openrouter-дефолт. **Мы лечили МОДЕЛЬ, а корень был в ПРОВАЙДЕРЕ.** OpenRouter был добавлен ранее (OPENROUTER_API_KEY) и создал конфликт с дефолтным anthropic-стеком.
+**Decision:** Railway env `HERMES_INFERENCE_PROVIDER`: `openrouter` → `anthropic`.
+**Why:** gateway-дефолт провайдера становится anthropic → Anthropic direct (ANTHROPIC_API_KEY) → голый dated-ID валиден → переживает /new и redeploy.
+**How to apply:** При «not a valid model ID» — СНАЧАЛА проверять `HERMES_INFERENCE_PROVIDER` (должен быть `anthropic`), НЕ модель. Провайдер и формат модели держать консистентными (anthropic → голый dated id; openrouter → `anthropic/...` slug).
+**Reversal cost:** Легко (одна env-переменная).
+**Decided by:** Claude Opus 4.7 (чтение gateway/run.py:568 + runtime_provider.py) + User (Александр) поменял env.
+**Status:** ✅ verified prod 2026-05-24 17:23 — /whoami работает, переживает /new.
+
+---
+
+## [2026-05-24] github-memory-backup
+**Type:** L3 (data protection)
+**Domain:** Deploy / Backup
+**Context:** INSTRUCTION_03 — защита `memory/*` (невосстановимо) от потери Railway Volume.
+**Decision:** `skills/ceo/backup/scripts/backup.py` (stdlib, токен скрабится) → daily `no_agent` cron 03:00 UTC снапшотит memory/ + logs/daily (30d) + logs/hooks + config.yaml в приватный repo `hermes-memory-backup`. Whitelist + exclude (.env/secrets/sessions). Entrypoint стейджит скрипт в `/opt/data/scripts/` (cron требует --script под HERMES_HOME/scripts/). no_agent = 0 LLM-токенов + минует guard (прямой subprocess).
+**Why:** Третий слой защиты (Mac + Railway Volume + GitHub), полная git-history, $0, не зависит от Railway-аккаунта.
+**How to apply:** Менять/чинить — через config + скрипт (не бот). PAT fine-grained, ТОЛЬКО backup-repo, Contents:write, 90d expiry (rotate 2026-08). Env: BACKUP_GITHUB_TOKEN/REPO_URL/GIT_USER_NAME/GIT_USER_EMAIL.
+**Reversal cost:** Легко.
+**Decided by:** Claude Opus 4.7 (адаптация под реальный Hermes cron, не выдуманный yaml) + User.
+**Status:** ✅ /backup verified prod 2026-05-24 14:25 — snapshot pushed (memory/+logs/+config.yaml, без .env). Commits 5a327a310, 4d07d4508, 584b487c2. Cron 03:00 — в процессе настройки.
