@@ -34,6 +34,11 @@ metadata:
 - `language_code` — `ru`, `en` etc
 - `platform` — `Telegram` (фиксировано для этого gateway)
 
+**ВАЖНО — graceful degradation (НЕ отвечай ошибкой):**
+- `chat_id` практически всегда доступен. Если в контексте он назван **«Home Channel ID»** — это и есть `chat_id` для personal DM, используй его.
+- Если какого-то поля (`username`, `first_name`, `language_code`) в контексте НЕТ — выведи его как «недоступно». Это нормально, НЕ ошибка.
+- Технической ошибкой (секция Fallback) отвечай ТОЛЬКО если нет ВООБЩЕ никакого chat_id / Home Channel ID. Минимум — всегда покажи Chat ID.
+
 ## Output format (применяй §9 Response Design System из soul.md)
 
 ```
@@ -64,9 +69,12 @@ metadata:
 
 User видит только **СВОИ** идентификаторы — это безопасно. Не show чужие user_ids даже если они есть в context.
 
-## Fallback
+## Fallback (крайний случай)
 
-Если по какой-то причине context не содержит chat_id (impossible в normal flow, но защищаемся):
+Используй ТОЛЬКО если в контексте нет НИ `chat_id`, НИ «Home Channel ID» —
+т.е. вообще никакого идентификатора (impossible в normal flow). Если есть хотя
+бы Home Channel ID — это НЕ этот случай: выведи обычный output с Chat ID и
+пометь недоступные поля как «недоступно».
 
 ```
 ⚠️ ТЕХНИЧЕСКАЯ ОШИБКА — не могу прочитать identity из context
