@@ -73,6 +73,46 @@ else
   echo "[ceo-os-init] $CONFIG already has $CEO_SKILLS_DIR — no change"
 fi
 
+# ---- 1b. Ensure security hooks + loop guardrails (INSTRUCTION_02) -----------
+# Append-if-absent of two NEW top-level keys (hooks:, tool_loop_guardrails:).
+# They are not present in the seeded config (which only has skills:), so a
+# plain append is valid YAML and idempotent (gated by grep). Hook scripts ship
+# in the image at /opt/hermes/scripts/hooks/ (Dockerfile: COPY . .).
+# NOTE: shell hooks only fire in the non-TTY gateway when HERMES_ACCEPT_HOOKS=1
+# is set in the environment (Railway variable) — otherwise they are skipped.
+if ! grep -qE "^hooks:" "$CONFIG"; then
+  cat >> "$CONFIG" <<'HOOKS_EOF'
+
+# --- CEO OS security hooks (INSTRUCTION_02) — appended by ceo-os-entrypoint ---
+hooks:
+  pre_tool_call:
+    - command: "python3 /opt/hermes/scripts/hooks/guard.py"
+      matcher: "^(?:write_file|patch|terminal|execute_code)$"
+      timeout: 10
+  post_tool_call:
+    - command: "python3 /opt/hermes/scripts/hooks/audit.py"
+      timeout: 10
+HOOKS_EOF
+  echo "[ceo-os-init] Appended hooks: block to $CONFIG"
+else
+  echo "[ceo-os-init] hooks: already present in $CONFIG — no change"
+fi
+
+if ! grep -qE "hard_stop_enabled" "$CONFIG"; then
+  cat >> "$CONFIG" <<'GUARD_EOF'
+
+# Runaway / tool-loop circuit breaker (INSTRUCTION_02)
+tool_loop_guardrails:
+  hard_stop_enabled: true
+GUARD_EOF
+  echo "[ceo-os-init] Appended tool_loop_guardrails to $CONFIG"
+else
+  echo "[ceo-os-init] tool_loop_guardrails already present in $CONFIG — no change"
+fi
+
+# Ensure the hooks audit-log dir exists (chowned in section 2b below).
+mkdir -p "$HERMES_HOME/logs/hooks"
+
 # ---- 2. Seed memory templates (per-file merge) ------------------------------
 # For each baked-in template file, copy into the persistent volume only when
 # the target is absent OR has zero bytes. Never overwrites populated user
@@ -112,6 +152,7 @@ mkdir -p "$HERMES_HOME/reports" 2>/dev/null || true
 
 for path in "$HERMES_HOME/memory" \
             "$HERMES_HOME/logs/daily" "$HERMES_HOME/logs/weekly" "$HERMES_HOME/logs/telegram_inputs" \
+            "$HERMES_HOME/logs/hooks" \
             "$HERMES_HOME/backups" \
             "$HERMES_HOME/reports" \
             "$HERMES_HOME/cron"; do
