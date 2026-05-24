@@ -46,6 +46,18 @@ fi
 # Ensure the hooks audit-log dir exists (chowned in section 2b below).
 mkdir -p "$HERMES_HOME/logs/hooks"
 
+# ---- 1c. Stage backup script into the cron-allowed dir (INSTRUCTION_03) -----
+# Hermes cron `--script` must resolve under $HERMES_HOME/scripts/. Copy the
+# in-image backup.py there on every boot (fresh per deploy). The cron JOB is
+# created once via `hermes cron create ... --no-agent` (see backup/SKILL.md) —
+# NOT auto-created here, to keep boot simple and avoid CLI-at-boot fragility.
+mkdir -p "$HERMES_HOME/scripts"
+if [ -f /opt/hermes/skills/ceo/backup/scripts/backup.py ]; then
+  cp /opt/hermes/skills/ceo/backup/scripts/backup.py "$HERMES_HOME/scripts/backup.py"
+  chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/backup.py" 2>/dev/null || true
+  echo "[ceo-os-init] Staged backup.py → $HERMES_HOME/scripts/backup.py"
+fi
+
 # ---- 2. Seed memory templates (per-file merge) ------------------------------
 # For each baked-in template file, copy into the persistent volume only when
 # the target is absent OR has zero bytes. Never overwrites populated user
