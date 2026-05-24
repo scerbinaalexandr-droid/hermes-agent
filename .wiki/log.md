@@ -88,3 +88,11 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-05-23] session-end | No commits (main)
 ## [2026-05-23] fix-prod | @Hermes_Alex21_bot HTTP 400 "claude-haiku-4-5 is not a valid model ID" устранён. ROOT CAUSE: gateway резолвит модель из config.yaml на Railway volume (/opt/data), НЕ из env HERMES_MODEL — by design (gateway/run.py:839 _resolve_gateway_model, auth.py:4109 _save_model_choice). Volume хранил haiku-сид от 17 мая; env-правка 22 мая была no-op. FIX: `/model claude-sonnet-4-6 --global` в Telegram (Level-2 handler, config-only, без редеплоя). Verified: /whoami OK, /model → Current claude-sonnet-4-6 on Anthropic. Деплой идёт via GitHub auto (не ручной railway up — инструкция ошибалась). Side-find: мёртвый RAILWAY_API_TOKEN в ~/.zshrc:14 блокировал railway login (CLI недоступен). Хвосты: убрать токен из .zshrc, включить 2FA Railway.
+
+## [2026-05-23] session-end | 1 commits on main
+## [2026-05-24] instruction-02 | Security hooks через РОДНОЙ shell-hooks Hermes (не выдуманный hooks.yaml). guard.py (block memory/*.md write + git push + exfil) + audit.py + tool_loop_guardrails + HERMES_ACCEPT_HOOKS/REDACT_SECRETS env. ✅ verified prod 11:18 — бот заблокировал echo>>soul.md. Commits 1dd54fba8, 99376694b.
+## [2026-05-24] incident | Редеплои дважды уронили прод. (1) ceo-os-entrypoint awk-merge ломал config.yaml после yaml.dump от /model --global (2 vs 4 пробела) → invalid YAML → "No models provided". Fix: ensure_config.py (Python, само-лечение). (2) голый claude-sonnet-4-6 отвергнут Anthropic API → перешли на датированный claude-sonnet-4-5-20250929. LESSON: config — только через Python+yaml (не bash/awk); модель — датированный Anthropic ID. TODO: HERMES_MODEL env → датированный.
+
+## [2026-05-24] session-end | 1 commits on main
+
+## [2026-05-24] session-end | 2 commits on main

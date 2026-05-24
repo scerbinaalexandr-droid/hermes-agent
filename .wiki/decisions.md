@@ -265,3 +265,38 @@
 **Risk if wrong:** Низкий.
 **Decided by:** Claude Opus 4.7 (диагностика по коду) + User (Александр) выполнил fix-команды.
 **Status:** ✅ verified prod 2026-05-23 23:13 — `/whoami` отвечает без HTTP 400, `/model` → `Current: claude-sonnet-4-6 on Anthropic`. Деплоя/коммита кода не требовалось (config-only fix на volume).
+
+---
+
+## [2026-05-24] security-hooks-via-native-shell-hooks
+**Type:** L3 (architecture / security)
+**Domain:** Engineering / Security
+**Context:** INSTRUCTION_02 — защита `memory/*`, секретов, контроль исходящих. Инструкция предлагала `hooks.yaml` с собственной схемой (`trigger.tool`, `action: block`, `rate_limit`, `notify_telegram`) — **этой схемы в Hermes нет**, файл был бы проигнорирован (фейк-защита).
+**Discovery:** Hermes уже сильно защищён нативно (≈10 подсистем, ~67/100 из коробки): `tools/approval.py` (hardline blocklist + dangerous-command approval + Telegram-подтверждение), `agent/file_safety.py` (denylist .ssh/.env/system), `tools/url_safety.py` (SSRF), `gateway/pairing.py` (auth+lockout), `agent/shell_hooks.py` + `hermes_cli/plugins.py` (настоящие hooks через `cli-config.yaml`/`config.yaml` `hooks:` блок, события `pre/post_tool_call` и др.), `agent/tool_guardrails.py` (loop guardrails).
+**Decision:** Реализовать через РОДНОЙ shell-hooks механизм, 0 правок upstream-core:
+  - `scripts/hooks/guard.py` (pre_tool_call): блок записи в `memory/*.md` (write_file/patch/terminal), `git push` агентом, curl/wget exfil. Fail-open (approval.py hardline — пол).
+  - `scripts/hooks/audit.py` (post_tool_call): лог всех вызовов в `logs/hooks/audit.log`.
+  - `tool_loop_guardrails.hard_stop_enabled: true` + `HERMES_REDACT_SECRETS=1` (env).
+  - Non-TTY gateway требует `HERMES_ACCEPT_HOOKS=1` (Railway env) — иначе hooks молча пропускаются.
+**Why:** Родной механизм > параллельный самопал: не дублирует существующее, не ломает merge с upstream, реально исполняется. `memory/*` был единственным реальным пробелом (`.env`/`config.yaml`/`rm -rf` уже покрыты approval.py).
+**How to apply:** Менять/добавлять hooks → правка `config.yaml` `hooks:` блок (НЕ через бот — он не должен менять свои hooks) + скрипт в `scripts/hooks/`. На проде проверять реальной попыткой через Telegram (gateway-регистрация hooks подтверждается только рантаймом).
+**Reversal cost:** Легко (убрать hooks блок из config + env).
+**Decided by:** Claude Opus 4.7 (аудит кода + Explore) + User (Александр) выбрал «родной путь».
+**Status:** ✅ verified prod 2026-05-24 11:18 — бот заблокировал `echo >> /opt/data/memory/soul.md` через guard.py. Commits `1dd54fba8`, `99376694b`.
+
+---
+
+## [2026-05-24] entrypoint-config-self-healing + dated-model-ids
+**Type:** L3 (ops / incident)
+**Domain:** Deploy / Reliability
+**Context:** Во время INSTRUCTION_02 редеплои уронили прод дважды.
+**Incident 1 — config corruption:** `ceo-os-entrypoint.sh` section 1 делал bash/awk-merge `config.yaml`, грепая skills-путь с 4 пробелами. После того как `/model --global` переписал config через `yaml.dump` (2-пробельный отступ списков), awk вставлял 4-пробельный элемент рядом с 2-пробельным → **невалидный YAML** → `load_config()` → {} → `model.default` терялся → `HTTP 400: No models provided`, провайдер откатывался на openrouter. Каждый рестарт повторял порчу. Воспроизведено локально (yaml.safe_load → ParserError).
+  **Fix:** `scripts/hooks/ensure_config.py` (Python, через `/opt/hermes/.venv/bin/python`) заменил bash/awk. Само-лечится: битый YAML → пересборка с нуля; восстанавливает `model.default`; всегда пишет валидный YAML; идемпотентно. Протестировано 4 сценария локально. Commit `99376694b`.
+**Incident 2 — bare model alias rejected:** даже с правильным config (`model=claude-sonnet-4-6`, `provider=anthropic`) Anthropic API отвергал голый `claude-sonnet-4-6` → `HTTP 400: ... is not a valid model ID` (хотя 23.05 работал — причина смены поведения не установлена).
+  **Fix:** переход на **датированный snapshot** `claude-sonnet-4-5-20250929` (provider anthropic) → работает. **Lesson: на Anthropic direct использовать ДАТИРОВАННЫЕ ID** (`...-YYYYMMDD`), не голые алиасы — они нестабильны.
+**How to apply:**
+  - Управление `config.yaml` на volume — ТОЛЬКО через `ensure_config.py` (Python+yaml), НИКОГДА через bash/awk-склейку YAML.
+  - Модель прода — датированный Anthropic ID. Railway env `HERMES_MODEL` обновить на датированный (сейчас стоит битый `claude-sonnet-4-6` — landmine для rebuild-fallback).
+**Reversal cost:** Средне.
+**Decided by:** Claude Opus 4.7 (локальная репродукция) + User (Александр).
+**Status:** ✅ verified prod 2026-05-24 — бот отвечает с `claude-sonnet-4-5-20250929`. TODO: ensure_config fallback → датированный + HERMES_MODEL env fix.
