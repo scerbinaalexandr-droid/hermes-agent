@@ -232,3 +232,220 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 - [ ] Roadmap: `/intel week` skill (Направление 2 выше)
 - [ ] Stage 5c: `/cleanup` skill (memory hygiene proposals)
 - [ ] Stage 7: GitHub backup automation (private repo + cron 00:30)
+
+---
+
+## Snapshot 2026-05-22 15:00 (auto-saved before /compact)
+
+**Сессия началась:** 2026-05-19 (continuation после прошлого /compact)
+**Сессия закрыта на:** Phase 1 capabilities (web + report URL + soul.md hardening), ждём финальный тест /report week после переключения на claude-sonnet-4-6
+**Контекст на момент snapshot:** ~85%
+
+### 🏗 Архитектурные решения L3
+
+1. **/web skill — stdlib-only (urllib, no httpx)**
+   - Выбрали: голый Python stdlib (urllib.request + html.parser)
+   - Альтернативы: httpx (есть в pyproject но нет в prod container), BeautifulSoup (+dep)
+   - Почему: на проде Hermes контейнер использовал системный `python3` без venv-deps → httpx ImportError. Stdlib работает везде, без `pip install`.
+   - Reversal cost: легко (один файл переписать)
+
+2. **Symlink вместо copy для skills/ceo на проде**
+   - Выбрали: `/opt/data/skills/ceo` → symlink → `/opt/hermes/skills/ceo` (in-image)
+   - Альтернатива: copy в volume (но Hermes не overwrite'ит при redeploy = stale code)
+   - Почему: гарантирует свежий код на каждом deploy без race conditions
+   - Reversal cost: легко (entrypoint.sh edit)
+
+3. **Свой Railway endpoint для public URL отчётов (не catbox.moe)**
+   - Выбрали: stdlib http.server в Hermes container → Railway public domain
+   - Альтернативы: catbox.moe (FAIL — HTTP 412 в проде), 0x0.st (blocked Claude Code auto-mode за privacy)
+   - Почему: privacy (CEO data на твоей инфраструктуре), unguessable URLs (uuid4), persistent, free
+   - Reversal cost: средне (новый файл + entrypoint background process)
+
+4. **Filename отчётов = uuid4 hex**
+   - Выбрали: `<uuid4>.html` + symlink на friendly name для local browsing
+   - Почему: 128-bit entropy в URL = нельзя угадать без знания. Никакого listing endpoint.
+   - Reversal cost: легко
+
+5. **soul.md §4c — strict ban on fabricated identifiers**
+   - Триггер: bot выдумал `Cron job 1a1379fdc38d` (которого нет в системе — `/cron` команда вообще не существует)
+   - Добавил 10-row table: cron IDs / tool names / file paths / process IDs / API endpoints / settings / dates / person names — всё запрещено без verified tool output
+   - Marked L0 priority (above all other rules)
+
+6. **soul.md §9-10 — Response Design System + Self-eval checklist**
+   - §9: универсальный template для всех ответов (emoji + bold title + sections + источник)
+   - §10: 4 вопроса перед отправкой (scannable? honest? sourced? actionable?)
+   - Эталон: bot ответ 2026-05-21 про курс RON/EUR с ECB URL и link preview
+
+7. **Helper генерирует готовый telegram_caption (не полагаться на LLM)**
+   - До: bot конструировал caption из JSON fields → пропускал URL field
+   - После: `generate_report.py` возвращает готовую строку `result["telegram_caption"]` → bot копирует как есть
+   - Reversal cost: легко (можно вернуться к шаблону в SKILL.md)
+
+8. **Model upgrade: claude-haiku-4-5 → claude-sonnet-4-6**
+   - Почему: better fabrication resistance, лучший анализ для CEO задач
+   - Cost: ~3× дороже Haiku (~$3 vs $1 per M tokens) — приемлемо
+   - На момент snapshot: HERMES_MODEL обновлён, ожидание Initializing → Online
+
+### 🎨 Визуальные / UX достижения
+
+- **Response Design System** в `memory/soul.md::§9` — 18 функциональных emoji + template + forbidden patterns + 2 эталонных примера
+- **Hint под пустыми таблицами** в /report HTML — `⚠ 2 проект(а/ов) без полей. Заполни через memory/projects.md или скажи боту «обнови проект ...»`
+- **Public URL footer** в HTML отчёте — `🔗 Публичная ссылка на этот отчёт` с self-link
+- **Caption формат** для /report — emoji header + filled/empty + 🔗 URL + 📎 files
+
+### 📁 Ключевые file paths
+
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/web/SKILL.md` — frontmatter для /web skill
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/web/scripts/search.py` — DuckDuckGo lite scrape (stdlib only)
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/web/scripts/fetch.py` — httpx→urllib, html.parser, respects robots.txt
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/web/scripts/render.py` — Chromium --dump-dom для JS sites
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/whoami/SKILL.md` — Telegram identity diagnostic (markdown-only, no scripts)
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/report/SKILL.md` — strict caption rules
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/skills/ceo/report/scripts/generate_report.py` — uuid filename + telegram_caption + public_url
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/docker/reports_server.py` — stdlib HTTP server для /opt/data/reports/<uuid>.html
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/docker/ceo-os-entrypoint.sh` — symlink + reports_server background launch
+- `/Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/memory/soul.md` — §4c (anti-fabrication identifiers), §9-10 (Response Design + self-eval)
+
+### 🔑 Идентификаторы (production)
+
+- **Railway Project:** `4e83ef6c-268f-4021-81f0-6807906432a7`
+- **Railway Service:** `ab136f58-0bfb-49fb-9c12-8fe38210e301` (hermes)
+- **Environment:** `e18cff3d-53a3-443d-9024-1180c4803a3e` (production)
+- **Public domain:** `hermes-production-99b8.up.railway.app`
+- **Health endpoint:** `https://hermes-production-99b8.up.railway.app/health` → "Hermes Reports OK" (verified curl 200 OK)
+- **GitHub repo:** scerbinaalexandr-droid/hermes-agent (auto-deploy on push to main)
+- **Bot:** @Hermes_Alex21_bot
+- **User chat_id:** 746810595 (same на Mac и iPhone — verified через /whoami)
+
+**Key commits этой сессии:**
+- `e909e02d9` — Response Design System (soul.md §9-10)
+- `5d58bfe96` — catbox.moe upload (REMOVED — failed HTTP 412)
+- `1d5ec900e` — Own Railway endpoint (reports_server.py + uuid filenames)
+- `9c9ad2351` — Symlink fix (force-fresh skills on deploy)
+- `eeb6fa0d7` — /web stdlib-only (no httpx)
+- `4c85d87d8` — Original /web skill with httpx (then refactored)
+- `809ab6173` — /whoami skill
+- `fe5f385de` — soul.md §4c (anti-fabrication identifiers)
+- `302efa835` — Telegram caption embedded in helper JSON
+
+**ENV vars (names only):**
+- `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY` — LLM providers
+- `HERMES_MODEL` — set to `claude-sonnet-4-6` (was `claude-haiku-4-5`)
+- `HERMES_INFERENCE_PROVIDER` — `anthropic`
+- `HERMES_PUBLIC_HOST` — `hermes-production-99b8.up.railway.app` (without https://)
+- `HERMES_UID`, `HERMES_GID` — 10000:10000
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_ALLOWED_USERS`, `TELEGRAM_HOME_CHANNEL`
+
+### 📋 Open TODOs
+
+- [ ] **VERIFY:** `/report week` после Initializing → Online должен показать ссылку `https://hermes-production-99b8.up.railway.app/reports/<uuid>.html` (waiting at snapshot time)
+- [ ] **Phase 2** — citation enforcement + self-eval loop + model routing (Haiku для рутины → Sonnet для критичного)
+- [ ] **Phase 3** — Custom CEO benchmark (30-50 test cases из реальных задач) → baseline metric
+- [ ] **Phase 4** — Iterate до 96% на CEO benchmark
+- [ ] **Roadmap:** `/dashboard` skill (CEO Executive Cockpit v2)
+- [ ] **Roadmap:** `/intel week` skill (web research weekly digest, теперь возможен через /web)
+- [ ] Cron job для Monday 08:00 weekly report (когда /report стабильно)
+- [ ] Stage 5c: `/cleanup` skill (memory hygiene)
+- [ ] Stage 7: GitHub backup automation
+
+### ⚠ Lessons learned
+
+1. **НЕ выбирать external services без явного user approval** — Claude Code auto-mode заблокировал тест 0x0.st (правильно). Перешёл на Railway endpoint.
+2. **catbox.moe не подходит для prod** — HTTP 412 от Railway IP. 3rd-party hosts ненадёжны для CEO use case.
+3. **LLM может пропускать JSON fields** — если хочешь чтобы bot гарантированно показал URL → клади готовую строку в helper output, не структуру.
+4. **Anthropic HTTP 529 Overloaded — внешняя проблема**, не код. Workaround: switch to OpenRouter через HERMES_INFERENCE_PROVIDER.
+5. **Model names требуют точного формата** — `claude-sonnet-4-6` для Anthropic direct, `anthropic/claude-sonnet-4-6` для OpenRouter. Mismatch = HTTP 400.
+6. **Railway redeploy = 1-3 минуты Initializing** — /new в Telegram пока Initializing показывает СТАРОЕ значение env (bot ещё на старом container). Нужно ждать просто "Online" без Initializing.
+7. **Bot fabricated cron job ID** — нарушение soul.md §4a. Fix: добавил §4c с явным списком запрещённых типов identifiers.
+
+### 🔗 Continuation в следующей сессии
+
+1. Прочитать `.wiki/CONTEXT.md` (этот snapshot) + `.wiki/decisions.md` + `memory/soul.md`
+2. **Финальная проверка:** в Telegram `/new` → должен показать `Model: claude-sonnet-4-6`. Если так — `/report week` → caption должен иметь публичную ссылку.
+3. **Если /report week работает** → Phase 1 формально закрыта, начинать Phase 2 (citation enforcement + model routing)
+4. **Если что-то опять не работает** → диагностика через curl `https://hermes-production-99b8.up.railway.app/health` (должен быть 200 "Hermes Reports OK")
+
+---
+
+## Snapshot 2026-05-23 (delta — no new activity since 2026-05-22 15:00)
+
+**Сессия:** continuation после прошлого /save-snapshot. Между snapshots **новых событий нет** — user не подтвердил результат финального теста.
+
+**Состояние всё то же:**
+- Phase 1 capabilities закрыты (см. snapshot 2026-05-22)
+- Production: 7 commits в main (последний `302efa835`)
+- `HERMES_MODEL` = `claude-sonnet-4-6` (ENV var обновлён)
+- `HERMES_PUBLIC_HOST` = `hermes-production-99b8.up.railway.app` (health verified 200 OK)
+- Бот должен подхватить sonnet-4-6 после Initializing → Online
+
+### 📋 Open TODOs (без изменений — переносим из 2026-05-22)
+
+- [ ] **VERIFY:** `/report week` после Initializing → Online → caption с публичной ссылкой `hermes-production-99b8.up.railway.app/reports/<uuid>.html`
+- [ ] Phase 2 — citation enforcement + self-eval loop + model routing
+- [ ] Phase 3 — Custom CEO benchmark (30-50 test cases)
+- [ ] Phase 4 — Iterate до 96% на CEO benchmark
+- [ ] Roadmap: `/dashboard` skill (CEO Executive Cockpit v2)
+- [ ] Roadmap: `/intel week` skill (теперь возможен через /web)
+- [ ] Cron job для Monday 08:00 weekly report
+- [ ] Stage 5c: `/cleanup` skill
+- [ ] Stage 7: GitHub backup automation
+
+### 🔗 Continuation в следующей сессии
+
+1. Прочитать `.wiki/CONTEXT.md` **Snapshot 2026-05-22 15:00** — там полный контекст
+2. **Первое действие:** спросить user'a — `/report week` с sonnet-4-6 сработал? Есть ли публичная ссылка в caption?
+3. Если ✅ → Phase 1 формально закрыта, начинать Phase 2
+4. Если ❌ → диагностика через `curl https://hermes-production-99b8.up.railway.app/health` + check Railway Deployments
+
+**Полный контекст** — в предыдущей секции «Snapshot 2026-05-22 15:00».
+
+---
+
+## Snapshot 2026-05-24 18:06 (auto-saved before /compact)
+
+**Сессия:** марафон — INSTRUCTION_01 + 02 + 03 + крупный root-cause провайдера.
+**Закрыта на:** все три инструкции ✅ DONE, прод стабилен, защищён, бэкапится.
+
+### 🏗 Архитектурные решения (детали в decisions.md)
+- **Модель прода = config.yaml на volume, НЕ env `HERMES_MODEL`** (Hermes by design). Менять через `/model … --global`. Reversal: легко.
+- **🔑 ИСТИННЫЙ root-cause модельной саги: `HERMES_INFERENCE_PROVIDER=openrouter`** перебивал config.model.provider (gateway/run.py:568) → все запросы в OpenRouter → он не принимает голые Anthropic-ID → «not a valid model ID». FIX: env → `anthropic`. **Урок: при этой ошибке проверять ПРОВАЙДЕРА, не модель.** Reversal: легко (1 env).
+- **Security hooks — родной механизм Hermes** (`agent/shell_hooks.py` + `config.yaml hooks:`), НЕ выдуманный `hooks.yaml`. 0 правок upstream-core. Reversal: легко.
+- **Config-management = Python (`ensure_config.py`), НЕ bash/awk.** Старый awk ломал YAML после yaml.dump от /model (2 vs 4 пробела) → «No models provided». Теперь само-лечится. Reversal: средне.
+- **Backup cron = `no_agent`** (прямой subprocess, 0 LLM-токенов, минует guard). `--script` относительно `~/.hermes/scripts/`. Reversal: легко.
+
+### 📁 Ключевые file paths (новые/изменённые)
+- `skills/ceo/backup/scripts/backup.py` — бэкап-скрипт (stdlib, токен скрабится)
+- `skills/ceo/backup/SKILL.md` — placeholder → рабочий
+- `skills/ceo/whoami/SKILL.md` — graceful degradation fix
+- `scripts/hooks/guard.py` — pre_tool_call (block memory write / git push / exfil)
+- `scripts/hooks/audit.py` — post_tool_call audit log
+- `scripts/hooks/ensure_config.py` — self-healing config (Python+yaml)
+- `docker/ceo-os-entrypoint.sh` — ensure_config + staging backup.py в /opt/data/scripts/
+
+### 🔑 Идентификаторы
+- Railway project `4e83ef6c-268f-4021-81f0-6807906432a7`, service `ab136f58-0bfb-49fb-9c12-8fe38210e301`
+- Cron job `f35d551d4a4b` (daily_memory_backup, `0 3 * * *` UTC, no_agent), next run 2026-05-25 03:00 UTC
+- Backup repo: `github.com/scerbinaalexandr-droid/hermes-memory-backup` (PRIVATE)
+- Модель прода: `claude-sonnet-4-5-20250929` (provider anthropic)
+- Commits: hooks 1dd54fba8, self-heal 99376694b, whoami 584b487c2, backup 5a327a310, ensure_config-fallback 4d07d4508; docs 0d14b3a8e + 308729216 (НЕ запушены — .wiki only)
+- ENV (имена): HERMES_INFERENCE_PROVIDER(=anthropic), HERMES_MODEL, HERMES_ACCEPT_HOOKS, HERMES_REDACT_SECRETS, BACKUP_GITHUB_TOKEN, BACKUP_REPO_URL, BACKUP_GIT_USER_NAME, BACKUP_GIT_USER_EMAIL, ANTHROPIC_API_KEY, OPENROUTER_API_KEY(unused), TELEGRAM_ALLOWED_USERS(746810595,385068170 — оба = Александр)
+
+### 📋 Open TODOs
+- [ ] Запушить 2 docs-коммита (`! git push origin main`) — .wiki, без deploy-эффекта
+- [ ] **2FA на GitHub** (баннер висит, дедлайн июль-2026)
+- [ ] Dependabot `urllib3` (релевантный) — отдельная dep-сессия; остальные ~82 в JS/неиспользуемых путях
+- [ ] (опц.) вернуть `claude-sonnet-4-6` (теперь провайдер anthropic — должно работать)
+- [ ] VERIFY завтра: cron первый авто-run 2026-05-25 03:00 UTC (бот сам пришлёт в Telegram)
+- [ ] (старое) Phase 2-4, /dashboard, /intel week, /cleanup
+
+### ⚠ Lessons
+- **Не лечи симптом (модель) — ищи root-cause (провайдер).** Часы ушли на смену haiku→4-6→4-5, а дело было в одной env-переменной.
+- **Никогда не склеивать YAML через bash/awk** — только Python+yaml.
+- **`/cron` — НЕ slash-команда бота.** Cron через `/opt/hermes/.venv/bin/hermes cron create … --script <relative> --no-agent`.
+- Инструкции 02/03 содержали выдуманные схемы (hooks.yaml, cron yaml) — всегда сверять с реальным кодом Hermes перед реализацией.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + `decisions.md` (5 новых L3-записей за 2026-05-24).
+2. Первым делом: спросить — пришёл ли ночной `[backup] … snapshot pushed ✅` в Telegram (cron `f35d551d4a4b`)?
+3. Хвосты: GitHub 2FA → push docs → (опц.) sonnet-4-6 → dependabot urllib3.
+4. Следующая инструкция: **INSTRUCTION_04_CEO_AUTOMATIONS** (по футеру INSTRUCTION_03).
