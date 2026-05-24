@@ -93,7 +93,8 @@ Append-only лог событий. Karpathy convention.
 ## [2026-05-24] instruction-02 | Security hooks через РОДНОЙ shell-hooks Hermes (не выдуманный hooks.yaml). guard.py (block memory/*.md write + git push + exfil) + audit.py + tool_loop_guardrails + HERMES_ACCEPT_HOOKS/REDACT_SECRETS env. ✅ verified prod 11:18 — бот заблокировал echo>>soul.md. Commits 1dd54fba8, 99376694b.
 ## [2026-05-24] incident | Редеплои дважды уронили прод. (1) ceo-os-entrypoint awk-merge ломал config.yaml после yaml.dump от /model --global (2 vs 4 пробела) → invalid YAML → "No models provided". Fix: ensure_config.py (Python, само-лечение). (2) голый claude-sonnet-4-6 отвергнут Anthropic API → перешли на датированный claude-sonnet-4-5-20250929. LESSON: config — только через Python+yaml (не bash/awk); модель — датированный Anthropic ID. TODO: HERMES_MODEL env → датированный.
 ## [2026-05-24] ROOT-CAUSE-провайдер | Истинная причина ВСЕЙ модельной саги (haiku→4-6→4-5 "not a valid model ID", "works then fails"): env `HERMES_INFERENCE_PROVIDER=openrouter`. gateway/run.py:568 передаёт его как `requested` в resolve_requested_provider → перебивает config.model.provider → ВСЕ запросы шли в OpenRouter, который НЕ принимает голые Anthropic-ID (нужен `anthropic/...`). `/model --provider anthropic --global` чинил только текущую сессию → /new/redeploy сбрасывал → снова openrouter. FIX: HERMES_INFERENCE_PROVIDER `openrouter`→`anthropic` (Railway env). ✅ verified 17:23 — /whoami работает, переживает /new. Урок: не модель меняй — проверяй провайдера. config.yaml model dated ID был верен всё время.
-## [2026-05-24] instruction-03 | Backup skill готов + verified prod. /backup → snapshot pushed в private repo hermes-memory-backup (memory/+logs/+config.yaml, без .env). no_agent cron-скрипт /opt/data/scripts/backup.py (0 LLM-токенов, минует guard). Commit 5a327a310 + ensure_config provider fallback 4d07d4508. Cron 03:00 UTC — настраивается. /whoami graceful-fix 584b487c2 тоже verified.
+## [2026-05-24] instruction-03 | Backup skill готов + verified prod. /backup → snapshot pushed в private repo hermes-memory-backup (memory/+logs/+config.yaml, без .env). no_agent cron-скрипт /opt/data/scripts/backup.py (0 LLM-токенов, минует guard). Commit 5a327a310 + ensure_config provider fallback 4d07d4508. /whoami graceful-fix 584b487c2 тоже verified.
+## [2026-05-24] instruction-03-DONE | Cron создан: job f35d551d4a4b, name daily_memory_backup, schedule "0 3 * * *" (03:00 UTC), no_agent, deliver telegram:746810595. Создан через `/opt/hermes/.venv/bin/hermes cron create … --script backup.py --no-agent` (--script ОТНОСИТЕЛЬНО ~/.hermes/scripts/, не абсолютный). Next run 2026-05-25 03:00 UTC. INSTRUCTION_03 ПОЛНОСТЬЮ ЗАКРЫТА. Note: `/cron` НЕ slash-команда бота; cron создаётся через venv-CLI или cronjob-tool.
 
 ## [2026-05-24] session-end | 1 commits on main
 
@@ -106,3 +107,5 @@ Append-only лог событий. Karpathy convention.
 ## [2026-05-24] session-end | 5 commits on main
 
 ## [2026-05-24] session-end | 6 commits on main
+
+## [2026-05-24] session-end | 7 commits on main

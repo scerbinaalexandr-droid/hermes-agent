@@ -326,4 +326,4 @@
 **How to apply:** Менять/чинить — через config + скрипт (не бот). PAT fine-grained, ТОЛЬКО backup-repo, Contents:write, 90d expiry (rotate 2026-08). Env: BACKUP_GITHUB_TOKEN/REPO_URL/GIT_USER_NAME/GIT_USER_EMAIL.
 **Reversal cost:** Легко.
 **Decided by:** Claude Opus 4.7 (адаптация под реальный Hermes cron, не выдуманный yaml) + User.
-**Status:** ✅ /backup verified prod 2026-05-24 14:25 — snapshot pushed (memory/+logs/+config.yaml, без .env). Commits 5a327a310, 4d07d4508, 584b487c2. Cron 03:00 — в процессе настройки.
+**Status:** ✅ ЗАКРЫТО. /backup verified prod 2026-05-24 14:25 — snapshot pushed (memory/+logs/+config.yaml, без .env). Cron создан: job `f35d551d4a4b` daily_memory_backup `0 3 * * *` no_agent, next run 2026-05-25 03:00 UTC. Commits 5a327a310, 4d07d4508, 584b487c2. NB: `hermes cron create --script` хочет путь ОТНОСИТЕЛЬНО ~/.hermes/scripts/ (не абсолютный); venv-CLI `/opt/hermes/.venv/bin/hermes`; `/cron` — не slash-команда бота.
