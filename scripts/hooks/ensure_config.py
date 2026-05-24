@@ -32,8 +32,14 @@ except ImportError:
 HOME = os.environ.get("HERMES_HOME", "/opt/data")
 CFG_PATH = os.path.join(HOME, "config.yaml")
 CEO_DIR = "/opt/hermes/skills/ceo"
-MODEL_FALLBACK = "claude-sonnet-4-6"
+# Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
+# rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
+MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
 MODEL_ENV = (os.environ.get("HERMES_MODEL") or "").strip() or MODEL_FALLBACK
+# Provider for rebuild-from-scratch: hardcode anthropic (works with the dated
+# model + ANTHROPIC_API_KEY). NOT read from HERMES_INFERENCE_PROVIDER, which
+# defaulted to openrouter and broke the bare-alias model during the incident.
+PROVIDER_FALLBACK = "anthropic"
 
 HOOKS_BLOCK = {
     "pre_tool_call": [
@@ -75,15 +81,19 @@ def main() -> None:
     skills["external_dirs"] = ext
     cfg["skills"] = skills
 
-    # model.default — preserve a non-empty existing value, else seed from env.
+    # model.default + provider — preserve non-empty existing values, else seed.
+    # Both only kick in on rebuild-from-scratch; normal boots preserve whatever
+    # `/model ... --global` persisted.
     model = cfg.get("model")
     if isinstance(model, dict):
         if not str(model.get("default") or "").strip():
             model["default"] = MODEL_ENV
+        if not str(model.get("provider") or "").strip():
+            model["provider"] = PROVIDER_FALLBACK
     elif isinstance(model, str) and model.strip():
-        model = {"default": model.strip()}
+        model = {"default": model.strip(), "provider": PROVIDER_FALLBACK}
     else:
-        model = {"default": MODEL_ENV}
+        model = {"default": MODEL_ENV, "provider": PROVIDER_FALLBACK}
     cfg["model"] = model
 
     # Security hooks + loop guardrails (always set — idempotent).
