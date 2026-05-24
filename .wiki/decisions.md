@@ -327,3 +327,21 @@
 **Reversal cost:** Легко.
 **Decided by:** Claude Opus 4.7 (адаптация под реальный Hermes cron, не выдуманный yaml) + User.
 **Status:** ✅ ЗАКРЫТО. /backup verified prod 2026-05-24 14:25 — snapshot pushed (memory/+logs/+config.yaml, без .env). Cron создан: job `f35d551d4a4b` daily_memory_backup `0 3 * * *` no_agent, next run 2026-05-25 03:00 UTC. Commits 5a327a310, 4d07d4508, 584b487c2. NB: `hermes cron create --script` хочет путь ОТНОСИТЕЛЬНО ~/.hermes/scripts/ (не абсолютный); venv-CLI `/opt/hermes/.venv/bin/hermes`; `/cron` — не slash-команда бота.
+
+---
+
+## [2026-05-24] coach-as-isolated-optin-skill
+**Type:** L3
+**Domain:** Engineering / Product
+**Context:** Установка стороннего «ИИ-коуча» (Георгий Ривера: системный промпт + 4 методики ICF/GROW/Колесо/Co-Active + 4 ритма) в прод-бота. Файлы прошли security-аудит (10 MD прочитаны — нет скрытых unicode / инъекций / эксфильтрации). Проблема: `01_Системный_промпт` — полноценный системный промпт; есть пересечение с существующими ритмами Hermes (`/brief` `/evening` `/week` — намеренно НЕ коучинговые, в evening явно «❌ не давай coaching»); коучинг ≈ Phase-2 sparring, который в soul.md выключен.
+**Options considered:**
+- A) Влить промпт в `memory/soul.md` (глобально) — отклонено: перепишет персону Hermes + конфликт с Phase-boundaries + soul.md canonical/manual-only.
+- B) Апгрейдить /brief /evening /week в коучинговые — отклонено user'ом: меняет текущее поведение, противоречит «evening = не коучинг», больше риска.
+- C) Отдельный изолированный скилл `/coach`, активный только в сессии — выбрано.
+**Decision:** C. Новый скилл `skills/ceo/coach/` (SKILL.md + 8 references + helper `coach_log.py`). Persona читает soul.md ПЕРВЫМ (приоритет privacy/tone/zero-fake-data), затем коуч-надстройка с границей «активна только внутри /coach». Тон **смягчённый для CEO** (вопросы в основе, но прямая рекомендация по запросу/при нехватке времени). Контекст = существующая память (user/goals/areas/memory — без дубль-файла). Артефакты → `logs/coaching/YYYY-MM-DD.md` (НЕ memory/*) через helper → не триггерит guard.py. soul.md НЕ трогаем.
+**Why:** Минимальное вмешательство (Karpathy): ничего существующего не ломаем, обычное поведение Hermes неизменно, легко откатить (удалить папку скилла). Изоляция снимает конфликт с Phase-boundaries — коучинг это явный opt-in, не дефолт.
+**How to apply:** Расширять коуча — внутри `skills/ceo/coach/` (новые методики → references/, routing → SKILL.md). НЕ переносить коуч-тон в глобальную персону. Если позже захотим синергию с `/brief` — добавить запись коуч-инсайта в `memory/daily_log.md` через helper (как evening), отдельным решением. logs/coaching добавлен в backup.py INCLUDE (без ротации — история коуча ценна долгосрочно).
+**Risk if wrong:** Коуч-тон «протечёт» в обычные ответы. Mitigation: явная граница в Persona + What-NOT-to-do. Reversal: удалить `skills/ceo/coach/` + откатить 3 мелкие правки (SOP/menu/backup).
+**Reversal cost:** Низкая (изолированная папка + 3 surgical правки).
+**Decided by:** User (Александр) — AskUserQuestion: «коуч отдельно» + «смягчённый тон» — 2026-05-24. Реализация Claude Opus 4.7.
+**Status:** Реализовано локально, ожидает push + verify на проде (`/coach` → меню → сессия → артефакт в logs/coaching/).

@@ -23,6 +23,7 @@
 | `/decision <text>` | `ceo/decision_capture` | — | decisions.md | Stage 5c |
 | `/cleanup` | `ceo/memory_cleanup` | memory.md, daily_log.md, weekly_review.md | proposal output (manual approval) | Stage 5c |
 | `/backup` | `ceo/manual_backup` | — | backups/ + GitHub push (Stage 7) | Stage 7 |
+| `/coach` | `ceo/coach` | user, goals, areas, memory, projects (high), daily_log (last 5) | logs/coaching/YYYY-MM-DD.md | **+coach** (отдельный режим, не заменяет /brief /evening /week) |
 
 ---
 

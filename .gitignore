@@ -24,6 +24,8 @@ logs/weekly/*
 !logs/weekly/.gitkeep
 logs/telegram_inputs/*
 !logs/telegram_inputs/.gitkeep
+logs/coaching/*
+!logs/coaching/.gitkeep
 
 # CEO OS Layer — backups (keep dir, exclude content)
 backups/*

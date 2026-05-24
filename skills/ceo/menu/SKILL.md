@@ -42,6 +42,9 @@ reference. Показывает все CEO commands со one-line описани
 *Еженедельно:*
 📅 /week — weekly CEO review, голосом (auto Sun 18:00)
 
+*Коуч:*
+🧭 /coach — персональный коуч: ICF / GROW / Колесо баланса / Co-Active + ритмы (Утро/Вечер/Неделя/Месяц)
+
 *Просмотр:*
 📋 /projects — активные проекты (опц. /projects high)
 ⚠ /risks — топ риски (опц. /risks high)
