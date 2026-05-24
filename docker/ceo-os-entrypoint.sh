@@ -26,88 +26,21 @@ SEED_MEMORY="/opt/hermes/memory"
 
 mkdir -p "$HERMES_HOME"
 
-# ---- 1. Ensure skills.external_dirs in config.yaml --------------------------
-if [ ! -f "$CONFIG" ]; then
-  cat > "$CONFIG" <<EOF
-# Created $(date -u +%FT%TZ) by ceo-os-entrypoint.sh
-# Minimal Hermes runtime config — enables CEO OS Layer skill discovery.
-# Extend with full template from cli-config.yaml.example if you want more options.
-skills:
-  external_dirs:
-    - $CEO_SKILLS_DIR
-EOF
-  echo "[ceo-os-init] Created $CONFIG with external_dirs=$CEO_SKILLS_DIR"
-elif ! grep -qF "    - $CEO_SKILLS_DIR" "$CONFIG"; then
-  if grep -qE "^skills:" "$CONFIG"; then
-    if grep -qE "^[[:space:]]*external_dirs:" "$CONFIG"; then
-      # Normalize inline empty list (`external_dirs: []`) to block-start
-      # (`external_dirs:`) BEFORE appending — otherwise mixing produces
-      # invalid YAML (block sequence under flow mapping).
-      TMP="$(mktemp)"
-      awk -v p="$CEO_SKILLS_DIR" '
-        /^[[:space:]]*external_dirs:[[:space:]]*\[\][[:space:]]*$/ {
-          sub(/:[[:space:]]*\[\][[:space:]]*$/, ":")
-          print
-          print "    - " p
-          inserted = 1
-          next
-        }
-        /^[[:space:]]*external_dirs:[[:space:]]*$/ {
-          print
-          print "    - " p
-          inserted = 1
-          next
-        }
-        { print }
-      ' "$CONFIG" > "$TMP" && mv "$TMP" "$CONFIG"
-      echo "[ceo-os-init] Appended $CEO_SKILLS_DIR under existing skills.external_dirs"
-    else
-      printf "\n  external_dirs:\n    - %s\n" "$CEO_SKILLS_DIR" >> "$CONFIG"
-      echo "[ceo-os-init] Added external_dirs subkey under existing skills: block"
-    fi
-  else
-    printf "\nskills:\n  external_dirs:\n    - %s\n" "$CEO_SKILLS_DIR" >> "$CONFIG"
-    echo "[ceo-os-init] Appended skills block to existing $CONFIG"
-  fi
+# ---- 1. Ensure config.yaml (skills + model + hooks + guardrails) ------------
+# Delegated to a self-healing Python helper that ALWAYS writes valid YAML.
+# Replaces the previous bash/awk merge, which corrupted config.yaml whenever a
+# prior `/model --global` had rewritten it via yaml.dump (2-space list indent):
+# the awk branch mixed a 4-space list item with the 2-space one -> invalid YAML
+# -> model.default wiped on the next boot ("No models provided" incident,
+# 2026-05-24). The helper rebuilds a clean config if the file is unparseable
+# and restores model.default from $HERMES_MODEL.
+# Run with the app venv python (has pyyaml); fall back to python3.
+HERMES_PY="/opt/hermes/.venv/bin/python"
+[ -x "$HERMES_PY" ] || HERMES_PY="python3"
+if "$HERMES_PY" /opt/hermes/scripts/hooks/ensure_config.py; then
+  echo "[ceo-os-init] config.yaml ensured via ensure_config.py ($HERMES_PY)"
 else
-  echo "[ceo-os-init] $CONFIG already has $CEO_SKILLS_DIR — no change"
-fi
-
-# ---- 1b. Ensure security hooks + loop guardrails (INSTRUCTION_02) -----------
-# Append-if-absent of two NEW top-level keys (hooks:, tool_loop_guardrails:).
-# They are not present in the seeded config (which only has skills:), so a
-# plain append is valid YAML and idempotent (gated by grep). Hook scripts ship
-# in the image at /opt/hermes/scripts/hooks/ (Dockerfile: COPY . .).
-# NOTE: shell hooks only fire in the non-TTY gateway when HERMES_ACCEPT_HOOKS=1
-# is set in the environment (Railway variable) — otherwise they are skipped.
-if ! grep -qE "^hooks:" "$CONFIG"; then
-  cat >> "$CONFIG" <<'HOOKS_EOF'
-
-# --- CEO OS security hooks (INSTRUCTION_02) — appended by ceo-os-entrypoint ---
-hooks:
-  pre_tool_call:
-    - command: "python3 /opt/hermes/scripts/hooks/guard.py"
-      matcher: "^(?:write_file|patch|terminal|execute_code)$"
-      timeout: 10
-  post_tool_call:
-    - command: "python3 /opt/hermes/scripts/hooks/audit.py"
-      timeout: 10
-HOOKS_EOF
-  echo "[ceo-os-init] Appended hooks: block to $CONFIG"
-else
-  echo "[ceo-os-init] hooks: already present in $CONFIG — no change"
-fi
-
-if ! grep -qE "hard_stop_enabled" "$CONFIG"; then
-  cat >> "$CONFIG" <<'GUARD_EOF'
-
-# Runaway / tool-loop circuit breaker (INSTRUCTION_02)
-tool_loop_guardrails:
-  hard_stop_enabled: true
-GUARD_EOF
-  echo "[ceo-os-init] Appended tool_loop_guardrails to $CONFIG"
-else
-  echo "[ceo-os-init] tool_loop_guardrails already present in $CONFIG — no change"
+  echo "[ceo-os-init] WARNING: ensure_config.py exited non-zero — config left as-is"
 fi
 
 # Ensure the hooks audit-log dir exists (chowned in section 2b below).
