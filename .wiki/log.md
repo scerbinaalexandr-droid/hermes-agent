@@ -110,3 +110,20 @@ Append-only лог событий. Karpathy convention.
 ## [2026-05-24] session-end | 6 commits on main
 
 ## [2026-05-24] session-end | 7 commits on main
+
+## [2026-05-24] session-end | 8 commits on main
+
+## [2026-05-24] /coach — установка ИИ-коуча
+- Security-аудит папки ИИ-коуч (Георгий Ривера): 10 MD прочитаны, инъекций/скрытых unicode/эксфильтрации НЕТ → чисто.
+- Решения user (AskUserQuestion): коуч отдельным режимом + смягчённый для CEO тон.
+- Реализован изолированный скилл `skills/ceo/coach/` (SKILL.md + 8 references + helper coach_log.py). Артефакты → logs/coaching/ (не memory/*, не триггерит guard.py). Правки: menu, SOP, backup INCLUDE, .gitignore, decisions.md (L3).
+- Локально verified: frontmatter YAML OK, --gather/--save OK. Commit 515ccdb88.
+- ✅ Pushed → Railway redeploy → verified prod 22:19: `/coach` работает (pre-flight OK, gather OK, меню коуча отрисовано). Slash-команда деривится из `name: coach` (не metadata.commands); «Unknown command» сразу после push = деплой не докатился.
+- Опционально осталось: довести полную сессию до save-артефакта в logs/coaching/.
+
+## [2026-05-24] 22:29 — pre-compact snapshot
+- Saved snapshot before /compact (после установки /coach)
+- См. CONTEXT.md секцию "Snapshot 2026-05-24 22:29"
+- Open: intake-cron (user→бот), verify save-path коуча, push docs
+
+## [2026-05-28] session-end | No commits (main)

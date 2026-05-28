@@ -344,4 +344,5 @@
 **Risk if wrong:** Коуч-тон «протечёт» в обычные ответы. Mitigation: явная граница в Persona + What-NOT-to-do. Reversal: удалить `skills/ceo/coach/` + откатить 3 мелкие правки (SOP/menu/backup).
 **Reversal cost:** Низкая (изолированная папка + 3 surgical правки).
 **Decided by:** User (Александр) — AskUserQuestion: «коуч отдельно» + «смягчённый тон» — 2026-05-24. Реализация Claude Opus 4.7.
-**Status:** Реализовано локально, ожидает push + verify на проде (`/coach` → меню → сессия → артефакт в logs/coaching/).
+**Status:** ✅ ЗАКРЫТО (базово). Commit 515ccdb88 → push → Railway redeploy → verified prod 2026-05-24 22:19: `/coach` зарегистрирован (slash из `name: coach`), pre-flight check пройден, `coach_log.py --gather` отработал на томе, меню коуча отрисовано (4 ритма + 4 методики). Осталось опционально: довести полную сессию до сохранения артефакта в `logs/coaching/` (save-path).
+**NB:** slash-команда деривится из поля `name` скилла (`scan_skill_commands` agent/skill_commands.py:272-294), НЕ из `metadata.hermes.commands`; скан live при старте процесса (deploy = рестарт = авто-регистрация, индекс не пересобирать). «Unknown command» сразу после push = деплой ещё не докатился, не баг.

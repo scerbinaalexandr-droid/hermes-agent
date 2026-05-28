@@ -1,0 +1,32 @@
+- **2026-05-17** (main): f19807ac3 fix(ceo-os): Russian-only output + Супруга pseudonym + YAML edge case
+- **2026-05-17** (main): a4592d064 feat(ceo-os): V1 Executive OS Layer — CEO skills, memory, production deploy
+- **2026-05-17** (main): c71b41606 feat(ceo-os): UX Layer 1+2 — voice-first, /menu, /find, /remind, compact mode
+- **2026-05-17** (main): c25fcc24b feat(ceo-os): add /start alias skill — invokes /menu
+- **2026-05-17** (main): 8cc6b0be3 fix(ceo-os): chown CEO data dirs to hermes UID in entrypoint
+- **2026-05-17** (main): 44a21daa3 fix(ceo-os): curate Telegram bot menu to CEO-only commands
+- **2026-05-18** (main): 3291f6f45 feat(ceo-os): /report HTML dashboard + anti-fabrication honesty harness
+- **2026-05-18** (main): 07d58eb08 feat(ceo-os): /report — add PDF generation via headless Chromium
+- **2026-05-18** (main): addc7079e fix(ceo-os): chown reports/ + cron/ dirs in entrypoint
+- **2026-05-18** (main): 9d4737163 fix(ceo-os): add /opt/hermes fallback to sys.path in all CEO scripts
+- **2026-05-19** (main): f95084d28 fix(ceo-os): /report parser handles capture template + cleaner empty cells
+- **2026-05-19** (main): 75e25a4e9 docs(wiki): roadmap для /dashboard (CEO cockpit v2) + /intel week (research)
+- **2026-05-21** (main): 4c85d87d8 feat(ceo-os): /web skill — search/fetch/render без платных API
+- **2026-05-21** (main): eeb6fa0d7 fix(ceo-os): /web — stdlib-only (no httpx required on prod container)
+- **2026-05-21** (main): 9c9ad2351 fix(ceo-os): force-fresh CEO skills via symlink to in-image dir
+- **2026-05-21** (main): e909e02d9 feat(ceo-os): Response Design System в soul.md (§9-10)
+- **2026-05-21** (main): 5d58bfe96 feat(ceo-os): /report — public URL upload via catbox.moe
+- **2026-05-21** (main): 809ab6173 feat(ceo-os): /whoami — Telegram identity diagnostic skill
+- **2026-05-22** (main): 302efa835 fix(ceo-os): /report — embed ready-to-send Telegram caption in helper output
+- **2026-05-22** (main): 1d5ec900e feat(ceo-os): own Railway endpoint для public report URLs
+- **2026-05-22** (main): fe5f385de fix(ceo-os): soul.md §4c — strict ban on fabricated identifiers/jobs/paths
+- **2026-05-23** (main): 998ab1d17 docs(ceo-os): record prod model-source fix (config.yaml vs env)
+- **2026-05-24** (main): 1dd54fba8 feat(ceo-os): security hooks — memory protection, git-push/exfil block, audit
+- **2026-05-24** (main): 99376694b fix(ceo-os): self-healing config.yaml — repair "No models provided" regression
+- **2026-05-24** (main): ac04cbc4e docs(ceo-os): record INSTRUCTION_02 + config-corruption incident + dated-model fix
+- **2026-05-24** (main): 4d07d4508 fix(ceo-os): ensure_config fallback -> dated model + anthropic provider
+- **2026-05-24** (main): 584b487c2 fix(ceo-os): /whoami graceful degradation — output Chat ID instead of error
+- **2026-05-24** (main): 5a327a310 feat(ceo-os): backup skill — daily memory snapshot to private GitHub (INSTRUCTION_03)
+- **2026-05-24** (main): 0d14b3a8e docs(ceo-os): record true root-cause (HERMES_INFERENCE_PROVIDER) + INSTRUCTION_03 backup
+- **2026-05-24** (main): 308729216 docs(ceo-os): INSTRUCTION_03 closed — daily backup cron created (job f35d551d4a4b)
+- **2026-05-24** (main): eb0bb6c3c docs(ceo-os): pre-compact snapshot 2026-05-24 — INSTRUCTION_01/02/03 + provider root-cause
+- **2026-05-24** (main): 515ccdb88 feat(ceo-os): /coach — персональный AI-коуч (ICF/GROW/Колесо/Co-Active + ритмы)

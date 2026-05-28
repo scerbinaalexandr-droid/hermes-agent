@@ -449,3 +449,49 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 2. Первым делом: спросить — пришёл ли ночной `[backup] … snapshot pushed ✅` в Telegram (cron `f35d551d4a4b`)?
 3. Хвосты: GitHub 2FA → push docs → (опц.) sonnet-4-6 → dependabot urllib3.
 4. Следующая инструкция: **INSTRUCTION_04_CEO_AUTOMATIONS** (по футеру INSTRUCTION_03).
+
+---
+
+## Snapshot 2026-05-24 22:29 (auto-saved before /compact)
+
+**Сессия началась:** 2026-05-24 (продолжение после предыдущего /compact)
+**Сессия закрыта на:** ИИ-коуч установлен и verified на проде; intake-cron подготовлен (ожидает отправки боту)
+**Контекст на момент snapshot:** высокий (после длинной сессии)
+
+### 🏗 Архитектурные решения
+- **ИИ-коуч как изолированный opt-in скилл `/coach`** (НЕ влитие в soul.md). Альтернативы: A) влить системный промпт в soul.md — отклонено (перепишет персону Hermes + конфликт Phase-boundaries + soul canonical); B) апгрейд /brief /evening /week в коучинговые — отклонено user'ом (ломает «evening=не коучинг»); C) отдельный скилл — ВЫБРАНО. Reversal: легко (удалить папку + 3 правки). См. decisions.md::coach-as-isolated-optin-skill.
+- **Тон коуча — смягчённый для CEO** (вопросы в основе, но прямая рекомендация по запросу/при нехватке времени). Решение user (AskUserQuestion).
+- **Артефакты коуча → `logs/coaching/` (НЕ memory/*)** через helper → не триггерит мой security-хук guard.py. logs-root резолвится из `HERMES_CEO_MEMORY_ROOT` → `/opt/data/logs/coaching` (переживает редеплой + бэкап), НЕ повторяет баг record_evening.py (`_REPO/logs` → эфемерный образ).
+- **Slash-команда деривится из поля `name` скилла** (`scan_skill_commands` agent/skill_commands.py:272-294), НЕ из `metadata.hermes.commands`. Скан live при старте процесса (deploy=рестарт=авто-регистрация, индекс не пересобирать).
+
+### 🎨 Визуальные / UX достижения
+- Меню коуча в Telegram (по `/coach`): 4 ритма (Утро/Вечер/Неделя/Месяц) + 4 методики (ICF/GROW/Колесо/Co-Active) + «опишите запрос, подберу подход». Verified на проде 22:19.
+
+### 📁 Ключевые file paths
+- `skills/ceo/coach/SKILL.md` — главный файл скилла (persona + routing + меню + steps)
+- `skills/ceo/coach/scripts/coach_log.py` — helper --gather/--save (зеркало record_evening.py)
+- `skills/ceo/coach/references/*.md` — 8 методик/ритмов (icf/grow/wheel/coactive/morning/evening/week/month), скопированы из ~/Downloads/.../ИИ-коуч/MD, футер+имя автора удалены
+- `skills/ceo/menu/SKILL.md`, `SOP/telegram_commands.md`, `skills/ceo/backup/scripts/backup.py` (INCLUDE += logs/coaching), `.gitignore` (logs/coaching/*) — правки
+- Источник коуча (вне репо): `~/Downloads/drive-download-20260524T181642Z-3-001/ИИ-коуч/`
+
+### 🔑 Идентификаторы
+- Commit: `515ccdb88` (feat(ceo-os): /coach) — запушен в main, задеплоен
+- Prod: Railway, бот @Hermes_Alex21_bot, HERMES_HOME=/opt/data, model claude-sonnet-4-5-20250929, provider anthropic
+- Backup cron (прошлая сессия): job `f35d551d4a4b`
+- ENV vars (имена): HERMES_CEO_MEMORY_ROOT, HERMES_HOME, HERMES_INFERENCE_PROVIDER, ANTHROPIC_API_KEY, BACKUP_GITHUB_TOKEN/REPO_URL
+
+### 📋 Open TODOs
+- [ ] **Intake-cron** — user отправляет боту готовое сообщение (создать разовый cron на 2026-05-25 08:00 Кишинёв, skill=coach, intake-вопросы). Бот создаёт → user присылает Job ID → проверить (время/skill/разовость). НЕ создаётся из локального Claude Code (cron на проде).
+- [ ] **Verify save-path коуча** — довести одну полную /coach-сессию до сохранения артефакта в logs/coaching/ (меню+gather подтверждены, save ещё нет).
+- [ ] Запушить docs (.wiki/decisions.md, log.md, CONTEXT.md) — docs-only, на деплой не влияет.
+- [ ] (опц.) intake как постоянная кнопка `/coach`→«Знакомство» вместо разового cron.
+
+### ⚠ Lessons
+- «Unknown command /coach» сразу после push = **деплой ещё не докатился**, НЕ баг. Подождать рестарт контейнера (виден «Gateway shutting down»). Slash-команда регистрируется из `name`, не из metadata.commands.
+- Сторонний «системный промпт»-продукт НЕ вливать в глобальную персону бота — изолировать в скилл, активный только в сессии (иначе конфликт персон + phase-boundaries).
+- Локальный `/opt/hermes/.venv/bin/python` не существует (это прод-путь); локально использовать `.venv/bin/python` или `python3`.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + decisions.md::coach-as-isolated-optin-skill.
+2. Если user прислал Job ID intake-cron — проверить корректность (один раз, завтра утром, skill=coach, deliver в его чат).
+3. Подтвердить, что первая /coach-сессия сохранила артефакт в logs/coaching/ → закрыть coach на 100%.
