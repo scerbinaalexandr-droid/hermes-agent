@@ -240,14 +240,76 @@ def render(conn: sqlite3.Connection) -> str:
     return "\n".join(lines)
 
 
+def render_debug(conn: sqlite3.Connection) -> str:
+    """Diagnostic dump — last 10 sessions with cost-tracking metadata."""
+    cur = conn.execute(
+        """
+        SELECT datetime(started_at, 'unixepoch') AS started,
+               model,
+               COALESCE(billing_provider, '—') AS provider,
+               COALESCE(billing_mode, '—') AS mode,
+               COALESCE(cost_status, '—') AS status,
+               COALESCE(cost_source, '—') AS source,
+               COALESCE(pricing_version, '—') AS pv,
+               actual_cost_usd, estimated_cost_usd,
+               input_tokens, output_tokens, cache_read_tokens
+        FROM sessions
+        ORDER BY started_at DESC
+        LIMIT 10
+        """
+    )
+    rows = list(cur)
+    if not rows:
+        return "🔍 *Debug:* state.db пуст — sessions не создавались."
+
+    lines = ["🔍 *Cost tracking debug — last 10 sessions:*", ""]
+    for r in rows:
+        (started, model, provider, mode, status, source, pv,
+         actual, estim, i_t, o_t, c_r) = r
+        cost_str = f"a=${actual}" if actual is not None else "a=NULL"
+        cost_str += f" e=${estim}" if estim is not None else " e=NULL"
+        lines.append(
+            f"• {started} UTC — model=`{model or 'NULL'}` "
+            f"provider=`{provider}` mode=`{mode}`"
+        )
+        lines.append(
+            f"   status=`{status}` source=`{source}` pricing_ver=`{pv}` "
+            f"tokens=(i={i_t} o={o_t} c_r={c_r}) cost=({cost_str})"
+        )
+
+    # Diagnostic interpretation
+    lines.append("")
+    lines.append("📋 *Что искать:*")
+    lines.append(
+        "• `cost_status=disabled` или `no_pricing` → cost tracking off / "
+        "модель не в pricing table"
+    )
+    lines.append(
+        "• `billing_provider=NULL` → провайдер не зарегистрирован в session "
+        "(чаще всего после смены provider в config)"
+    )
+    lines.append(
+        "• `actual=NULL e=NULL` для всех → нужен update pricing JSON или "
+        "включить `cost_tracking: true` в config.yaml"
+    )
+    lines.append(
+        "• `pricing_ver=—` → Hermes не знает pricing для текущей модели"
+    )
+    return "\n".join(lines)
+
+
 def main() -> int:
+    debug = "--debug" in sys.argv[1:] or "debug" in sys.argv[1:]
     try:
         conn = _connect()
     except sqlite3.OperationalError as e:
         print(f"❌ Не могу открыть state.db: {e}")
         return 1
     try:
-        out = render(conn)
+        if debug:
+            out = render_debug(conn)
+        else:
+            out = render(conn)
     finally:
         conn.close()
     print(out)

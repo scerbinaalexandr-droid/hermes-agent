@@ -30,6 +30,10 @@ metadata:
       - "расход токенов"
       - "spend report"
       - "token report"
+      - "/cost debug"
+      - "cost debug"
+      - "почему $0"
+      - "debug cost"
 ---
 
 # /cost — Token spend monitor
@@ -86,6 +90,20 @@ Hard cap из плана: $200/мес. При тренде >$200/мес — не
 ```
 /cron create "55 20 * * *" --script /opt/data/scripts/cost_monitor.py --no-agent --name daily_cost_report --deliver telegram
 ```
+
+## Debug mode
+
+Если отчёт показывает `$0.00` подозрительно — запусти helper с флагом
+`--debug` (или скажи в чат «cost debug» / «почему $0»). Покажет последние
+10 sessions с полями `cost_status`, `billing_provider`, `pricing_version`,
+`actual/estimated`. Помогает найти root cause:
+
+- `cost_status=disabled` → cost tracking off в config
+- `billing_provider=NULL` → провайдер не зарегистрирован после смены config
+- `actual=NULL & estimated=NULL` для всех → pricing JSON не обновлён под модель
+- `pricing_ver=—` → Hermes не знает pricing для текущей модели
+
+Скрипт: `python3 /opt/data/scripts/cost_monitor.py --debug`
 
 ## Где живут данные
 
