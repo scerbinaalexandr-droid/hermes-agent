@@ -184,6 +184,107 @@ _OFFICIAL_DOCS_PRICING: Dict[tuple[str, str], PricingEntry] = {
         source_url="https://openai.com/api/pricing/",
         pricing_version="openai-pricing-2026-03-16",
     ),
+    # Anthropic 4.x generation — direct provider (non-Bedrock).
+    # Upstream Hermes only ships Bedrock prefix variants ("anthropic.claude-..."),
+    # so direct API calls with model="claude-sonnet-4-6" land in `no_pricing`
+    # and write NULL cost. These entries close that gap.
+    # Source: https://www.anthropic.com/pricing (per-million tokens, USD).
+    (
+        "anthropic",
+        "claude-sonnet-4-6",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("3.00"),
+        output_cost_per_million=Decimal("15.00"),
+        cache_read_cost_per_million=Decimal("0.30"),
+        cache_write_cost_per_million=Decimal("3.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-sonnet-4-6-20250929",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("3.00"),
+        output_cost_per_million=Decimal("15.00"),
+        cache_read_cost_per_million=Decimal("0.30"),
+        cache_write_cost_per_million=Decimal("3.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-sonnet-4-5-20250929",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("3.00"),
+        output_cost_per_million=Decimal("15.00"),
+        cache_read_cost_per_million=Decimal("0.30"),
+        cache_write_cost_per_million=Decimal("3.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-sonnet-4-7",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("3.00"),
+        output_cost_per_million=Decimal("15.00"),
+        cache_read_cost_per_million=Decimal("0.30"),
+        cache_write_cost_per_million=Decimal("3.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-opus-4-6",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("15.00"),
+        output_cost_per_million=Decimal("75.00"),
+        cache_read_cost_per_million=Decimal("1.50"),
+        cache_write_cost_per_million=Decimal("18.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-opus-4-7",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("15.00"),
+        output_cost_per_million=Decimal("75.00"),
+        cache_read_cost_per_million=Decimal("1.50"),
+        cache_write_cost_per_million=Decimal("18.75"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-haiku-4-5",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("0.80"),
+        output_cost_per_million=Decimal("4.00"),
+        cache_read_cost_per_million=Decimal("0.08"),
+        cache_write_cost_per_million=Decimal("1.00"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
+    (
+        "anthropic",
+        "claude-haiku-4-5-20251001",
+    ): PricingEntry(
+        input_cost_per_million=Decimal("0.80"),
+        output_cost_per_million=Decimal("4.00"),
+        cache_read_cost_per_million=Decimal("0.08"),
+        cache_write_cost_per_million=Decimal("1.00"),
+        source="anthropic_pricing_page",
+        source_url="https://www.anthropic.com/pricing",
+        pricing_version="anthropic-direct-2026-05",
+    ),
     # Anthropic older models (pre-4.6 generation)
     (
         "anthropic",
