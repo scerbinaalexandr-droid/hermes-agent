@@ -959,7 +959,23 @@ class TelegramAdapter(BasePlatformAdapter):
             builder = builder.request(request).get_updates_request(get_updates_request)
             self._app = builder.build()
             self._bot = self._app.bot
-            
+
+            # UX telemetry (HERMES_TO_96 Assumption A1) — pre-handlers in
+            # group=-1 run BEFORE the user-facing handlers and never block
+            # processing. Telemetry crashes are swallowed inside the module.
+            try:
+                from gateway.platforms import telemetry as _telemetry  # type: ignore
+                self._app.add_handler(
+                    TelegramMessageHandler(filters.ALL, _telemetry.log_message),
+                    group=-1,
+                )
+                self._app.add_handler(
+                    CallbackQueryHandler(_telemetry.log_callback),
+                    group=-1,
+                )
+            except Exception as _exc:  # noqa: BLE001
+                logger.warning("Telemetry pre-handler registration failed: %s", _exc)
+
             # Register handlers
             self._app.add_handler(TelegramMessageHandler(
                 filters.TEXT & ~filters.COMMAND,
