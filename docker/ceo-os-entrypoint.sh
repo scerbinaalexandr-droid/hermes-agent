@@ -67,6 +67,11 @@ if [ -f /opt/hermes/skills/ceo/telemetry/scripts/telemetry_report.py ]; then
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/telemetry_report.py" 2>/dev/null || true
   echo "[ceo-os-init] Staged telemetry_report.py → $HERMES_HOME/scripts/telemetry_report.py"
 fi
+if [ -f /opt/hermes/skills/ceo/notes/scripts/notes_log.py ]; then
+  cp /opt/hermes/skills/ceo/notes/scripts/notes_log.py "$HERMES_HOME/scripts/notes_log.py"
+  chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/notes_log.py" 2>/dev/null || true
+  echo "[ceo-os-init] Staged notes_log.py → $HERMES_HOME/scripts/notes_log.py"
+fi
 
 # ---- 2. Seed memory templates (per-file merge) ------------------------------
 # For each baked-in template file, copy into the persistent volume only when

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- launchd job: hermes-notes-sync. Runs every 6 hours.
+       Install via:
+         cp com.alex21.hermes-notes-sync.plist ~/Library/LaunchAgents/
+         launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.alex21.hermes-notes-sync.plist
+
+       Unload:
+         launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.alex21.hermes-notes-sync.plist
+
+       Logs: tail -f ~/Library/Logs/hermes-notes-sync.log
+  -->
+
+  <key>Label</key>
+  <string>com.alex21.hermes-notes-sync</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>HERMES_SYNC_SCRIPT_PATH_PLACEHOLDER</string>
+  </array>
+
+  <!-- Run every 6 hours -->
+  <key>StartInterval</key>
+  <integer>21600</integer>
+
+  <!-- Also run once at load time (so notes appear ASAP after first install) -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Stdout/stderr captured to log file (the script also logs internally) -->
+  <key>StandardOutPath</key>
+  <string>HERMES_LOG_PATH_PLACEHOLDER</string>
+  <key>StandardErrorPath</key>
+  <string>HERMES_LOG_PATH_PLACEHOLDER</string>
+
+  <!-- Run with user's environment (so git / ssh / rsync are on PATH) -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Don't keep alive — this is a periodic task, not a daemon -->
+  <key>KeepAlive</key>
+  <false/>
+</dict>
+</plist>
