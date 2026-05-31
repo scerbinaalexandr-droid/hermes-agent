@@ -49,10 +49,26 @@ only) · `BACKUP_REPO_URL` · `BACKUP_GIT_USER_NAME` · `BACKUP_GIT_USER_EMAIL`
 
 ## One-time cron setup (after env vars are live)
 
-Run once in Telegram (or via `hermes cron create`):
+**Important:** `/cron` is NOT a Telegram slash-command. Cron jobs are created
+either by asking the bot in natural language (so it invokes the internal
+`cronjob` tool) OR via the Hermes CLI on the server. `--script` expects a path
+RELATIVE to `~/.hermes/scripts/`, not absolute.
 
+**Option A — through the bot (preferred):**
+
+Send a plain-text message:
+> Create cron job daily_memory_backup: run backup.py every day at 03:00 UTC,
+> no-agent mode, deliver to telegram.
+
+The bot will trigger the `cronjob` tool and return a real job_id. **Always
+verify** — past bot fabricated job IDs (decisions.md 2026-05-24):
+> show cron list
+
+**Option B — via CLI (SSH/Railway shell):**
 ```
-/cron create "0 3 * * *" --script /opt/data/scripts/backup.py --no-agent --name daily_memory_backup --deliver telegram
+/opt/hermes/.venv/bin/hermes cron create "0 3 * * *" \
+  --script backup.py --no-agent \
+  --name daily_memory_backup --deliver telegram
 ```
 
 ## When the user types /backup manually

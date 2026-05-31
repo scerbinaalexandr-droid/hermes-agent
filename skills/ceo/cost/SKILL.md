@@ -86,9 +86,26 @@ Hard cap из плана: $200/мес. При тренде >$200/мес — не
 
 ## Setup (one-time, после первого deploy)
 
-В Telegram:
+**Важно:** `/cron` — НЕ slash-команда Telegram-бота. Cron создаётся через
+natural language (бот вызовет внутренний `cronjob` tool) ИЛИ через CLI на
+Railway. `--script` ожидает путь ОТНОСИТЕЛЬНО `~/.hermes/scripts/`, не
+абсолютный.
+
+**Вариант A — через бота (рекомендуется):**
+
+Отправить боту обычным текстом:
+> Создай cron-задачу daily_cost_report: запускай cost_monitor.py каждый день
+> в 20:55 UTC, режим no-agent, доставка в telegram.
+
+Бот распознает намерение → вызовет cronjob tool → вернёт реальный job_id.
+**Verify обязательно** (бот в прошлом выдумывал job IDs — incident 2026-05-24):
+> покажи список cron-задач
+
+**Вариант B — через CLI (если есть SSH/railway shell):**
 ```
-/cron create "55 20 * * *" --script /opt/data/scripts/cost_monitor.py --no-agent --name daily_cost_report --deliver telegram
+/opt/hermes/.venv/bin/hermes cron create "55 20 * * *" \
+  --script cost_monitor.py --no-agent \
+  --name daily_cost_report --deliver telegram
 ```
 
 ## Debug mode
