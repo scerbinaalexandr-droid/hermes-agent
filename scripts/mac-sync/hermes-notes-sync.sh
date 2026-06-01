@@ -14,7 +14,7 @@
 set -euo pipefail
 
 # --- CONFIG (edit if needed) -----------------------------------------------
-BACKUP_REPO_URL="${HERMES_BACKUP_REPO_URL:-git@github.com:scerbinaalexandr-droid/hermes-memory-backup.git}"
+BACKUP_REPO_URL="${HERMES_BACKUP_REPO_URL:-https://github.com/scerbinaalexandr-droid/hermes-memory-backup.git}"
 LOCAL_MIRROR="${HERMES_LOCAL_MIRROR:-$HOME/.hermes-mirror}"
 OBSIDIAN_NOTES_DIR="${HERMES_OBSIDIAN_NOTES:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/ALEX21_VAULT/03 — Notes}"
 LOG_FILE="${HERMES_SYNC_LOG:-$HOME/Library/Logs/hermes-notes-sync.log}"
@@ -40,7 +40,7 @@ if [ -d "$LOCAL_MIRROR/.git" ]; then
 else
   log "cloning $BACKUP_REPO_URL → $LOCAL_MIRROR"
   if ! git clone --quiet "$BACKUP_REPO_URL" "$LOCAL_MIRROR" 2>>"$LOG_FILE"; then
-    log "ERROR: clone failed. Check BACKUP_REPO_URL + SSH key access."
+    log "ERROR: clone failed. Check BACKUP_REPO_URL + gh CLI auth (run 'gh auth status')."
     exit 1
   fi
 fi
