@@ -24,6 +24,94 @@
 
 ---
 
+## [2026-06-01] w1-hermes-to-96-execution-closed
+**Type:** Milestone
+**Domain:** Executive OS
+**Context:** Закрыта W1 по плану HERMES_TO_96 (созданному 2026-05-28 через deep-planning protocol). Все 3 запланированных этапа + 4 внеплановых fix-а пройдены за 4 дня.
+**Outcome:**
+- Etap #1 token-monitor: /cost работает, 8 entries в pricing table для direct Anthropic 4.x generation добавлены (upstream Nous Research bug); daily cron daily_cost_report 20:55 UTC активен.
+- Etap #2 telemetry: pre-handlers в gateway logат каждый update; /telemetry skill агрегирует с decision matrix; baseline накапливается.
+- Etap #3 /notes: end-to-end pipeline voice/photo/text → AI structure → /opt/data/logs/notes/ → daily backup → mac launchd → ALEX21_VAULT/03 — Notes/ → iCloud → iPhone Obsidian. Verified первой заметкой 2026-06-01 (TANDEM Casa осень 2026 — на mac в Obsidian).
+- Extra: /evening cron broken (interactive skill vs cron mismatch) → заменён на reminder cron 21:30 EEST.
+- Extra: IMMUTABLE_ZONE hook false positive на `2>&1` починен (whitelist benign redirects: 2>&1, &>/dev/null, >&2).
+**Rationale:** plan имел 14 этапов до W14, W1 (этапы 1-3) закрыты с zero regressions. Каждая ветка прошла smoke test + real deploy verify.
+**Risk if wrong:** weeks 4-14 могут не повториться так чисто — введён 60-day Stilman audit kill-criterion на 2026-07-27.
+**Reversal cost:** легко — каждый skill self-contained.
+**Decided by:** user + agent (deep-planning protocol Phase 3)
+
+---
+
+## [2026-06-01] mac-sync-via-gh-credentials
+**Type:** L3
+**Domain:** Infra / Mac
+**Context:** Запустили `setup-launchd.sh` для Obsidian sync — первый sync упал на "Host key verification failed". Mac ~/.ssh/ оказался пустой (нет SSH ключа), но gh CLI authenticated через GH_TOKEN.
+**Options considered:**
+- A: Generate SSH key + add to GitHub (5+ min user action + UI)
+- B: PAT в plain text в скрипте (security hole)
+- C: Use existing gh CLI credentials via `gh auth setup-git` + HTTPS URL
+**Decision:** **C** — gh auth setup-git wires git credential helper to gh tokens. HTTPS URL вместо SSH в hermes-notes-sync.sh.
+**Rationale:** Использует existing authenticated session (gh уже logged in для всей системы). Никаких новых secrets. Один-разовый `gh auth setup-git` — все private repos этого account доступны через git.
+**Risk if wrong:** если gh CLI logout — sync падает. Mitigation: gh auth status уже в Prerequisites checklist setup-launchd.sh.
+**Reversal cost:** revert URL → SSH одной строкой.
+**Decided by:** agent после failure mode investigation
+
+---
+
+## [2026-05-31] notes-storage-architecture
+**Type:** L3
+**Domain:** Engineering / Data
+**Context:** Архитектура /notes — где хранить и как sync в Obsidian. 3 варианта sync (until tomorrow / hourly / realtime), 3 варианта file layout (1 file/day / per-note / topic folders).
+**Options considered:**
+- Sync: until tomorrow (через daily backup) / hourly cron / per-note realtime
+- Layout: 1 файл/день / 1 файл/note + index / тематические папки
+**Decision:** Sync **until tomorrow** (через existing daily backup pipeline) + Layout **1 файл/note + daily index** (`/opt/data/logs/notes/YYYY-MM-DD/HHMM-<slug>.md` + `YYYY-MM-DD-index.md`).
+**Rationale:** Sync через existing backup = 0 новой инфры. Per-note + index — Obsidian backlinks работают, daily browse удобно. Tradeoff "sync до завтра" принят — для meeting protocols ОК; ad-hoc thoughts всё равно в /capture.
+**Risk if wrong:** заметка сделана в 14:00 не появится на iPhone до следующего дня. Mitigation: launchd cron каждые 6 часов (force-kick available manually).
+**Reversal cost:** перейти на hourly sync — изменить StartInterval в plist (1 значение).
+**Decided by:** user
+
+---
+
+## [2026-05-29] anthropic-pricing-table-patch
+**Type:** L3
+**Domain:** Engineering / Observability
+**Context:** /cost показывал $0.00 при наличии 2 sessions с 185K cache tokens. Debug: cost_status=no_pricing для всех sessions с model=claude-sonnet-4-5-20250929 / claude-sonnet-4-6. Upstream Nous Research включил pricing entries только для Bedrock-prefixed моделей (`anthropic.claude-...`), но НЕ для direct Anthropic API.
+**Decision:** Добавили 8 entries в `agent/usage_pricing.py` _OFFICIAL_DOCS_PRICING dict: sonnet-4-6 (bare + dated), sonnet-4-5-20250929, sonnet-4-7, opus-4-6/4-7, haiku-4-5 (bare + dated). Values from https://www.anthropic.com/pricing.
+**Rationale:** Без этого patch token-monitor бесполезен — cost всегда $0. Минимально invasive — только добавление entries в существующую структуру.
+**Risk if wrong:** если Anthropic меняет pricing — наши захардкоженные числа устаревают. Mitigation: review раз в 6 месяцев; pricing_version "anthropic-direct-2026-05" tags данные.
+**Reversal cost:** удалить 8 entries — 1 commit.
+**Decided by:** agent + user approval
+
+---
+
+## [2026-05-28] hermes-to-96-master-plan
+**Type:** L3 / Strategic
+**Domain:** Executive OS / Roadmap
+**Context:** User попросил настроить Гермеса "до 96%" и сделать /psychologist + меню + /notes сразу. Прошли полный deep-planning protocol (триаж → 8 вопросов → эхо-тест → спарринг с матрицей 14 рисков → финализация).
+**3 ключевых решения из Phase 2 sparring:**
+1. **Stilman accepted: Hermes + Chief of Staff параллельно**, не AI-only. Hermes = информация+память, живой CoS = люди+встречи. 60-day audit kill-criterion на 2026-07-27 — если usage <30% от планируемого, freeze новых веток.
+2. **/psychologist skipped**: Anthropic 30-day prompt retention несовместим с health data class. Живой психоаналитик ×2/мес (~€400-600) работает лучше + лицензирован. Inner_Mirror_Prompt.md остаётся в archive, не строим.
+3. **Tempo: 1 ветка за раз + 7-day usage test**, не batch-релиз. Антипаттерн /coach (deploy без теста) больше не повторяем.
+**Plan deliverable:** `.wiki/HERMES_TO_96.md` — 14 этапов, 4 допущения с дешёвыми тестами, бюджет $200/мес hard cap, чек-лист качества 10/10.
+**Rationale:** User просил быстро, но deep-planning выявил риски ($200/мес token bleed, broken privacy для psy, mismatch interactive vs cron). Принят более медленный путь с validation gates.
+**Risk if wrong:** темп замедлен до ~3 нед на 6 веток. Может быть слишком медленно если CoS найдётся быстро.
+**Reversal cost:** легко — план модульный.
+**Decided by:** user + agent (deep-planning Phase 3)
+
+---
+
+## [2026-05-28] no-daily-ro-digest-weekly-already-exists
+**Type:** L3
+**Domain:** Cost / Roadmap
+**Context:** User просил утренний дайджест Румыния (econ+political+мебель+недвижимость). В `cron list` обнаружились уже существующие cron-jobs: Weekly MD+RO Digest (Пн 06:00 UTC) + Weekly Inflation Report Romania (Пн 09:00 UTC) + Monthly MD+RO Report.
+**Decision:** Daily digest **НЕ строим** — weekly хватает. Этап #9 в HERMES_TO_96 closed без работы.
+**Rationale:** Daily digest = ~$30/мес token spend + Risk #4 «дайджест не читается через 2 недели». Weekly уже работает и last run 25.05 был успешен. Если user реально хочет daily — можем добавить через 2 недели если weekly окажется недостаточным.
+**Risk if wrong:** weekly может быть низкого качества — увидим в понедельник.
+**Reversal cost:** создать daily cron — 5 минут.
+**Decided by:** user
+
+---
+
 ## [2026-05-17] decisions-log-init
 **Type:** Setup
 **Decision:** Создан decisions.md по STANDARDS §1 + начат V1 Executive OS блюпринт.

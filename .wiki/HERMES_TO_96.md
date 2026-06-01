@@ -2,12 +2,33 @@
 title: Hermes до 96% — Master Plan
 type: roadmap
 created: 2026-05-28
+updated: 2026-06-01
 owner: Alexandr Scerbina
 review_cadence: weekly (sunday evening)
 kill_audit_date: 2026-07-27 (60 дней от старта)
-status: active
+status: W1 done — pilot phase (W2 = passive data collection)
 tags: [roadmap, hermes, ceo-os, deep-planning]
 ---
+
+## W1 closure (2026-06-01)
+
+| Этап | Статус | Verified |
+|---|---|---|
+| #1 token-monitor | ✅ closed | /cost shows real $, daily cron 20:55 UTC active |
+| #2 telemetry sprint | ✅ closed | /telemetry returns "sample too small" — pipeline jest, ждём данных |
+| #3 /notes build | ✅ closed | End-to-end: TANDEM Casa note synced to ALEX21_VAULT/03 — Notes/ |
+| #9 daily RO digest | ❌ cancelled | Weekly MD+RO + Inflation cron уже работают — не дублируем |
+| **Bonus**: pricing patch | ✅ | 8 entries добавлены для direct Anthropic 4.x — upstream gap closed |
+| **Bonus**: /evening cron | ✅ | Заменён на reminder (interactive skill не cron-friendly) |
+| **Bonus**: mac sync HTTPS+gh | ✅ | Без SSH ключа, через `gh auth setup-git` |
+| **Bonus**: IMMUTABLE_ZONE hook | ✅ | False positive на 2>&1 / &>/dev/null исправлен |
+
+**Зафиксировано в decisions.md:** 5 L3-решений + 1 milestone (2026-06-01 — 2026-05-28).
+
+**Что НЕ запускалось** (отложено по плану): Этапы #7 (inline-меню — gate на telemetry data), #11 (provider fallback chain), #12 (read-only mirror), #13 (CoS access space). Будут открыты после W2-3 валидации usage.
+
+---
+
 
 # План: Hermes до 96%
 

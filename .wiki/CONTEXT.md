@@ -1,13 +1,45 @@
 ---
 title: hermes-agent — Context
 type: reference
-updated: 2026-05-17
+updated: 2026-06-01
 tags: [wiki, hermes-agent, ceo-os, tandem]
 ---
 
 # hermes-agent — Context
-**Updated:** 2026-05-17
-**Phase:** V1 Executive OS — MVP-вертикаль (Stage 0-4) для CEO Tandem Group
+**Updated:** 2026-06-01
+**Phase:** HERMES_TO_96 W1 closed — pilot phase (7-day passive collection до 2026-06-08)
+
+## Continuation Notes (2026-06-01 — конец W1)
+
+**Состояние:**
+- 17 CEO skills в проде, all working
+- 8 active cron jobs (backup, brief, cost, week, reminder evening, RO weekly digest, RO inflation, RO monthly)
+- Mac launchd job `com.alex21.hermes-notes-sync` running каждые 6 часов
+- ALEX21_VAULT/03 — Notes/ — первая заметка synced (TANDEM Casa осень 2026)
+
+**Что наблюдаем next 7 дней (pilot phase):**
+1. `/notes` real usage — ≥5 заметок за неделю (kill threshold <3)
+2. `/cost` daily spend tracking — должен оставаться <$7/день (зелёная зона)
+3. `/telemetry` data accumulation — нужно ≥20 events для decision по inline-меню (Этап #7)
+4. Monday 2026-06-08 — review всех 3 метрик, решение go/kill каждой ветки
+
+**Что НЕ делаем эту неделю:**
+- Никаких новых skills/features
+- Никаких изменений Hermes core
+- Только использование + наблюдение
+- При багах/regressions — fix point, не expansion
+
+**Если что-то сломается — диагностика workflow:**
+1. `/cost debug` — увидеть cost_status в state.db
+2. `/telemetry` — проверить pipeline жив
+3. `tail -f ~/Library/Logs/hermes-notes-sync.log` — sync status
+4. `gh api repos/scerbinaalexandr-droid/hermes-agent/deployments?per_page=3` — Railway state
+
+**Master kill-criterion:** 60-day audit 2026-07-27. Если общий usage <30% от запланированного — freeze новых веток, бюджет в найм Chief of Staff (Stilman принят в плане).
+
+---
+
+## Что это за проект (legacy section, оставлено для контекста)
 
 ## Что это за проект
 

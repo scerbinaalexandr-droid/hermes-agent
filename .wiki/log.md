@@ -5,6 +5,8 @@ Append-only лог событий. Karpathy convention.
 
 ---
 
+## [2026-06-01] w1-hermes-to-96-closed | W1 плана HERMES_TO_96 закрыта end-to-end. 3 этапа (token-monitor /cost, telemetry hook, /notes pipeline) + 4 внеплановых fix-а (pricing 8 entries, /evening reminder, mac sync HTTPS+gh, IMMUTABLE_ZONE 2>&1 false positive). First note (TANDEM Casa осень 2026) verified в ALEX21_VAULT/03 — Notes/ через полный pipeline: Telegram → Railway → /opt/data/logs/notes/ → daily backup → mac launchd → iCloud → iPhone. Commits 96c7cea71 (cost skill) → 796bcdb8a (pricing) → 98bd626fc (telemetry) → 2d5dfc86b (/notes) → 2809ac5ad (mac sync HTTPS). Pause for 7-day pilot — see HERMES_TO_96.md.
+## [2026-05-28] hermes-to-96-master-plan | Прошли полный deep-planning protocol (триаж → 8 вопросов → эхо-тест → спарринг 14 рисков → финализация). 3 ключевых решения Phase 2: Stilman accepted (Hermes + CoS параллельно, 60-day audit kill-criterion на 2026-07-27); /psychologist skipped (Anthropic 30-day retention vs health data → живой психоаналитик); Tempo 1 ветка за раз + 7-day usage test (антипаттерн /coach не повторяем). Deliverable: .wiki/HERMES_TO_96.md — 14 этапов, бюджет $200/мес, чек-лист 10/10. Commit 9001ac67d.
 ## [2026-05-17] init | .wiki/ scaffolded для V1 Executive OS блюпринта (MVP-вертикаль /brief)
 ## [2026-05-17] stage-0 | CLAUDE.md + .wiki/ (CONTEXT, decisions, log, INDEX, PATTERNS, session-logs/)
 ## [2026-05-17] stage-1 | Audit report .wiki/AUDIT_2026-05-17.md (3 секции + матрица готовности)
@@ -127,3 +129,23 @@ Append-only лог событий. Karpathy convention.
 - Open: intake-cron (user→бот), verify save-path коуча, push docs
 
 ## [2026-05-28] session-end | No commits (main)
+
+## [2026-05-28] session-end | 2 commits on main
+
+## [2026-05-28] session-end | 1 commits on main
+
+## [2026-05-29] session-end | 1 commits on main
+
+## [2026-05-30] session-end | 2 commits on main
+
+## [2026-05-30] session-end | No commits (main)
+
+## [2026-05-30] session-end | 1 commits on main
+
+## [2026-05-31] session-end | 1 commits on main
+
+## [2026-05-31] session-end | 2 commits on main
+
+## [2026-06-01] session-end | No commits (main)
+
+## [2026-06-01] session-end | 1 commits on main
