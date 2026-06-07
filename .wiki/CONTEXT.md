@@ -527,3 +527,23 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 1. Прочитать этот snapshot + decisions.md::coach-as-isolated-optin-skill.
 2. Если user прислал Job ID intake-cron — проверить корректность (один раз, завтра утром, skill=coach, deliver в его чат).
 3. Подтвердить, что первая /coach-сессия сохранила артефакт в logs/coaching/ → закрыть coach на 100%.
+
+## Continuation Notes (2026-06-07 — protocols rescue session)
+
+**Что сделано:**
+- Railway CLI авторизован на Mac (railway whoami → scerbinaalexandr@gmail.com); прод-доступ: `railway ssh -s hermes` (project hermes-agent/production)
+- Протокол встречи с Корнелиу (6 задач, надиктован 06.06, НЕ был сохранён ботом) восстановлен из state.db → сохранён `/opt/data/logs/notes/2026-06-05/1155-vstrecha-s-korneliu-proizvodstvo-i-restr.md`
+- STT fix на проде: whisper base→small + language ru (config.yaml.bak-20260607 рядом)
+- notes/SKILL.md: AUTO-SAVE анти-потеря (прод hotfix + git b24179299)
+- brief/SKILL.md: Logging через terminal append_entry (деплой b24179299)
+- capture прод-дельты Hermes (diary+Excel protocols spec) перенесены в git
+
+**Открыто (next session / pilot review 2026-06-08):**
+1. Email-дайджест протоколов+дневника (пятница) — нужен Gmail app password от Alexandr
+2. Ускорить Obsidian sync (сейчас: бэкап-крон 03:00 + launchd 6h) — рассмотреть бэкап чаще
+3. Diary system (spec: skills/ceo/capture/references/diary-and-protocol-workflow.md) — не реализован
+4. Идеальное аудио: Groq whisper-large-v3-turbo (бесплатный) — нужен GROQ_API_KEY
+5. skills_sync manifest: capture/notes = user-modified → правки доставлять через railway ssh
+6. Pilot метрики к review: telemetry 41 events ✅ go; notes 1 шт 🔴 (но причина — баги, не отсутствие потребности); cost — проверить /cost
+
+**Verify утром 2026-06-08:** brief 04:30 должен записаться в logs/daily/2026-06-08.md + memory/daily_log.md без guard-паники.
