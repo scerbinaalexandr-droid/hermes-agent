@@ -149,3 +149,4 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-01] session-end | No commits (main)
 
 ## [2026-06-01] session-end | 1 commits on main
+## [2026-06-07] Protocols rescue + STT fix | brief/notes/capture SKILL fixes, prod hotfix via railway ssh

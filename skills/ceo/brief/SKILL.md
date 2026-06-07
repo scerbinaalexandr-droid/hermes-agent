@@ -142,7 +142,13 @@ Carry-over: {1-2 items от вчера на сегодня}
 
 ## Logging
 
-После генерации — append в `logs/daily/YYYY-MM-DD.md` (создать если не существует):
+⚠️ **CEO OS guard:** прямой `write_file`/`patch` в `memory/*.md` ЗАБЛОКИРОВАН (вернёт error).
+Это НЕ ошибка системы — НЕ паникуй, НЕ отменяй остальные шаги, НЕ делай вывод что
+«guard распространяется на logs/». Путь `logs/daily/*.md` guard'ом НЕ блокируется.
+
+После генерации — два шага, строго так:
+
+**Шаг 1.** `logs/daily/YYYY-MM-DD.md` — обычный `write_file` append (создать если не существует):
 
 ```markdown
 ## Brief (HH:MM)
@@ -150,12 +156,15 @@ Carry-over: {1-2 items от вчера на сегодня}
 {полный текст briefing'а который ушёл в Telegram}
 ```
 
-И в `memory/daily_log.md`:
+**Шаг 2.** `memory/daily_log.md` — ТОЛЬКО через `terminal` tool (python-хелпер, guard его пропускает):
 
-```python
-from skills.ceo._lib.memory import append_entry, today_iso
-append_entry('daily_log', today_iso(), '### Brief (HH:MM)\n{short summary 2-3 lines}')
+```bash
+cd $HERMES_HOME && python3 -c "import sys; sys.path.insert(0, '.'); from skills.ceo._lib.memory import append_entry, today_iso; append_entry('daily_log', today_iso(), '''### Brief (HH:MM)
+{short summary 2-3 lines}''')"
 ```
+
+Если шаг 2 упал — выполни шаг 1 всё равно; briefing доставится пользователю через
+cron delivery в любом случае. Кратко упомяни ошибку логирования одной строкой в конце.
 
 ---
 

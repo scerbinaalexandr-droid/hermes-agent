@@ -434,3 +434,19 @@
 **Decided by:** User (Александр) — AskUserQuestion: «коуч отдельно» + «смягчённый тон» — 2026-05-24. Реализация Claude Opus 4.7.
 **Status:** ✅ ЗАКРЫТО (базово). Commit 515ccdb88 → push → Railway redeploy → verified prod 2026-05-24 22:19: `/coach` зарегистрирован (slash из `name: coach`), pre-flight check пройден, `coach_log.py --gather` отработал на томе, меню коуча отрисовано (4 ритма + 4 методики). Осталось опционально: довести полную сессию до сохранения артефакта в `logs/coaching/` (save-path).
 **NB:** slash-команда деривится из поля `name` скилла (`scan_skill_commands` agent/skill_commands.py:272-294), НЕ из `metadata.hermes.commands`; скан live при старте процесса (deploy = рестарт = авто-регистрация, индекс не пересобирать). «Unknown command» сразу после push = деплой ещё не докатился, не баг.
+
+## 2026-06-07 — Anti-loss protocol system + STT fix (session: protocols)
+
+**Decision 1 — STT:** прод `config.yaml` stt.local: `model: base→small`, `language: ''→'ru'` (бэкап: config.yaml.bak-20260607).
+**Why:** Whisper-base без язык-hint галлюцинировал английский и коверкал русские голосовые («куконь», «Плин») — протоколы CEO становились нечитаемыми. Контейнер 32 CPU тянет small; конфиг читается на каждый вызов (рестарт не нужен); ensure_config.py трогает только model.* — фикс не затрётся.
+**How to apply:** менять stt.* только в /opt/data/config.yaml на Railway volume; для идеала — Groq whisper-large-v3-turbo (нужен GROQ_API_KEY).
+
+**Decision 2 — notes AUTO-SAVE:** протокол сохраняется автоматически при битом input / смене темы / не-ответе на «Продолжай — или готово?».
+**Why:** инцидент 2026-06-06 — протокол встречи с Корнелиу (6 задач) жил только в контексте чата: бот ждал подтверждения, пользователь не ответил, протокол не был сохранён. Восстановлен вручную из state.db → logs/notes/2026-06-05/.
+**How to apply:** правило в notes/SKILL.md Step 3; черновик сохраняется всегда, подтверждение управляет только финальной версией.
+
+**Decision 3 — brief Logging через terminal-хелпер:** memory/daily_log.md пишется ТОЛЬКО через `append_entry()` (terminal), logs/daily — write_file.
+**Why:** CEO OS guard (scripts/hooks/guard.py) блокирует write_file в memory/*.md by design; модель в cron-сессии 06.06 запаниковала и не записала вообще ничего, плюс сделала ложный вывод что guard покрывает logs/.
+**How to apply:** инструкция в brief/SKILL.md §Logging однозначна; guard НЕ менять — он работает правильно.
+
+**Note — skills_sync manifest:** capture/notes на проде помечены user-modified (Hermes правил их 05-06.06) → деплой их НЕ обновляет. Прод-дельты перенесены в git (этот коммит), прод-версии = git-версии. Будущие правки этих двух скиллов доставлять на прод вручную (railway ssh) или сбросив hash в /opt/data/skills/.bundled_manifest.

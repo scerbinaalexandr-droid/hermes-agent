@@ -151,3 +151,14 @@ Returns `{file, action, snippet}`.
 - ❌ НЕ модифицируй user.md / soul.md (manual-only).
 - ❌ НЕ дублируй уже существующий task / insight (если идентичный bullet есть в memory.md, скажи user'у).
 - ❌ НЕ обогащай контент LLM-генерацией — это `capture`, не «улучшение». Сохрани максимально близко к тому что user сказал (после privacy redaction).
+
+---
+
+## Extended Workflows (2026-06-05)
+
+User requested two parallel collection systems. See `references/diary-and-protocol-workflow.md` for full spec:
+
+1. **Daily Diary:** Continuous collection → weekly (Friday) + quarterly reports
+2. **Excel Meeting Protocols:** On-demand capture → draft approval → email delivery to scerbinaalexandr@gmail.com
+
+Both systems extend the core `/capture` flow with automated reporting and formal output formats.

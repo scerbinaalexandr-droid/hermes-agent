@@ -99,28 +99,53 @@ LLM получает один из:
 
 ## Step 3 — Show draft for approval (CRITICAL — НЕ сохраняй сразу)
 
-Покажи в чате compact preview ≤ 1500 char:
+**FORMAT (tandemcasa.ro style):** Premium+functional. Use emoji markers, headings, visual blocks with whitespace. User must scan in 5 seconds and understand everything.
+
+Покажи в чате structured preview using this format:
 
 ```
-📝 *Notes draft*
+⬛️ **{topic} | {date}**
 
-*{topic}* — {date} · {meeting_type}
-*Участники:* {participants}
+🟡 **Ключевое решение**
+{main decision from decisions[0] if exists}
 
-*Решения:*
-- ...
+📊 **Задачи:**
 
-*Action items:*
-- ...
+**1. {action_item category}**
+- {detail}
+- {detail}
 
-*Summary:* {summary}
+**2. {action_item category}**
+- {detail}
 
 ---
-Сохранить? ✅ да / ✏️ поправь {field} / 🗑 не надо
+✅ Сохранить? | ✏️ Поправь | 🗑 Не надо
 ```
 
+**INCREMENTAL CAPTURE:** If user dictates voice memos incrementally (common between meetings):
+- Show running list after each point
+- Number tasks sequentially
+- Echo last point to confirm recognition
+- Ask "Продолжай — или готово?" after each addition
+
+**AUTO-SAVE — протокол НЕ имеет права потеряться (инцидент 2026-06-06):**
+Накопленный протокол живёт только в контексте чата, пока не сохранён. Поэтому:
+
+1. **Битый input во время протокола** (голосовое не распозналось / нечитаемый текст):
+   СНАЧАЛА сохрани текущую версию протокола (Step 4), ПОТОМ задавай уточняющий
+   вопрос. В вопросе добавь строку: `💾 Авто-сохранил текущие {N} пунктов — ничего не потеряется.`
+2. **Смена темы**: пользователь прислал сообщение НЕ по протоколу, а несохранённый
+   протокол есть → СНАЧАЛА Step 4 (молча), упомяни одной строкой
+   `💾 Протокол «{topic}» авто-сохранён ({N} пунктов)`, потом обрабатывай новое сообщение.
+3. **Нет ответа на «Продолжай — или готово?»** — если следующее сообщение пользователя
+   не отвечает на этот вопрос → считай «готово», сохрани (правило 2).
+
+НИКОГДА не оставляй протокол несохранённым в ожидании подтверждения. Подтверждение
+управляет финальной версией, но черновик сохраняется всегда (можно перезаписать позже).
+
 Если user просит правку — обнови соответствующее поле и покажи снова.
-Если user соглашается — переход к Step 4. Если отменяет — ничего не сохраняй.
+Если user соглашается — переход к Step 4. Если отменяет — ничего не сохраняй
+(а если черновик уже авто-сохранён — скажи путь, пользователь решит удалить или оставить).
 
 ---
 
@@ -154,13 +179,14 @@ Helper создаёт два файла:
 
 ## Step 5 — Acknowledge
 
-≤ 4 строки:
+≤ 4 строки, tandemcasa.ro format (emoji markers, premium+functional tone):
 
 ```
-✅ Сохранено: {topic}
-{saved_path}
-Появится в Obsidian ALEX21_VAULT/03 — Notes/{YYYY-MM-DD}/ — завтра утром.
-{N} action items зафиксированы.
+✅ **Сохранено — {topic}**
+
+📂 {saved_path}
+📊 {N} action items зафиксированы
+⏱ Obsidian sync: завтра 06:00 EEST
 ```
 
 ---
