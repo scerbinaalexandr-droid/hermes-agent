@@ -93,3 +93,9 @@ models-dev-upstream/
 
 # Local Claude Code project state (worktrees, settings) — not for repo
 .claude/
+
+# Backup-snapshot hardening (2026-06-20): ensure standard build/env artifacts ignored
+.env.*
+build/
+.dart_tool/
+*.dill
