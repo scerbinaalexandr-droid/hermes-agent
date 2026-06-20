@@ -576,3 +576,10 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 - mac-mirror install — зеркало `~/Documents/01_CODE/hermes-mirror` вне песочницы проекта, ставит user (cp+launchctl, инструкция в header скрипта).
 
 **🔴 Блокеры на user:** Gmail app-password (email-дайджест), GROQ_API_KEY (STT large-v3), GitHub 2FA (дедлайн июль).
+
+### DEPLOY DONE (2026-06-20, user апрувнул весь прод)
+- ✅ `railway up` задеплоил 5 модулей на прод (deployment `e1c52c6f`), cutover ~30s.
+- ✅ Verified LIVE через `railway ssh -s hermes`: все 4 helper'а работают в прод-среде, scan_skill_commands регистрирует /cleanup /dashboard /diary /handoff, health 200, notes AUTO-SAVE цел.
+- ✅ pilot-review закрыт (decisions.md 2026-06-20): KILL inline-меню (callback 0%), cost green ($0.44/день), notes re-pilot.
+- ⚠️ **Прод сейчас ahead of GitHub main на 5 коммитов** (деплой был `railway up` локального HEAD). **PR #32 нужно смёрджить** для main-sync (мой токен merge не может — нехватка прав, не protection; user мёрджит 1 кликом).
+- ⏳ Follow-ups: menu-popup whitelist `hermes_cli/commands.py` (protected core, новые команды работают по тексту/`/menu`, но не в Telegram-popup); mac-mirror install (вне песочницы, инструкция в header скрипта).

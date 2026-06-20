@@ -151,6 +151,10 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-01] session-end | 1 commits on main
 ## [2026-06-07] Protocols rescue + STT fix | brief/notes/capture SKILL fixes, prod hotfix via railway ssh
 
-## [2026-06-20] phase1-buildout | git sync с origin (FF — подтянул 07.06 фиксы STT/notes-autosave) + 5 Phase-1 модулей через workflow+adversarial review: /cleanup (Stage 5c), /dashboard (cockpit), /diary, /handoff(+docs/COS_ONBOARDING #13), mac-mirror (#12). 2 бага пойманы ревью и пофикшены+верифицированы: cleanup fence-template fabrication (soul.md §4c), handoff allowlist union. 0 правок upstream-core. Прод-батч (pilot review, env-мина, deploy) ждёт апрува.
+## [2026-06-20] phase1-buildout | git sync с origin (FF — подтянул 07.06 фиксы STT/notes-autosave) + 5 Phase-1 модулей через workflow+adversarial review: /cleanup (Stage 5c), /dashboard (cockpit), /diary, /handoff(+docs/COS_ONBOARDING #13), mac-mirror (#12). 2 бага пойманы ревью и пофикшены+верифицированы: cleanup fence-template fabrication (soul.md §4c), handoff allowlist union. 0 правок upstream-core.
+
+## [2026-06-20] phase1-deploy-verified | Прод-батч выполнен (user апрувнул весь прод): pilot-review закрыт на прод-данных (KILL inline-меню — callback 0% / cost green $0.44/день / re-pilot notes); env-мина уже датирована (no-op); `railway up` задеплоил 5 модулей, cutover ~30s; verified LIVE: /cleanup (27 предл., 0 фабрикации) · /dashboard (13KB HTML) · /diary (logs/diary/) · /handoff (registered, list_allowed UNION) · health 200 · notes AUTO-SAVE цел. PR #32 ждёт merge для main-sync (мой токен merge не может). Follow-ups: menu-popup whitelist (protected core), mac-mirror install (вне песочницы). Блокеры user: Gmail app-pw, GROQ key, GitHub 2FA.
 
 ## [2026-06-20] session-end | No commits (main)
+
+## [2026-06-20] session-end | 5 commits on main
