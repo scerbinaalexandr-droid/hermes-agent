@@ -471,3 +471,23 @@
 **Reversal cost:** Низкая — каждый модуль = изолированная новая папка + surgical shared-правки (menu/SOP/backup INCLUDE/.gitignore).
 **Decided by:** Claude Opus 4.8 (ultracode workflow) + User (Александр) — директива «огонь».
 **Status:** ✅ Built + reviewed + fixed + verified локально (py_compile + smoke зелёные). ⏳ Deploy + menu-popup whitelist (hermes_cli/commands.py — protected, отдельный апрув) + mac-mirror install — в прод-батче, ждут апрува.
+
+---
+
+## 2026-06-20 — pilot-review (HERMES_TO_96, просрочен с 08.06)
+**Type:** L3 (product / metrics gate)
+**Domain:** CEO OS / decision gate
+**Context:** Pilot-review был назначен на 2026-06-08, пропущен (проект простаивал 07→19.06). Проведён 2026-06-20 на реальных прод-данных (`railway ssh -s hermes`: telemetry_report + cost_monitor + notes count).
+**Данные:**
+- **Telemetry (A1):** 49 событий за 30 дней (≥20 порог ✅). Разбивка: voice 49% · text 40.8% · command 8.2% · photo 2%. **callback ratio = 0.0%** (<30%).
+- **Cost (Risk #1):** $0.44/день среднее (7d), MTD $12.33/$200 (6.2%), проекция EOM $18.50. 🟢 deep green.
+- **Notes:** 2 реальных протокола (06-01, 06-05), оба ДО фикса 07.06; после фикса + dormancy — 0.
+**Решения (go/kill):**
+1. **A1 / inline-меню (#7): KILL.** 0% callback — пользователь работает голосом+текстом, не кнопками. НЕ строим inline-меню (подтверждает решение сессии 20.06 его не строить). Инвестиция → semantic triggers (расширение фраз-триггеров), не UI. Этап #6 закрыт по плану §4.
+2. **Cost: GREEN, продолжаем.** Risk #1 (token bleed >$200/мес) не материализуется — $18.50 проекция vs $200 cap. Авто-pause не нужен.
+3. **Notes: RE-PILOT, НЕ kill.** Pilot невалиден: confounded багами (Korneliu-протокол потерян 06.06, STT сломан до 07.06) + 12 дней dormancy. Спрос есть (voice 49% — это и есть вход notes/capture). Перезапуск окна наблюдения с фиксами 07.06 live, метрика ≥5 заметок за 7 дней с 2026-06-20.
+**Why:** план требует data-driven go/kill, не интуицию. Порог A1 30% — допущение, опровергнуто данными (0%) → inline-меню = waste. Низкий счёт notes = поломка инструмента, не отсутствие потребности — kill был бы false-negative.
+**How to apply:** не строить inline-меню; capture/notes улучшать через semantic triggers + надёжность (anti-loss), не UI-кнопки. Re-pilot notes с 2026-06-20.
+**Reversal cost:** Легко (решения, не код).
+**Decided by:** Claude Opus 4.8 (прод-данные) + User (Александр).
+**Status:** ✅ Pilot-review закрыт. Master kill-criterion (60-day audit) остаётся на 2026-07-27.
