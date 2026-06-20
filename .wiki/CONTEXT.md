@@ -547,3 +547,39 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 6. Pilot метрики к review: telemetry 41 events ✅ go; notes 1 шт 🔴 (но причина — баги, не отсутствие потребности); cost — проверить /cost
 
 **Verify утром 2026-06-08:** brief 04:30 должен записаться в logs/daily/2026-06-08.md + memory/daily_log.md без guard-паники.
+
+---
+
+## Continuation Notes (2026-06-20 — Phase-1 buildout session, ultracode)
+
+**Директива user:** «выстроить помощника, огонь» — автономно закрыть незавершённое + достроить по плану HERMES_TO_96, в границах Phase 1, 0 правок upstream-core.
+
+**Сделано и верифицировано локально:**
+- ✅ **Git sync**: fast-forward к origin/main (был behind 2) → подтянуты 07.06 код-фиксы (notes AUTO-SAVE, brief guard-safe, RU STT, capture diary-спека). Дубли локальной wiki — в `git stash` (recoverable, можно drop).
+- ✅ **5 Phase-1 модулей** построены через workflow (ресёрч конвенций+бестпрактисов Hermes → параллельная сборка → адверсариальное ревью каждого, 12 субагентов):
+  - `/cleanup` (Stage 5c, висел с 17.05) — read-only memory-hygiene proposer, НИКОГДА не пишет memory.
+  - `/dashboard` (roadmap Направление 1) — forward-looking cockpit HTML.
+  - `/diary` (закрывает item 3 выше) — дневник + протоколы, append-only logs/diary/.
+  - `/handoff` + `docs/COS_ONBOARDING.md` (#13) — делегирование read-доступа CoS, скилл НЕ мутирует env.
+  - mac-mirror (#12) — launchd 6h pull backup-repo в read-only зеркало.
+- ✅ **2 бага пойманы ревью и пофикшены**: cleanup fence-template fabrication (soul.md §4c) + handoff allowlist precedence→UNION. Оба верифицированы smoke-тестами.
+- ✅ Shared-правки: menu/SOP реестр (+4 команды), backup.py INCLUDE += logs/diary, .gitignore += .claude/.
+
+**⏳ Прод-батч (ждёт апрува — railway ssh заблокирован классификатором, нужен named-target approval):**
+1. Pull pilot-данных (telemetry A1 / notes count / cost) → решение go/kill в decisions.md (pilot review просрочен с 08.06).
+2. env-мина: `HERMES_MODEL` голый → датированный `claude-sonnet-4-5-20250929`.
+3. Ре-синк notes/brief/capture на проде (manifest-trap).
+4. Push + deploy 5 модулей + верификация health/whoami. **Deploy-каденс — решение user (план: не batch).**
+
+**⏳ Follow-ups (не сделано автономно — обоснованно):**
+- menu-popup whitelist `hermes_cli/commands.py::_CEO_TELEGRAM_MENU_NAMES` — protected core, нужен явный апрув (новые команды работают по тексту, но не в popup).
+- mac-mirror install — зеркало `~/Documents/01_CODE/hermes-mirror` вне песочницы проекта, ставит user (cp+launchctl, инструкция в header скрипта).
+
+**🔴 Блокеры на user:** Gmail app-password (email-дайджест), GROQ_API_KEY (STT large-v3), GitHub 2FA (дедлайн июль).
+
+### DEPLOY DONE (2026-06-20, user апрувнул весь прод)
+- ✅ `railway up` задеплоил 5 модулей на прод (deployment `e1c52c6f`), cutover ~30s.
+- ✅ Verified LIVE через `railway ssh -s hermes`: все 4 helper'а работают в прод-среде, scan_skill_commands регистрирует /cleanup /dashboard /diary /handoff, health 200, notes AUTO-SAVE цел.
+- ✅ pilot-review закрыт (decisions.md 2026-06-20): KILL inline-меню (callback 0%), cost green ($0.44/день), notes re-pilot.
+- ⚠️ **Прод сейчас ahead of GitHub main на 5 коммитов** (деплой был `railway up` локального HEAD). **PR #32 нужно смёрджить** для main-sync (мой токен merge не может — нехватка прав, не protection; user мёрджит 1 кликом).
+- ⏳ Follow-ups: menu-popup whitelist `hermes_cli/commands.py` (protected core, новые команды работают по тексту/`/menu`, но не в Telegram-popup); mac-mirror install (вне песочницы, инструкция в header скрипта).

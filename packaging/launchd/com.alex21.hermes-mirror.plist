@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- launchd job: hermes-mirror — read-only LOCAL mirror of the Hermes memory
+       backup repo. Pulls scerbinaalexandr-droid/hermes-memory-backup into
+       ~/Documents/01_CODE/hermes-mirror every 6 hours (Risk #9 / Railway-outage
+       survival). Pairs with scripts/ceo-os/mac-mirror-setup.sh.
+
+       NOTE: the mirror dir is OUTSIDE the hermes-agent project sandbox, so the
+       USER installs this — not the agent.
+
+       INSTALL:
+         cp packaging/launchd/com.alex21.hermes-mirror.plist ~/Library/LaunchAgents/
+         # then replace HERMES_MIRROR_SCRIPT_PATH_PLACEHOLDER below with the
+         # absolute path to mac-mirror-setup.sh (e.g. ~/.local/bin/mac-mirror-setup.sh)
+         launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.alex21.hermes-mirror.plist
+
+       VERIFY:
+         launchctl list | grep hermes-mirror
+         tail -f ~/Library/Logs/hermes-mirror.log
+
+       UNINSTALL:
+         launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.alex21.hermes-mirror.plist
+  -->
+
+  <key>Label</key>
+  <string>com.alex21.hermes-mirror</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>HERMES_MIRROR_SCRIPT_PATH_PLACEHOLDER</string>
+  </array>
+
+  <!-- Run every 6 hours (21600s). StartInterval catches up after sleep/wake. -->
+  <key>StartInterval</key>
+  <integer>21600</integer>
+
+  <!-- Also pull once at load time so the mirror is fresh right after install. -->
+  <key>RunAtLoad</key>
+  <true/>
+
+  <!-- Stdout/stderr captured to the same log the script appends to. -->
+  <key>StandardOutPath</key>
+  <string>HERMES_MIRROR_LOG_PATH_PLACEHOLDER</string>
+  <key>StandardErrorPath</key>
+  <string>HERMES_MIRROR_LOG_PATH_PLACEHOLDER</string>
+
+  <!-- launchd inherits a minimal env — give git/gh an explicit PATH. -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+
+  <!-- Periodic task, not a daemon — never KeepAlive (would restart-loop on error). -->
+  <key>KeepAlive</key>
+  <false/>
+</dict>
+</plist>
