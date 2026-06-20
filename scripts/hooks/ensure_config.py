@@ -54,6 +54,21 @@ HOOKS_BLOCK = {
     ],
 }
 
+# Fallback provider chain (reliability — Risk #3). Tried in order when the primary
+# (Anthropic direct) fails (rate-limit/auth/overload/outage). Both via OpenRouter
+# (OPENROUTER_API_KEY already set): Sonnet 4.5 first (same model+quality, covers
+# key rate-limit/auth), then Gemini 2.5 Pro to survive a total Anthropic outage.
+# Slugs verified against openrouter.ai/api/v1/models 2026-06-20.
+FALLBACK_BLOCK = [
+    {"provider": "openrouter", "model": "anthropic/claude-sonnet-4.5"},
+    {"provider": "openrouter", "model": "google/gemini-2.5-pro"},
+]
+
+# Voice replies (TTS) — Edge (free, no key, edge-tts + ffmpeg already in image).
+# Makes the text_to_speech tool emit Russian voice bubbles when the model invokes
+# it (e.g. user says "ответь голосом"). Read at tools/tts_tool.py:747 (tts.edge.voice).
+TTS_BLOCK = {"provider": "edge", "edge": {"voice": "ru-RU-DmitryNeural"}}
+
 
 def _load() -> dict:
     if not os.path.exists(CFG_PATH):
@@ -102,13 +117,22 @@ def main() -> None:
     tlg["hard_stop_enabled"] = True
     cfg["tool_loop_guardrails"] = tlg
 
+    # Fallback chain + TTS — seed once if absent or empty; preserve user changes
+    # (a populated value is left untouched, mirroring model.default semantics).
+    if not cfg.get("fallback_providers"):
+        cfg["fallback_providers"] = FALLBACK_BLOCK
+    if not cfg.get("tts"):
+        cfg["tts"] = TTS_BLOCK
+
     tmp = CFG_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         yaml.dump(cfg, fh, default_flow_style=False, sort_keys=False, allow_unicode=True)
     os.replace(tmp, CFG_PATH)
     sys.stderr.write(
         f"[ceo-os-init] config.yaml ensured (model.default={cfg['model'].get('default')}, "
-        f"external_dirs={cfg['skills']['external_dirs']}, hooks+guardrails set)\n"
+        f"external_dirs={cfg['skills']['external_dirs']}, hooks+guardrails set, "
+        f"fallback={len(cfg.get('fallback_providers') or [])} providers, "
+        f"tts={cfg.get('tts', {}).get('provider', 'off')})\n"
     )
 
 
