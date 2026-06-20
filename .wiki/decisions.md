@@ -450,3 +450,24 @@
 **How to apply:** инструкция в brief/SKILL.md §Logging однозначна; guard НЕ менять — он работает правильно.
 
 **Note — skills_sync manifest:** capture/notes на проде помечены user-modified (Hermes правил их 05-06.06) → деплой их НЕ обновляет. Прод-дельты перенесены в git (этот коммит), прод-версии = git-версии. Будущие правки этих двух скиллов доставлять на прод вручную (railway ssh) или сбросив hash в /opt/data/skills/.bundled_manifest.
+
+---
+
+## 2026-06-20 — phase1-module-buildout
+**Type:** L3 (engineering / product)
+**Domain:** Engineering / CEO OS skills
+**Context:** Автономная ultracode-сессия «выстроить помощника». После git-реконсиляции с origin (fast-forward подтянул 07.06 фиксы STT/notes-autosave) построены 5 Phase-1-безопасных модулей через workflow (ресёрч convention contract + бестпрактисов Hermes → параллельная сборка → адверсариальное ревью каждого, 12 субагентов). **0 правок upstream-core.**
+**Built:**
+- `/cleanup` (Stage 5c, висел с 17.05) — read-only memory-hygiene proposer; НИКОГДА не пишет memory (guard.py), только предложения с цитированием реального поля/даты.
+- `/dashboard` (roadmap Направление 1, 19.05) — forward-looking Executive Cockpit (HTML, как /report, но вперёд).
+- `/diary` — дневник + протоколы встреч, append-only в logs/diary/ (не memory — guard); зеркалит notes AUTO-SAVE.
+- `/handoff` + `docs/COS_ONBOARDING.md` (#13, под найм CoS) — делегирование read-доступа; **скилл НЕ мутирует env**, только документирует + подтверждает identity.
+- mac-mirror (#12, Risk #9) — launchd 6h pull backup-repo в read-only зеркало `~/Documents/01_CODE/hermes-mirror` (HTTPS+gh, не SSH). Файлы готовы, установка отложена (зеркало вне песочницы проекта).
+**Two bugs caught by adversarial review (пофикшены + верифицированы локально):**
+1. cleanup `_scan_decisions` фабриковал предложение из template-плейсхолдера внутри ```-fence (нарушение soul.md §4c/§4a NO FAKE IDENTIFIERS). Fix: strip ```-fences + split по level-2 `##` (как реальные decisions) + skip 'YYYY'/'<...>'. Verified: цитирует реальное «2026-05-17 — start-hermes-v1-mvp».
+2. handoff `list_allowed.py` считал allowlist как precedence (telegram OR gateway), а gateway `_is_authorized` делает UNION (TELEGRAM ∪ TELEGRAM_GROUP ∪ GATEWAY) → скрывал реально-авторизованных. Fix: UNION + per-id provenance. Verified: все 3 entry видны.
+**Why:** (a) закрыть давно-висящие Stage 5c / roadmap пункты в рамках Phase 1; (b) подготовить инфраструктуру под Stilman parallel-track (CoS, #13) и DR (#12); (c) workflow + adversarial review поймали 2 fake-data/security бага ДО прода — ровно класс ошибок, который soul.md §4a/§4c запрещает.
+**How to apply:** новые CEO-скиллы строить по convention contract (frontmatter name→slash, stdlib + sys.path fallback /opt/hermes, guard-safe logs/ не memory/, no-fake-data/identifiers, Response Design). Любой raw-text парсер decisions/projects/risks ОБЯЗАН strip-ить ```-fences перед split (все три файла содержат markdown-шаблоны). Access-control скиллы (handoff) — паттерн «документируй, не мутируй»: LLM-driven мутация env = privilege-escalation вектор, guard.py её не ловит → граница by design.
+**Reversal cost:** Низкая — каждый модуль = изолированная новая папка + surgical shared-правки (menu/SOP/backup INCLUDE/.gitignore).
+**Decided by:** Claude Opus 4.8 (ultracode workflow) + User (Александр) — директива «огонь».
+**Status:** ✅ Built + reviewed + fixed + verified локально (py_compile + smoke зелёные). ⏳ Deploy + menu-popup whitelist (hermes_cli/commands.py — protected, отдельный апрув) + mac-mirror install — в прод-батче, ждут апрува.
