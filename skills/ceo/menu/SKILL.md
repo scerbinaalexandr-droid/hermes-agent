@@ -38,6 +38,7 @@ reference. Показывает все CEO commands со one-line описани
 ☀️ /brief — утренний фокус (auto в 07:30 EEST)
 🌙 /evening — вечерний recap, голосом (auto-prompt 21:30)
 🎤 /capture — записать мысль / задачу / решение (голосом — auto)
+📔 /diary — дневник дня + протоколы встреч (голосом — auto)
 
 *Еженедельно:*
 📅 /week — weekly CEO review, голосом (auto Sun 18:00)
@@ -52,8 +53,11 @@ reference. Показывает все CEO commands со one-line описани
 
 *Утилиты:*
 ⏰ /remind <когда> <что> — напоминание (через 3ч / завтра в 10:00)
+📊 /dashboard — кокпит: что на столе сейчас + впереди (HTML)
 📊 /report [week|month|quarter] — HTML отчёт из памяти (для команды)
-💾 /backup — manual backup (Stage 7, in progress)
+🧠 /cleanup — гигиена памяти: устаревшее / дубли (предложения, не правки)
+🤝 /handoff — делегировать read-доступ Chief of Staff (/handoff status)
+💾 /backup — manual backup
 
 ---
 

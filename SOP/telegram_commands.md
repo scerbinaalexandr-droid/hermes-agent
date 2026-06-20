@@ -21,9 +21,12 @@
 | `/area <name>` | `ceo/area_view` | areas.md | — | Stage 5c |
 | `/risks` | `ceo/risk_listing` | risks.md | — | Stage 5c |
 | `/decision <text>` | `ceo/decision_capture` | — | decisions.md | Stage 5c |
-| `/cleanup` | `ceo/memory_cleanup` | memory.md, daily_log.md, weekly_review.md | proposal output (manual approval) | Stage 5c |
-| `/backup` | `ceo/manual_backup` | — | backups/ + GitHub push (Stage 7) | Stage 7 |
+| `/cleanup` | `ceo/cleanup` | projects, risks, decisions, memory, daily_log | — (proposal output only, **никогда** не пишет memory) | **+cleanup** |
+| `/backup` | `ceo/backup` | — | backups/ + GitHub push (cron daily 03:00 UTC) | ✅ operational |
 | `/coach` | `ceo/coach` | user, goals, areas, memory, projects (high), daily_log (last 5) | logs/coaching/YYYY-MM-DD.md | **+coach** (отдельный режим, не заменяет /brief /evening /week) |
+| `/dashboard` | `ceo/dashboard` | memory, projects, risks, decisions, weekly_review, daily_log (30d) | /opt/data/reports/<uuid>.html | **+dashboard** (forward-looking cockpit, read-only) |
+| `/diary` | `ceo/diary` | logs/diary (today), daily_log | logs/diary/YYYY-MM-DD.md (append-only) | **+diary** |
+| `/handoff` | `ceo/handoff` | env allowlist (read, redacted) | — (read-only, no memory/env writes) | **+handoff** (#13 CoS access) |
 
 ---
 

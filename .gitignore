@@ -90,3 +90,6 @@ mini-swe-agent/
 result
 website/static/api/skills-index.json
 models-dev-upstream/
+
+# Local Claude Code project state (worktrees, settings) — not for repo
+.claude/
