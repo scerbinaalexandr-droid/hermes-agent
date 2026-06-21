@@ -191,7 +191,8 @@ def migrate(args) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="CEO birthday manager.")
-    mode = ap.add_mutually_exclusive_group(required=True)
+    # No mode flag → --check (today). Lets the no_agent cron run the bare script.
+    mode = ap.add_mutually_exclusive_group(required=False)
     mode.add_argument("--add", action="store_true")
     mode.add_argument("--check", action="store_true")
     mode.add_argument("--migrate", action="store_true")
