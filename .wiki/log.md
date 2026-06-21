@@ -161,4 +161,8 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-21] capability-buildout | (1) #1 fallback chain + #2 Edge TTS ru-голос засеяны в ensure_config (PR #33, live). (2) video-vs-setup анализ: видео = другой продукт (Hermes Desktop GUI), твой Hermes по фундаменту опережает; token-routing/Brave/kanban — SKIP; делегация/Obsidian/webhook/MCP — Phase-2 (архитектура). (3) Excalidraw карта возможностей + SVG (#34). (4) Google Workspace OAuth LIVE для scerbina21@gmail.com: Gmail+Calendar+Sheets+Drive+Docs, Desktop client (project stellar-works-500105), creds на /opt/data volume (gitignored+backup-excluded, PR #35). Verified: Gmail читает реальные входящие; Calendar пуст (нет событий). Phase-1: чтение свободно, отправка по подтверждению. 4 PR merged сам (gh --repo trick на форк, не upstream).
 
+## [2026-06-21] email-automation | Фикс misroute himalaya (LLM сам набирал `himalaya` в терминале, не через скилл) — 3 слоя: /mail + /calendar CEO-скиллы, skills.disabled=[himalaya], правило роутинга в /opt/data/SOUL.md (инжектится prompt_builder каждое сообщение, durable через ensure_config). Verified live: бот читает почту через google_api.py. + /inbox авто-триаж: inbox_triage.py архивирует Gmail Promotions+Social из inbox (обратимо, ярлык Hermes/Авто-архив), Primary не трогает, gmail.modify без re-auth. Прогнан: 4 промо в архив. Daily no_agent cron 368a95a2cec0 (07:00 EEST). Календарь scerbina.alexandr — 404 (шаринг не виден scerbina21, ждёт accept/propagation). Security 05:01-05:05 на scerbina21 — подтверждено user'ом.
+
 ## [2026-06-21] session-end | 5 commits on main
+
+## [2026-06-21] session-end | No commits (main)
