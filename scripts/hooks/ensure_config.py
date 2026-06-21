@@ -121,8 +121,18 @@ def main() -> None:
     # (a populated value is left untouched, mirroring model.default semantics).
     if not cfg.get("fallback_providers"):
         cfg["fallback_providers"] = FALLBACK_BLOCK
-    if not cfg.get("tts"):
+    tts = cfg.get("tts") if isinstance(cfg.get("tts"), dict) else None
+    if not tts:
         cfg["tts"] = TTS_BLOCK
+    else:
+        # Repair the English default if a prior image left it (tts_tool default
+        # is en-US-AriaNeural) — the CEO is Russian-speaking. Any other voice the
+        # user picked is preserved.
+        edge = tts.get("edge") if isinstance(tts.get("edge"), dict) else {}
+        if str(edge.get("voice") or "").startswith("en-"):
+            edge["voice"] = "ru-RU-DmitryNeural"
+            tts["edge"] = edge
+            cfg["tts"] = tts
 
     tmp = CFG_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
