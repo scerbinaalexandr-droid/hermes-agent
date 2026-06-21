@@ -51,9 +51,11 @@ def _svc():
     return gws.build_service("calendar", "v3")
 
 
+_CHISINAU = _dt.timezone(_dt.timedelta(hours=3))  # EEST, the CEO's timezone
+
+
 def _today() -> _dt.date:
-    # Chisinau (EEST, UTC+3) — the CEO's timezone for "today".
-    return (_dt.datetime.utcnow() + _dt.timedelta(hours=3)).date()
+    return _dt.datetime.now(_CHISINAU).date()
 
 
 def _bday_cal_id(svc) -> str:
@@ -119,13 +121,26 @@ def _age(summary: str, on: _dt.date) -> str:
 
 
 def _events_on(svc, cal, day: _dt.date):
-    lo = _dt.datetime.combine(day, _dt.time.min).isoformat() + "Z"
-    hi = _dt.datetime.combine(day + _dt.timedelta(days=1), _dt.time.min).isoformat() + "Z"
+    # All-day birthday events are anchored to the calendar's local timezone
+    # (Europe/Chisinau). Query with +03:00 day boundaries, NOT UTC, or events
+    # land one day early (off-by-one reminder bug).
+    lo = _dt.datetime.combine(day, _dt.time.min, _CHISINAU).isoformat()
+    hi = _dt.datetime.combine(day + _dt.timedelta(days=1), _dt.time.min, _CHISINAU).isoformat()
     items = svc.events().list(
         calendarId=cal, timeMin=lo, timeMax=hi,
         singleEvents=True, orderBy="startTime", maxResults=50,
     ).execute().get("items", [])
-    return [e for e in items if str(e.get("summary", "")).startswith(BDAY_EMOJI)]
+    # Keep only events whose start date is exactly `day` (overlap can include
+    # the boundary day for multi-day spans; birthdays are single all-day).
+    out = []
+    for e in items:
+        if not str(e.get("summary", "")).startswith(BDAY_EMOJI):
+            continue
+        sd = e.get("start", {}).get("date")
+        if sd and _dt.date.fromisoformat(sd) != day:
+            continue
+        out.append(e)
+    return out
 
 
 def check(args) -> int:
