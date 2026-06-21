@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="792" viewBox="0 0 1500 792" font-family="Helvetica,Arial,sans-serif">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L7,3 L0,6 Z" fill="#495057"/></marker></defs>
+<text x="60" y="50" font-size="30" fill="#212529" font-weight="bold" xml:space="preserve">HERMES — Executive OS Александра  ·  карта возможностей</text>
+<text x="60" y="77" font-size="15" fill="#495057" font-weight="normal" xml:space="preserve">@Hermes_Alex21_bot  ·  Telegram + Railway (always-on)  ·  обновлено 2026-06-21</text>
+<rect x="60" y="96" width="760" height="38" rx="10" fill="#f8f9fa" stroke="#adb5bd" stroke-width="2"/>
+<text x="74" y="122" font-size="15" fill="#212529" font-weight="bold" xml:space="preserve">✅ есть и работает      🟢 добавил в этой сессии      ⏳ можно прикрутить (Phase 2)</text>
+<rect x="600" y="170" width="360" height="96" rx="10" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+<text x="618" y="208" font-size="22" fill="#1971c2" font-weight="bold" xml:space="preserve">🤖  HERMES CEO OS</text>
+<text x="618" y="233" font-size="13" fill="#212529" font-weight="normal" xml:space="preserve">Вход: голос (49%) / текст (41%)</text>
+<text x="618" y="249" font-size="13" fill="#212529" font-weight="normal" xml:space="preserve">Модель: Claude Sonnet 4.5 · provider anthropic</text>
+<line x1="780" y1="266" x2="530" y2="400" stroke="#1971c2" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="780" y1="266" x2="780" y2="400" stroke="#1971c2" stroke-width="2" marker-end="url(#ah)"/>
+<line x1="780" y1="266" x2="1030" y2="400" stroke="#1971c2" stroke-width="2" marker-end="url(#ah)"/>
+<text x="60" y="395" font-size="19" fill="#2f9e44" font-weight="bold" xml:space="preserve">ЧТО УМЕЕТ  ·  22 команды</text>
+<rect x="60" y="410" width="470" height="218" rx="10" fill="#ebfbee" stroke="#2f9e44" stroke-width="2"/>
+<text x="74" y="439" font-size="17" fill="#2f9e44" font-weight="bold" xml:space="preserve">✅ Команды (голосом или текстом)</text>
+<text x="74" y="464" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Каждый день:  /brief  /evening  /capture  /diary</text>
+<text x="74" y="482" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Неделя:       /week</text>
+<text x="74" y="499" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Просмотр:     /projects  /risks  /find  /notes</text>
+<text x="74" y="516" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">              /dashboard (кокпит вперёд)</text>
+<text x="74" y="534" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Коуч:         /coach (ICF/GROW/Колесо)</text>
+<text x="74" y="552" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Внешнее:      /web (поиск)  /report (HTML)</text>
+<text x="74" y="569" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Контроль:     /cost  /telemetry  /backup  /cleanup</text>
+<text x="74" y="586" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Доступ:       /handoff (Chief of Staff)  /whoami</text>
+<text x="74" y="604" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Утилиты:      /menu  /start  /remind</text>
+<text x="580" y="395" font-size="19" fill="#2f9e44" font-weight="bold" xml:space="preserve">ЧТО НАСТРОЕНО  ·  инфраструктура</text>
+<rect x="580" y="410" width="400" height="180" rx="10" fill="#ebfbee" stroke="#2f9e44" stroke-width="2"/>
+<text x="594" y="439" font-size="17" fill="#2f9e44" font-weight="bold" xml:space="preserve">✅ База</text>
+<text x="594" y="464" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Память: 10 файлов + guard-защита от перезаписи</text>
+<text x="594" y="482" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Cron: brief 07:30 · week вс 18:00 · RO-инфляция пн</text>
+<text x="594" y="499" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Бэкап: GitHub daily + Mac DR-зеркало (6ч)</text>
+<text x="594" y="516" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Голос вход: Whisper STT (ru)</text>
+<text x="594" y="534" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Always-on: Railway + tini, health 200</text>
+<text x="594" y="552" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Privacy: семья→роли, без банка/медицины</text>
+<text x="594" y="569" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Доступ: только 2 твоих Telegram-аккаунта</text>
+<rect x="580" y="606" width="400" height="124" rx="10" fill="#d3f9d8" stroke="#099268" stroke-width="2"/>
+<text x="594" y="635" font-size="17" fill="#099268" font-weight="bold" xml:space="preserve">🟢 Добавил сейчас</text>
+<text x="594" y="660" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Fallback-цепочка: Anthropic → Sonnet/OpenRouter</text>
+<text x="594" y="678" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">→ Gemini 2.5 Pro (brief придёт даже при сбое)</text>
+<text x="594" y="695" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">Голос ОТВЕТА: Edge TTS, ru-RU-Dmitry</text>
+<text x="594" y="713" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">(«ответь голосом» → голосовой баббл)</text>
+<text x="1030" y="395" font-size="19" fill="#e8590c" font-weight="bold" xml:space="preserve">ЧТО МОЖНО ПРИКРУТИТЬ</text>
+<rect x="1030" y="410" width="430" height="199" rx="10" fill="#fff9db" stroke="#e8590c" stroke-width="2"/>
+<text x="1044" y="439" font-size="17" fill="#e8590c" font-weight="bold" xml:space="preserve">⏳ Phase 2 (по твоему слову)</text>
+<text x="1044" y="464" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">📊 Google Sheets + Календарь — нужен 1 OAuth-клик</text>
+<text x="1044" y="482" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">    (CRM, партнёрка, расписание, новые лиды)</text>
+<text x="1044" y="499" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">📇 CRM-монитор лидов — silent-cron, только новое</text>
+<text x="1044" y="516" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">🧠 Субагент-делегация — готова, снять Phase-1 рамку</text>
+<text x="1044" y="534" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">    (ресёрч ∥ задача параллельно)</text>
+<text x="1044" y="552" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">📔 Obsidian «на сегодня» — нужен Mac-мост</text>
+<text x="1044" y="569" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">🔔 Webhook-приём (CRM пуши) — нужен порт</text>
+<text x="1044" y="586" font-size="14" fill="#212529" font-weight="normal" xml:space="preserve">🔌 MCP к Claude Code — нужна HTTP-обёртка</text>
+<rect x="1030" y="660" width="430" height="92" rx="10" fill="#f8f9fa" stroke="#adb5bd" stroke-width="2"/>
+<text x="1044" y="686" font-size="16" fill="#495057" font-weight="bold" xml:space="preserve">⚪ Сознательно НЕ делаем</text>
+<text x="1044" y="708" font-size="12" fill="#212529" font-weight="normal" xml:space="preserve">• Экономия токенов — у тебя $0.44/день, нечего экономить</text>
+<text x="1044" y="724" font-size="12" fill="#212529" font-weight="normal" xml:space="preserve">• Brave Search — твой /web уже работает</text>
+<text x="1044" y="740" font-size="12" fill="#212529" font-weight="normal" xml:space="preserve">• Kanban «цифровые сотрудники» — это dev-фича, не CEO</text>
+</svg>
