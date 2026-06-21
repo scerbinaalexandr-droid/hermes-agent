@@ -158,3 +158,7 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-20] session-end | No commits (main)
 
 ## [2026-06-20] session-end | 5 commits on main
+
+## [2026-06-21] capability-buildout | (1) #1 fallback chain + #2 Edge TTS ru-голос засеяны в ensure_config (PR #33, live). (2) video-vs-setup анализ: видео = другой продукт (Hermes Desktop GUI), твой Hermes по фундаменту опережает; token-routing/Brave/kanban — SKIP; делегация/Obsidian/webhook/MCP — Phase-2 (архитектура). (3) Excalidraw карта возможностей + SVG (#34). (4) Google Workspace OAuth LIVE для scerbina21@gmail.com: Gmail+Calendar+Sheets+Drive+Docs, Desktop client (project stellar-works-500105), creds на /opt/data volume (gitignored+backup-excluded, PR #35). Verified: Gmail читает реальные входящие; Calendar пуст (нет событий). Phase-1: чтение свободно, отправка по подтверждению. 4 PR merged сам (gh --repo trick на форк, не upstream).
+
+## [2026-06-21] session-end | 5 commits on main
