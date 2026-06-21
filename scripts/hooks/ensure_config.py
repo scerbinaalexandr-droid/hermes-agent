@@ -31,7 +31,30 @@ except ImportError:
 
 HOME = os.environ.get("HERMES_HOME", "/opt/data")
 CFG_PATH = os.path.join(HOME, "config.yaml")
+SOUL_PATH = os.path.join(HOME, "SOUL.md")
 CEO_DIR = "/opt/hermes/skills/ceo"
+
+# Email/calendar routing rule injected into the system prompt (SOUL.md is loaded
+# fresh each message by agent/prompt_builder.py). Without it the LLM reaches for
+# `himalaya` (an IMAP CLI it knows from training, not installed) instead of the
+# connected google-workspace OAuth path. Idempotent via the marker below.
+_SOUL_RULE_MARKER = "EMAIL / КАЛЕНДАРЬ / GOOGLE — критическое правило роутинга"
+SOUL_EMAIL_RULE = """
+
+---
+
+## 📧 EMAIL / КАЛЕНДАРЬ / GOOGLE — критическое правило роутинга (читать перед любым email/calendar запросом)
+
+Почта (Gmail), Календарь, Google Sheets/Drive/Docs Александра ПОДКЛЮЧЕНЫ через OAuth (google-workspace). Токен: /opt/data/google_token.json (рабочий).
+
+Для ЛЮБОГО запроса про почту / календарь / таблицы используй ТОЛЬКО google-workspace:
+- Предпочитай CEO-скиллы /mail (почта) и /calendar (расписание).
+- Прямой движок: HERMES_HOME=/opt/data /opt/hermes/.venv/bin/python /opt/hermes/skills/productivity/google-workspace/scripts/google_api.py gmail search 'in:inbox newer_than:1d' --max 10
+
+ЗАПРЕЩЕНО: запускать `himalaya` или любой IMAP/SMTP-CLI (не установлен, не нужен); предлагать его установку / app-password; выдавать «ТЕХНИЧЕСКАЯ ОШИБКА» про email — почта работает через google_api.py.
+
+Границы (Phase-1): чтение свободно; отправка письма / создание события — ТОЛЬКО после явного подтверждения Александра.
+"""
 # Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
 # rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
 MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
@@ -82,6 +105,26 @@ def _load() -> dict:
     except Exception as exc:  # corrupted / invalid YAML
         sys.stderr.write(f"[ceo-os-init] config.yaml unparseable ({exc}) — rebuilding clean\n")
     return {}
+
+
+def _ensure_soul_rule() -> None:
+    """Append the email-routing rule to SOUL.md if its marker is absent.
+
+    Only touches an existing SOUL.md (the injected persona); does not create one.
+    Idempotent — re-runs are no-ops once the marker is present.
+    """
+    try:
+        if not os.path.exists(SOUL_PATH):
+            return
+        with open(SOUL_PATH, encoding="utf-8") as fh:
+            content = fh.read()
+        if _SOUL_RULE_MARKER in content:
+            return
+        with open(SOUL_PATH, "a", encoding="utf-8") as fh:
+            fh.write(SOUL_EMAIL_RULE)
+        sys.stderr.write("[ceo-os-init] SOUL.md email-routing rule appended\n")
+    except Exception as exc:
+        sys.stderr.write(f"[ceo-os-init] SOUL.md rule ensure skipped ({exc})\n")
 
 
 def main() -> None:
@@ -146,6 +189,10 @@ def main() -> None:
     with open(tmp, "w", encoding="utf-8") as fh:
         yaml.dump(cfg, fh, default_flow_style=False, sort_keys=False, allow_unicode=True)
     os.replace(tmp, CFG_PATH)
+
+    # Ensure the email/calendar routing rule is in the injected SOUL.md (loaded
+    # fresh each message). Append once if the marker is absent; preserve the rest.
+    _ensure_soul_rule()
     sys.stderr.write(
         f"[ceo-os-init] config.yaml ensured (model.default={cfg['model'].get('default')}, "
         f"external_dirs={cfg['skills']['external_dirs']}, hooks+guardrails set, "
