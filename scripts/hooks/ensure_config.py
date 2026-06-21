@@ -94,6 +94,14 @@ def main() -> None:
     if CEO_DIR not in ext:
         ext.append(CEO_DIR)
     skills["external_dirs"] = ext
+    # Disable himalaya — the CEO uses Gmail via the google-workspace OAuth path
+    # (/mail, /calendar skills). himalaya (IMAP CLI) isn't installed and only
+    # causes email-intent misroutes. Idempotent; preserves other disabled names.
+    disabled = skills.get("disabled")
+    disabled = list(disabled) if isinstance(disabled, list) else []
+    if "himalaya" not in disabled:
+        disabled.append("himalaya")
+    skills["disabled"] = disabled
     cfg["skills"] = skills
 
     # model.default + provider — preserve non-empty existing values, else seed.
