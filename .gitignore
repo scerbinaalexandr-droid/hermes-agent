@@ -99,3 +99,9 @@ models-dev-upstream/
 build/
 .dart_tool/
 *.dill
+
+# Google OAuth credentials/token — secrets, live on the Railway volume only
+google_token.json
+google_client_secret.json
+google_*.json
+*oauth*token*.json

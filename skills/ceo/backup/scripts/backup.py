@@ -36,7 +36,8 @@ GIT_EMAIL = (os.environ.get("BACKUP_GIT_USER_EMAIL") or "hermes@noreply.local").
 # What to back up (whitelist, relative to HERMES_HOME).
 INCLUDE = ["memory", "logs/daily", "logs/coaching", "logs/hooks", "logs/telemetry", "logs/notes", "logs/diary", "config.yaml"]
 # Never copy these, even if matched by INCLUDE (defence-in-depth — .env etc.).
-EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem")
+EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem",
+           "google_token.json", "google_client_secret.json", "google_*.json")
 # Retention: keep only the most recent N dated daily logs in the backup.
 LOGS_DAILY_KEEP = 30
 
