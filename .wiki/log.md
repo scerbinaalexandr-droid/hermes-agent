@@ -165,4 +165,8 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-21] session-end | 5 commits on main
 
+## [2026-06-22] birthday-system | Полная система ДР. Импорт 87 ДР из birthdays.csv (бот сохранил из Telegram-файла) → .ics в ~/Downloads → user импортнул (Google уронил 11, дочинил через API). Google native «Дни рождения» = read-only Contacts-virtual cal (нет в API), поэтому создан Hermes-owned «🎂 Дни рождения» (colorId 10). birthday.py: --add/--check/--migrate, отдельный календарь, find-or-create. /birthday скилл (NL-парсинг «ДР Имя ДД месяц ГГГГ»). КРИТ-фикс TZ off-by-one: all-day события привязаны к Europe/Chisinau, не UTC (иначе напоминания на день раньше) — +03:00 границы + exact-date фильтр. 2 no_agent крона: «🎂 ДР утро 8:00» (b5344a977ada, 0 5 UTC) + «вечер 19:00» (6e77d2391a7d, 0 16 UTC), молчат если пусто; убраны 3 дубля (2 agent-mode user'а + мой). Итог: 88 ДР (87 + Фируза 29.06.1992), Азим→1971. Verified: --check показал Азим сегодня 55 лет; Дочь Клевца потерялась при миграции → дочинена. Урок: railway ssh теряет stdout длинных команд + убивает detached — писать в /opt/data volume-файл, читать отдельным вызовом.
+
 ## [2026-06-21] session-end | No commits (main)
+
+## [2026-06-22] session-end | No commits (main)
