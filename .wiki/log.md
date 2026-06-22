@@ -169,4 +169,10 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-21] session-end | No commits (main)
 
+## 2026-06-22 — pre-compact snapshot
+- Saved snapshot before /compact (контекст ~67%)
+- См. CONTEXT.md секцию "Snapshot 2026-06-22"
+
 ## [2026-06-22] session-end | No commits (main)
+
+## [2026-06-22] session-end | 1 commits on main

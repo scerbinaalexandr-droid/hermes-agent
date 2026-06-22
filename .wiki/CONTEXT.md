@@ -583,3 +583,56 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 - ✅ pilot-review закрыт (decisions.md 2026-06-20): KILL inline-меню (callback 0%), cost green ($0.44/день), notes re-pilot.
 - ⚠️ **Прод сейчас ahead of GitHub main на 5 коммитов** (деплой был `railway up` локального HEAD). **PR #32 нужно смёрджить** для main-sync (мой токен merge не может — нехватка прав, не protection; user мёрджит 1 кликом).
 - ⏳ Follow-ups: menu-popup whitelist `hermes_cli/commands.py` (protected core, новые команды работают по тексту/`/menu`, но не в Telegram-popup); mac-mirror install (вне песочницы, инструкция в header скрипта).
+
+---
+
+## Snapshot 2026-06-22 (auto-saved before /compact)
+
+**Сессия:** многодневный марафон (2026-06-19 → 06-22). Закрыт на: система ДР завершена (88/88), email-автоматизация + Google OAuth live.
+**Контекст на момент snapshot:** ~67%
+
+### 🏗 Архитектурные решения
+- **Google Workspace = OAuth (НЕ пароль).** Desktop OAuth client (Google Cloud project `stellar-works-500105`), аккаунт `scerbina21@gmail.com`. Скоупы: gmail.readonly/send/modify, calendar, drive.readonly, spreadsheets, documents.readonly, contacts.readonly. Токен+client_secret на `/opt/data` volume (gitignored + backup-excluded). Reversal: revoke token. НЕТ gmail.settings.basic (авто-фильтры Gmail требуют re-auth — пропущено, крон-триаж покрывает).
+- **himalaya misroute fix = 3 слоя.** LLM сам набирал `himalaya` в терминале (из обучения), не через скилл. Фикс: (1) /mail + /calendar CEO-скиллы (google_api.py); (2) skills.disabled=[himalaya]; (3) РЕШАЮЩЕЕ — правило роутинга в `/opt/data/SOUL.md` (инжектится prompt_builder.py:1047 каждое сообщение, durable через ensure_config). Урок: отключение скилла НЕ мешает LLM звать бинарь напрямую — нужно правило в системном промпте.
+- **Birthday calendar = Hermes-owned, НЕ Google native.** Google «Дни рождения» = read-only Contacts-virtual cal (нет в API list). Создан отдельный `🎂 Дни рождения` (colorId 10), Hermes — owner. birthday.py find-or-create.
+- **TZ off-by-one (КРИТ).** All-day события привязаны к Europe/Chisinau, не UTC → напоминания приходили на день раньше. Фикс: +03:00 границы суток + exact start-date фильтр.
+- **Авто-триаж почты = детерминированный no_agent.** inbox_triage.py архивирует Gmail Promotions+Social (обратимо, ярлык Hermes/Авто-архив), Primary не трогает. gmail.modify (без re-auth). Не LLM — надёжно+бесплатно.
+- **ics-импорт ненадёжен** (Google уронил 11/87) → дочинка через API (reseed по CSV с дедупом).
+
+### 📁 Ключевые file paths
+- `skills/ceo/{mail,calendar,inbox,birthday}/` — новые CEO-скиллы (+SKILL.md +scripts)
+- `skills/ceo/birthday/scripts/birthday.py` — --add/--check/--migrate, отдельный календарь, TZ-aware
+- `skills/ceo/inbox/scripts/inbox_triage.py` — авто-архив шума
+- `scripts/hooks/ensure_config.py` — durable seed: fallback_providers, tts(edge ru), skills.disabled[himalaya], SOUL.md email-rule
+- `docker/ceo-os-entrypoint.sh` — стейджит inbox_triage.py + birthday.py в /opt/data/scripts/
+- `/opt/data/SOUL.md` (volume, НЕ в git) — инжектируемая персона; email-routing rule добавлен
+- `~/Library/Application Support/hermes-mirror/` — DR-зеркало (launchd 6h), НЕ ~/Documents (TCC)
+- `docs/hermes-map.excalidraw` + `.svg` — карта возможностей
+
+### 🔑 Идентификаторы
+- Railway: project `4e83ef6c-268f-4021-81f0-6807906432a7`, service `hermes` (ssh -s hermes), HERMES_HOME=/opt/data
+- Google Cloud project: `stellar-works-500105`, OAuth client_id ...904462126373
+- Crons (no_agent): inbox `daily_inbox_triage` (0 4 UTC); ДР утро `b5344a977ada` (0 5), вечер `6e77d2391a7d` (0 16); + brief/week/cost/backup/RO/evening
+- ДР календарь id: `30cf4e10874c2da8edfd9a6c779722872cfa31f82e059a24ad59475146d10878@group.calendar.google.com`
+- ENV (имена): ANTHROPIC_API_KEY, OPENROUTER_API_KEY, GROQ(нет), HERMES_INFERENCE_PROVIDER=anthropic, HERMES_MODEL, BACKUP_GITHUB_TOKEN, TELEGRAM_BOT_TOKEN
+- Fallback chain: openrouter[anthropic/claude-sonnet-4.5 → google/gemini-2.5-pro]; TTS edge ru-RU-DmitryNeural
+
+### 📋 Open TODOs
+- [ ] menu-popup whitelist `hermes_cli/commands.py::_CEO_TELEGRAM_MENU_NAMES` — новые команды (mail/calendar/inbox/birthday/dashboard/cleanup/handoff) работают по тексту+/menu, но не в Telegram-popup (protected core, нужен отдельный апрув+деплой)
+- [ ] gmail.settings.basic re-auth — если захотят нативные Gmail-фильтры (сейчас крон-триаж)
+- [ ] календарь scerbina.alexandr@gmail.com — 404 (шаринг на scerbina21 не прошёл); если нужен — расшарить с write ИЛИ переключить Hermes на тот аккаунт
+- [ ] mac-mirror: дефолт пути в скрипте всё ещё ~/Documents (TCC-блок) — поправить на App Support при переустановке
+- [ ] re-pilot notes review — cloud routine на 2026-06-27 (trig_01DuJuLKUZkmArytrFhv6AyY)
+- [ ] 60-day Stilman audit — 2026-07-27
+
+### ⚠ Lessons
+- **railway ssh теряет stdout длинных команд + убивает detached-процессы** (умирают с сессией). Решение: писать результат в `/opt/data` volume-файл, читать отдельным коротким вызовом. WebSocket флапает.
+- **gh pr merge/operations целятся в parent-репо (NousResearch) на форке** — всегда `--repo scerbinaalexandr-droid/hermes-agent`. Прямой push в main блокируется → feature-branch + PR + merge --repo.
+- **Отключение скилла ≠ запрет бинаря** — LLM зовёт `himalaya` напрямую; правило в SOUL.md (системный промпт) решает.
+- **TCC блокирует launchd-доступ к ~/Documents** — фоновые джобы в ~/Library/Application Support.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + decisions.md (2026-06-20 pilot-review + phase1).
+2. Если просят «команды в Telegram-меню» → правка `_CEO_TELEGRAM_MENU_NAMES` + railway up (protected core, объявить).
+3. Любая прод-проверка → volume-файл паттерн (ssh теряет stdout).
+4. ДР/почта/календарь — всё live; проверка в боте: «кто празднует на неделе», «что в почте», «разбери почту».
