@@ -588,6 +588,16 @@ def drive_search(args):
     print(json.dumps(files, indent=2, ensure_ascii=False))
 
 
+def drive_about(args):
+    """Print the authenticated account's identity (email + display name)."""
+    service = build_service("drive", "v3")
+    user = service.about().get(fields="user").execute().get("user", {})
+    print(json.dumps(
+        {"emailAddress": user.get("emailAddress", ""), "displayName": user.get("displayName", "")},
+        ensure_ascii=False,
+    ))
+
+
 # =========================================================================
 # Contacts
 # =========================================================================
@@ -709,6 +719,37 @@ def sheets_append(args):
     print(json.dumps({"updatedCells": result.get("updates", {}).get("updatedCells", 0)}, indent=2))
 
 
+def sheets_create(args):
+    """Idempotently create a spreadsheet owned by the authenticated account.
+
+    Reuses an existing spreadsheet with the exact same title (so re-running does
+    not create duplicates). Tabs are created empty; headers are owned by the
+    caller (e.g. sheets_meeting_sync). Requires the `spreadsheets` scope for
+    creation and `drive.readonly` for the idempotency lookup.
+    """
+    title = args.title
+    tabs = [t.strip() for t in (args.tabs.split(",") if args.tabs else ["Sheet1"]) if t.strip()]
+
+    drive = build_service("drive", "v3")
+    safe_title = title.replace("'", "\\'")
+    q = (
+        "mimeType='application/vnd.google-apps.spreadsheet' and trashed=false "
+        f"and name='{safe_title}'"
+    )
+    found = drive.files().list(q=q, fields="files(id, name)", pageSize=5).execute().get("files", [])
+    if found:
+        print(json.dumps({"spreadsheetId": found[0]["id"], "created": False}, ensure_ascii=False))
+        return
+
+    sheets = build_service("sheets", "v4")
+    body = {
+        "properties": {"title": title},
+        "sheets": [{"properties": {"title": t}} for t in tabs],
+    }
+    res = sheets.spreadsheets().create(body=body, fields="spreadsheetId").execute()
+    print(json.dumps({"spreadsheetId": res["spreadsheetId"], "created": True}, ensure_ascii=False))
+
+
 # =========================================================================
 # Docs
 # =========================================================================
@@ -818,6 +859,9 @@ def main():
     p.add_argument("--raw-query", action="store_true", help="Use query as raw Drive API query")
     p.set_defaults(func=drive_search)
 
+    p = drv_sub.add_parser("about", help="Print the authenticated account email + name")
+    p.set_defaults(func=drive_about)
+
     # --- Contacts ---
     con = sub.add_parser("contacts")
     con_sub = con.add_subparsers(dest="action", required=True)
@@ -846,6 +890,11 @@ def main():
     p.add_argument("range")
     p.add_argument("--values", required=True, help="JSON array of arrays")
     p.set_defaults(func=sheets_append)
+
+    p = sh_sub.add_parser("create", help="Idempotently create a spreadsheet owned by this account")
+    p.add_argument("title")
+    p.add_argument("--tabs", default=None, help="Comma-separated tab names (e.g. 'Протоколы,Задачи')")
+    p.set_defaults(func=sheets_create)
 
     # --- Docs ---
     docs = sub.add_parser("docs")

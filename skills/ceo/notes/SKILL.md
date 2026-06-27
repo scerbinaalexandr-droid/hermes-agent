@@ -165,15 +165,39 @@ JSON shape:
   "decisions": ["..."],
   "action_items": ["..."],
   "summary": "...",
-  "raw_text": "..."
+  "raw_text": "...",
+  "area": "Finance & Capital"
 }
 ```
+
+> `area` (опционально) — одно из 12 направлений `memory/areas.md`; классифицируй встречу
+> в одно. Явный тег «по <Направление>:» в тексте перекрывает. Не уверен — опусти.
 
 Helper создаёт два файла:
 - `/opt/data/logs/notes/YYYY-MM-DD/HHMM-<slug>.md` — сама заметка
 - `/opt/data/logs/notes/YYYY-MM-DD-index.md` — daily index (append)
 
 И возвращает JSON: `{"saved_path": "...", "index_path": "...", "obsidian_eta": "tomorrow 06:00 EEST after launchd sync"}`.
+
+---
+
+## Step 4b — Sync to master Sheet (meetings only)
+
+Только для `meeting_type` ∈ {`meeting`, `call`, `protocol`} — после успешного `--save`
+пробрось протокол в мастер-таблицу (строка в `Протоколы` + по строке на action item в `Задачи`,
+с колонкой `Направление`). **Best-effort:** ошибка синка НЕ отменяет сохранённую заметку.
+
+```bash
+/opt/hermes/.venv/bin/python /opt/hermes/skills/ceo/_lib/sheets_meeting_sync.py \
+  --save '<тот же JSON, что в Step 4>' \
+  --area '<направление или опусти>' \
+  --note-id '<saved_path из ответа notes_log>'
+```
+
+Возвращает `{"protocol_written": true, "tasks_written": N, "area": "..."}`
+или (при сбое) `{"sheets_error": "...", "note_saved": true, "warning": "⚠️ заметка сохранена, но не записана в Sheet"}`.
+Если пришёл `sheets_error` — добавь в ack (Step 5) одну строку-предупреждение; заметка всё равно сохранена.
+Если env `HERMES_MEETING_SHEET_ID` не задан — скрипт вернёт код 2 (таблица ещё не настроена), это не ошибка.
 
 ---
 
