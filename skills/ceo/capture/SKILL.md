@@ -1,12 +1,13 @@
 ---
 name: capture
 description: |
-  Capture a thought, task, decision, insight, or meeting recap from voice memo
+  Capture a quick thought, task, decision, or insight from voice memo
   or text into the right memory file. Auto-invoked when the user types
   /capture <text> in Telegram, sends a voice memo with the [тип] template, or
   uses semantic variants ("zapisat'", "запомни", "сохрани", "capture this").
+  For meetings / calls / protocols / "запиши встречу", "запиши протокол",
+  "запиши совещание" → use /notes, NOT this skill.
   Routes by [тип]:
-    meeting / recap → memory/daily_log.md (today's entry)
     decision        → memory/decisions.md (with full Date/Reason/Status shape)
     insight         → memory/memory.md::Current Strategic Themes (in-place)
     task            → memory/memory.md::Active Priorities (in-place bullet)

@@ -1,9 +1,11 @@
 ---
 name: notes
 description: |
-  Structured note / meeting protocol / decision log capture for the CEO of
-  TANDEM Group. Triggered when the user types /notes, sends a voice memo with
-  meeting context, photographs a printed protocol, or uses semantic variants:
+  Meeting / call / protocol notes (STRUCTURED, with Google Sheet sync) for the
+  CEO of TANDEM Group — also general structured notes / decision logs. Use this
+  for ANY meeting/call/protocol. Triggered when the user types /notes, sends a
+  voice memo with meeting context, photographs a printed protocol, or uses
+  semantic variants:
   "запиши встречу", "запиши протокол", "сохрани заметку", "сохрани протокол",
   "noted", "meeting notes", "запиши совещание".
 
