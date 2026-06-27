@@ -491,3 +491,21 @@
 **Reversal cost:** Легко (решения, не код).
 **Decided by:** Claude Opus 4.8 (прод-данные) + User (Александр).
 **Status:** ✅ Pilot-review закрыт. Master kill-criterion (60-day audit) остаётся на 2026-07-27.
+
+---
+
+## 2026-06-27 — notes-repilot-review
+**Type:** L3 (product / metrics gate)
+**Domain:** CEO OS / /notes feature
+**Context:** Re-pilot окно 2026-06-20..2026-06-27 (7 дней) открыто решением pilot-review 2026-06-20. Метрика: ≥5 протоколов .md (за исключением *-index.md) в logs/notes/ за период → GO; 3-4 → ITERATE; <3 → KILL-candidate. Источник данных: hermes-memory-backup (ежедневный snapshot Railway volume).
+**Данные (из hermes-memory-backup):**
+- Дата-папки в logs/notes/ за 2026-06-20..2026-06-27: **0**
+- Файлов протоколов в окне: **0**
+- Все существующие заметки (2026-06-01, 2026-06-05) находятся ДО окна наблюдения
+- Счёт: **0 / порог 5**
+**Вердикт: KILL-candidate**
+**Why:** 0 протоколов за 7 дней при работающем backup pipeline означает либо (a) /notes pipeline сломан на проде и события не доходят до logs/notes/, либо (b) habit не сформировался. В обоих случаях re-pilot провален по метрике. Данные реальные (из backup), fabrication исключена.
+**How to apply:** До финального KILL решения — обязательна ручная проверка на проде: `railway ssh -s hermes "find /opt/data/logs/notes -name '*.md' ! -name '*-index.md' -path '*2026-06-2*'"`. Если там есть файлы → backup mismatch, пересмотреть вердикт и открыть новое окно. Если 0 → либо починить pipeline (Anti-loss protocol 07.06 — работает?) и открыть новое 7-дневное окно с явным trigger-тестом, либо закрыть /notes как фичу и сфокусировать ресурсы на том что работает (voice capture 49%).
+**Reversal cost:** Легко — если pipeline жив, новое 7-дневное окно + notify Александра.
+**Decided by:** scheduled re-pilot agent (2026-06-27) — автоматический re-pilot review по плану HERMES_TO_96
+**Status:** KILL-candidate, pending manual prod verify + user decision
