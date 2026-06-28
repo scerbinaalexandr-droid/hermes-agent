@@ -705,13 +705,16 @@ def _collect_gateway_skill_entries(
 #
 # When upstream Hermes adds new CEO-relevant commands, extend this set.
 _CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
-    # CEO skills (auto-loaded by skill_commands.scan_skill_commands)
-    "menu", "start", "brief", "evening", "week",
-    "projects", "risks", "capture", "find", "remind", "report", "backup",
-    # Hermes core — safety net only (kill stuck task, NOT destructive).
-    # `/new` (session reset) and other admin commands deliberately excluded
-    # from menu — they remain typeable but CEO won't accidentally tap them.
-    "stop",
+    # CEO voice-first cockpit — live skills shown in the Telegram ≡ menu popup.
+    # (Commands NOT listed here stay fully typeable; this only curates the popup
+    # so the CEO doesn't accidentally tap rarely-used admin commands.)
+    "menu",
+    "brief", "evening", "week",          # day / ritual
+    "capture", "notes", "diary", "trip", # voice-first capture
+    "find",                              # view / search
+    "report", "dashboard",               # share artefacts
+    "birthday",                          # personal
+    "backup",                            # admin
 })
 
 
@@ -762,16 +765,18 @@ def telegram_menu_commands(max_commands: int = 100) -> tuple[list[tuple[str, str
         if name == "start":
             return (1, name)
         if name in {"brief", "evening", "week"}:
-            return (2, name)   # daily/weekly ritual
-        if name in {"projects", "risks", "find"}:
-            return (3, name)   # view
-        if name in {"capture", "remind"}:
-            return (4, name)   # write
-        if name == "report":
+            return (2, name)   # day / ritual
+        if name in {"capture", "notes", "diary", "trip"}:
+            return (3, name)   # voice-first capture
+        if name == "find":
+            return (4, name)   # view / search
+        if name in {"report", "dashboard"}:
             return (5, name)   # share artefacts
+        if name == "birthday":
+            return (6, name)   # personal
         if name == "backup":
-            return (6, name)   # admin
-        return (7, name)       # safety net (stop)
+            return (7, name)   # admin
+        return (8, name)       # anything else
 
     filtered.sort(key=_sort_key)
     return filtered[:max_commands], hidden_count
