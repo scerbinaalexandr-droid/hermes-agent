@@ -204,3 +204,19 @@ Append-only лог событий. Karpathy convention.
 - meeting→Sheets + diary→Sheets детерминированно; routing fix (встречи→/notes)
 - STT→groq whisper-large-v3-turbo; Codex model-downgrade откачен
 - 7 commits 238e828ab→d8e61ac4b. Снапшот в CONTEXT.md.
+
+## [2026-06-28] session-end | 5 commits on main
+
+## [2026-06-28] session-end | 7 commits on main
+
+## [2026-06-28] session-end | 8 commits on main
+
+## [2026-06-28] session-end | 9 commits on main
+
+## [2026-06-28] session-end | 6 commits on main
+
+## 2026-06-28 23:35 — pre-compact snapshot
+- Большой воркстрим: голос-первый CEO-кокпит в Telegram.
+- Задеплоено: /report→Google Doc+PDF+HTML · /trip→Поездки Sheet · меню-плитки + ≡-команды · кнопки черновика (универсально через persona, 4 кнопки) · сворачиваемое меню (one_time) · CEO-доступ к мастер-Sheet.
+- 9 коммитов (d59f4ed10…ef65d29f9). Всё на проде, гейтвей здоров.
+- См. CONTEXT.md секцию "Snapshot 2026-06-28 23:35" + decisions.md.

@@ -685,3 +685,60 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 2. №3 поездки: новый skill `skills/ceo/trip/` + проводка в Drive (паттерн как diary→Sheet).
 3. №4 Word: установить `python-docx` (requirements/Dockerfile) → skill экспорта задач/протоколов в .docx на почту.
 4. Прод-операции: только простые argv через `railway ssh`; запись/диагностика — через `--selftest`-подобные флаги в коде, деплоить.
+
+---
+
+## Snapshot 2026-06-28 23:35 (auto-saved before /compact)
+
+**Сессия:** продолжение после compact — большой воркстрим «голос-первый CEO-кокпит в Telegram».
+**Закрыта на:** сворачиваемое меню задеплоено (ef65d29f9), ждёт тест юзера.
+**Контекст:** ~предел (пора /compact).
+
+### 🏗 Архитектурные решения
+- **Reports → Google Doc + PDF + HTML.** Doc создаётся через Drive native HTML→Doc конвертацию (`files().create` mimeType google-apps.document + MediaFileUpload html), БЕЗ python-docx. `google_api.py docs create-from-html`. `/report --gdoc`. Reversal: легко.
+- **Gateway `[[marker]]` конвенция** (по образцу `MEDIA:`/`[[audio_as_voice]]`): `[[menu_keyboard]]`→reply-keyboard плитки; `[[draft_actions]]`→inline 4 кнопки. Маркер стрипается в `send()`, рендерится как reply_markup. Reversal: легко.
+- **Детерминированный роутинг кнопок (анти-регрессия capture/notes).** Reply-плитка: тап шлёт label → `_handle_text_message` переписывает в ТОЧНУЮ slash-команду (COMMAND event). Inline draft: тап `da:save/more/edit/del` → `_handle_callback_query` инжектит user-ход (черновик у LLM в контексте). Reversal: легко.
+- **Универсальные кнопки черновика — через PERSONA, не по скиллам.** `ensure_config.py` дописывает глобальное правило в `/opt/data/SOUL.md` на старте (идемпотентно) → покрывает ВСЕ скиллы + будущие. Урок: точечная правка по скиллам пропустила /capture (юзер недоволен). Reversal: легко.
+- **Сворачиваемое меню:** `one_time_keyboard=True` (было `is_persistent=True`) — не занимает экран, вызов иконкой клавиатуры/`/menu`.
+- **CEO доступ к данным:** мастер-Sheet под Hermes (scerbina21), share reader на alexandr.scerbina. `google_api.py drive share`.
+
+### 🎨 UX достижения
+- Меню-плитки 4×2 (🎙Заметка 📋Встреча ✈️Поездка 📄Отчёт 📊День 🌙Вечер 🎂Личное ⚙️Ещё) — юзеру нравится дизайн.
+- Кнопки черновика 2×2: ✅Сохранить ➕Добавить ✏️Редактировать 🗑Удалить — работают (подтверждено скрином).
+
+### 📁 Ключевые file paths
+- `gateway/platforms/telegram.py` — `_CEO_MENU_BUTTONS`, маркеры в `send()`, `da:` ветка в `_handle_callback_query`, label→command в `_handle_text_message`, one_time_keyboard
+- `skills/productivity/google-workspace/scripts/google_api.py` — `docs_create_from_html`, `drive_share`, `_scrub_sensitive`
+- `skills/ceo/report/scripts/generate_report.py` — `--gdoc`, `create_gdoc_from_html`
+- `skills/ceo/_lib/sheets_meeting_sync.py` — вкладка Поездки (`sync_trip`)
+- `skills/ceo/trip/{SKILL.md,scripts/trip.py}`
+- `scripts/hooks/ensure_config.py` — глобальное SOUL-правило кнопок (`_SOUL_DRAFT_MARKER`)
+- `hermes_cli/commands.py:707` — `_CEO_TELEGRAM_MENU_NAMES` (≡-меню вайтлист, CEO-слой)
+- `skills/ceo/{menu,capture,notes,diary,trip}/SKILL.md` — `[[draft_actions]]` маркеры
+
+### 🔑 Идентификаторы
+- Railway service: `hermes` (railway ssh -s hermes; ssh-транспорт: только простые argv, без пробелов/пайпов)
+- Master Sheet ID: `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU` (не секрет)
+- Hermes Google: `scerbina21@gmail.com` · CEO: `alexandr.scerbina@gmail.com`
+- Commits: d59f4ed10 trip · 5b0e836ac drive-share · 285c461bd report-gdoc · a10d2a3bc scrub · 42f0886a9 ≡-menu · 4bdd8500a reply-keyboard · 14114a404 draft-buttons · 9863e8687 4-button-universal · ef65d29f9 collapsible-menu
+- ENV имена: HERMES_MEETING_SHEET_ID, HERMES_CEO_EMAIL (НЕ установлен — классификатор блокнул), GROQ_API_KEY, HERMES_HOME, HERMES_GOOGLE_API, HERMES_SHEETS_SYNC
+
+### 📋 Open TODOs
+- [ ] Тест сворачиваемого меню (деплой ef65d29f9 докатывается)
+- [ ] HERMES_CEO_EMAIL не установлен (классификатор блокнул `railway variables --set`) — для авто-шаринга отчётных Doc. Юзер ставит в Railway UI ИЛИ авторизует меня.
+- [ ] Работа⇄Личное переключатель меню (follow-on, нужен per-chat state)
+- [ ] Этап-4 визуальный стиль — точечно по замечаниям из живого теста (НЕ слепой рерайт)
+- [ ] **SECURITY: ротация 4 утёкших секретов** (ANTHROPIC/TELEGRAM/OPENROUTER/BACKUP_GITHUB) — всё ещё висит, действие юзера в дашбордах
+- [ ] Чистка тест-артефактов (тест report-Doc в Drive, selftest-строки в Протоколах)
+
+### ⚠ Lessons
+- Cross-cutting UX фичу НЕ делать по скиллам поштучно — пропустишь (пропустил /capture). Универсально → через persona (ensure_config SOUL append).
+- Persona-правила только через `ensure_config` (прод `/opt/data/SOUL.md` = sticky volume, repo `memory/soul.md` НЕ долетает).
+- Drive/env изменения классификатор блокирует даже при «делай всё» — нужна точечная авторизация на каждое outward/infra действие.
+- Deploy-поллинг через railway ssh: числовое сравнение флакает → парсить `tr -dc '0-9'`.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + decisions.md.
+2. Дождаться фидбэка юзера по сворачиваемому меню (ef65d29f9) + универсальным кнопкам.
+3. По желанию: Работа⇄Личное toggle, авто-шаринг Doc (HERMES_CEO_EMAIL), Этап-4 стиль.
+4. Не забыть напомнить про ротацию секретов.
