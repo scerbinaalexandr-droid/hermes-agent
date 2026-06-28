@@ -1198,6 +1198,18 @@ class TelegramAdapter(BasePlatformAdapter):
         else:  # "first" (default)
             return chunk_index == 0
 
+    # CEO hands-free reply-keyboard. Sent when a response carries the
+    # [[menu_keyboard]] marker (the /menu skill emits it). Each button's label
+    # maps to a deterministic slash command; _handle_text_message rewrites a tap
+    # into that exact command so it routes via the slash resolver, never the LLM
+    # (avoids the capture/notes routing drift).
+    _CEO_MENU_BUTTONS = [
+        [("🎙 Заметка", "/capture"), ("📋 Встреча", "/notes")],
+        [("✈️ Поездка", "/trip"), ("📄 Отчёт", "/report")],
+        [("📊 День", "/brief"), ("🌙 Вечер", "/evening")],
+        [("🎂 Личное", "/birthday"), ("⚙️ Ещё", "/menu")],
+    ]
+
     async def send(
         self,
         chat_id: str,
@@ -1212,7 +1224,15 @@ class TelegramAdapter(BasePlatformAdapter):
         # Skip whitespace-only text to prevent Telegram 400 empty-text errors.
         if not content or not content.strip():
             return SendResult(success=True, message_id=None)
-        
+
+        # Hands-free menu: detect + strip the [[menu_keyboard]] marker before
+        # formatting; if present, attach the persistent CEO reply-keyboard below.
+        attach_menu_kbd = "[[menu_keyboard]]" in content
+        if attach_menu_kbd:
+            content = content.replace("[[menu_keyboard]]", "").strip()
+            if not content:
+                content = "Меню:"  # never send an empty body just to show the keyboard
+
         try:
             # Format and split message if needed
             formatted = self.format_message(content)
@@ -1230,7 +1250,18 @@ class TelegramAdapter(BasePlatformAdapter):
             
             message_ids = []
             thread_id = self._metadata_thread_id(metadata)
-            
+
+            menu_markup = None
+            if attach_menu_kbd:
+                from telegram import ReplyKeyboardMarkup, KeyboardButton
+                _rows = [[KeyboardButton(lbl) for lbl, _c in row]
+                         for row in self._CEO_MENU_BUTTONS]
+                try:
+                    menu_markup = ReplyKeyboardMarkup(
+                        _rows, resize_keyboard=True, is_persistent=True)
+                except TypeError:  # older python-telegram-bot without is_persistent
+                    menu_markup = ReplyKeyboardMarkup(_rows, resize_keyboard=True)
+
             try:
                 from telegram.error import NetworkError as _NetErr
             except ImportError:
@@ -1250,6 +1281,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 should_thread = self._should_thread_reply(reply_to, i)
                 reply_to_id = int(reply_to) if should_thread else None
                 effective_thread_id = self._message_thread_id_for_send(thread_id)
+                # Keyboard only on the first chunk (one keyboard per message).
+                _kbd = menu_markup if i == 0 else None
 
                 msg = None
                 for _send_attempt in range(3):
@@ -1262,6 +1295,7 @@ class TelegramAdapter(BasePlatformAdapter):
                                 parse_mode=ParseMode.MARKDOWN_V2,
                                 reply_to_message_id=reply_to_id,
                                 message_thread_id=effective_thread_id,
+                                reply_markup=_kbd,
                                 **self._link_preview_kwargs(),
                             )
                         except Exception as md_error:
@@ -1275,6 +1309,7 @@ class TelegramAdapter(BasePlatformAdapter):
                                     parse_mode=None,
                                     reply_to_message_id=reply_to_id,
                                     message_thread_id=effective_thread_id,
+                                    reply_markup=_kbd,
                                     **self._link_preview_kwargs(),
                                 )
                             else:
@@ -2967,6 +3002,19 @@ class TelegramAdapter(BasePlatformAdapter):
 
         event = self._build_message_event(update.message, MessageType.TEXT, update_id=update.update_id)
         event.text = self._clean_bot_trigger_text(event.text)
+
+        # Hands-free menu: a reply-keyboard tap arrives as the button label text.
+        # If it matches a menu button, route it exactly like the typed slash
+        # command (deterministic — same path as /trip, never the LLM router).
+        _tapped = (event.text or "").strip()
+        _cmd = next((c for row in self._CEO_MENU_BUTTONS for lbl, c in row if lbl == _tapped), None)
+        if _cmd:
+            cmd_event = self._build_message_event(
+                update.message, MessageType.COMMAND, update_id=update.update_id)
+            cmd_event.text = _cmd
+            await self.handle_message(cmd_event)
+            return
+
         self._enqueue_text_event(event)
 
     async def _handle_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
