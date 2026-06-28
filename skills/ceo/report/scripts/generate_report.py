@@ -130,6 +130,40 @@ def html_to_pdf(html_path: pathlib.Path, pdf_path: pathlib.Path, timeout: int = 
         return {"ok": False, "reason": f"{type(e).__name__}: {e}", "binary": chromium}
 
 
+# ── Google Doc (editable copy in Drive archive) ───────────────────────────
+
+
+def create_gdoc_from_html(html_path: pathlib.Path, title: str,
+                          share: str | None = None, timeout: int = 60) -> dict:
+    """Best-effort: convert the report HTML into an editable Google Doc via the
+    google-workspace OAuth path (Drive native HTML→Doc conversion). Returns
+    {ok, link, ...}. Never raises — the report still ships HTML/PDF if this fails."""
+    api = os.environ.get(
+        "HERMES_GOOGLE_API",
+        "/opt/hermes/skills/productivity/google-workspace/scripts/google_api.py",
+    )
+    if not os.path.exists(api):
+        api = str(_REPO / "skills" / "productivity" / "google-workspace" / "scripts" / "google_api.py")
+    if not os.path.exists(api):
+        return {"ok": False, "reason": "google_api.py not found"}
+    cmd = [sys.executable, api, "docs", "create-from-html", title,
+           "--html-file", str(html_path)]
+    if share:
+        cmd += ["--share", str(share)]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if proc.returncode != 0:
+            err = (proc.stderr or proc.stdout or "").strip()
+            # Surface the actual error (last traceback line), not the noisy header.
+            reason = err.splitlines()[-1].strip() if err else "google_api failed"
+            return {"ok": False, "reason": reason[:200]}
+        data = json.loads((proc.stdout or "").strip() or "{}")
+        return {"ok": bool(data.get("link")), "link": data.get("link"),
+                "doc_id": data.get("doc_id"), "shared": data.get("shared", False)}
+    except Exception as exc:
+        return {"ok": False, "reason": str(exc)[:200]}
+
+
 # ── Public URL via Hermes' own reports server (Railway public domain) ──────
 
 
@@ -766,6 +800,10 @@ def main() -> int:
                         help="Force-disable PDF generation even if chromium is available.")
     parser.add_argument("--no-upload", action="store_true",
                         help="Skip catbox.moe upload (no public URL in result).")
+    parser.add_argument("--gdoc", action="store_true",
+                        help="Also create an editable Google Doc (Drive) from the HTML.")
+    parser.add_argument("--gdoc-share", default=None,
+                        help="Email to grant reader access to the Google Doc.")
     args = parser.parse_args()
 
     days = PERIOD_DAYS[args.period]
@@ -867,6 +905,17 @@ def main() -> int:
         if pdf_status.get("ok"):
             pdf_path = pdf_path_candidate
 
+    # ---- Optional Google Doc (editable copy, lands in Drive archive) ----
+    gdoc_url = None
+    gdoc_status: dict = {"requested": False}
+    if args.gdoc:
+        gdoc_title = f"Tandem отчёт — {period_label} {today_iso()}"
+        gdoc_share = args.gdoc_share or os.environ.get("HERMES_CEO_EMAIL")
+        gdoc_status = {"requested": True,
+                       **create_gdoc_from_html(file_path, gdoc_title, share=gdoc_share)}
+        if gdoc_status.get("ok"):
+            gdoc_url = gdoc_status.get("link")
+
     # ---- Build ready-to-send Telegram caption (deterministic, не зависит от LLM) ----
     filled_str = ", ".join(filled) if filled else "—"
     empty_str = ", ".join(empty) if empty else "—"
@@ -891,6 +940,15 @@ def main() -> int:
         cap_lines.append("   Чтобы включить: Railway → hermes → Settings → Networking → Generate Domain")
         cap_lines.append("   Потом Variables → добавь HERMES_PUBLIC_HOST = <domain>")
 
+    if gdoc_url:
+        cap_lines.append("")
+        cap_lines.append("📝 **Google Doc (редактируемый, в твоём Drive):**")
+        cap_lines.append(gdoc_url)
+        cap_lines.append("   File → Download → PDF/Word для выгрузки в файл.")
+    elif gdoc_status.get("requested"):
+        cap_lines.append("")
+        cap_lines.append(f"⚠ Google Doc не создан: {gdoc_status.get('reason', 'unknown')[:120]}")
+
     cap_lines.append("")
     cap_lines.append("📎 Файлы во вложении:")
     if pdf_path:
@@ -910,6 +968,8 @@ def main() -> int:
         "pdf_path": str(pdf_path) if pdf_path else None,
         "pdf_size_kb": pdf_size_kb,
         "pdf_status": pdf_status,
+        "gdoc_url": gdoc_url,
+        "gdoc_status": gdoc_status,
         "period": args.period,
         "period_label": period_label,
         "cutoff": cutoff.isoformat(),

@@ -51,13 +51,19 @@ period = parse_arg(user_input)  # "week" | "month" | "quarter" | "all"
 days = {"week": 7, "month": 30, "quarter": 90, "all": 9999}[period]
 ```
 
-## Step 2 — Generate (HTML + PDF)
+## Step 2 — Generate (HTML + PDF + Google Doc)
 
-Запусти helper **с --pdf флагом**:
+Запусти helper **с флагами `--pdf --gdoc`**:
 
 ```bash
-python skills/ceo/report/scripts/generate_report.py --period <week|month|quarter|all> --pdf --output /opt/data/reports/
+python skills/ceo/report/scripts/generate_report.py --period <week|month|quarter|all> --pdf --gdoc --output /opt/data/reports/
 ```
+
+`--gdoc` создаёт **редактируемую копию отчёта как Google Doc** в Drive Hermes
+(конвертация HTML→Doc нативно, без новых зависимостей). Ссылка попадает в
+`telegram_caption` автоматически. Doc экспортируется в PDF/Word в один клик
+(File → Download). Best-effort: если Doc не создался — отчёт всё равно уходит
+HTML+PDF, в caption будет строка `⚠ Google Doc не создан`.
 
 Helper делает:
 1. Читает `memory/*.md` + `logs/daily/*.md` + `logs/weekly/*.md`
@@ -93,7 +99,7 @@ Helper возвращает JSON с полем `telegram_caption` — это **�
 User: `/report week`
 
 Bot internal:
-1. `python3 .../generate_report.py --period week --pdf` → returns JSON
+1. `python3 .../generate_report.py --period week --pdf --gdoc` → returns JSON
 2. Read `result["telegram_caption"]` (готовая строка, ~400 char)
 3. `telegram_send_document(result["pdf_path"], caption=result["telegram_caption"])`
 4. `telegram_send_document(result["html_path"])`
@@ -127,7 +133,7 @@ Bot internal:
 | **Все sections empty** | НЕ отправляй HTML файл. Reply text: «Памяти за <period> мало. Запусти /capture, /evening, /week несколько дней — потом /report.» |
 | `--period quarter` но memory только за 7 дней | Helper фильтрует по существующим данным, секция «нет данных за месяц X-Y» появляется. |
 | User просит «сделай отчёт с конкурентами» | Reply: «Конкурентный анализ требует real web scraping (Phase 4, separate project tandem-competitive-intel). В memory этого нет — не выдумываю.» |
-| User просит PDF | Reply: «PDF в production нет (reportlab не установлен). Открой `.html` в Chrome → File → Print → Save as PDF — same content.» |
+| User просит PDF | PDF генерируется через `--pdf` (headless Chromium) и уходит вложением. Если Chromium недоступен — открой Google Doc (`--gdoc`) → File → Download → PDF/Word, тот же контент. |
 
 ## What NOT to do
 

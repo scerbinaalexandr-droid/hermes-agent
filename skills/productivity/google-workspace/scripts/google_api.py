@@ -819,6 +819,39 @@ def docs_get(args):
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
+def docs_create_from_html(args):
+    """Create an editable Google Doc by converting an HTML file (Drive native).
+
+    Uploading HTML with target mimeType google-apps.document makes Drive render a
+    formatted, editable Doc (headings/tables/lists preserved) — no manual Docs
+    batchUpdate needed. Lands in Hermes's Drive (the archive); optional --share
+    grants the CEO reader access so he can open it and export PDF/Word natively.
+    Works under the drive.file scope (app-created file)."""
+    from googleapiclient.http import MediaFileUpload
+
+    service = build_service("drive", "v3")
+    body = {"name": args.title, "mimeType": "application/vnd.google-apps.document"}
+    if args.folder:
+        body["parents"] = [args.folder]
+    media = MediaFileUpload(args.html_file, mimetype="text/html", resumable=False)
+    f = service.files().create(
+        body=body, media_body=media, fields="id, webViewLink",
+    ).execute()
+    doc_id = f.get("id", "")
+    out = {"doc_id": doc_id, "link": f.get("webViewLink", ""), "shared": False}
+    if args.share and doc_id:
+        try:
+            service.permissions().create(
+                fileId=doc_id,
+                body={"type": "user", "role": "reader", "emailAddress": args.share},
+                sendNotificationEmail=False, fields="id",
+            ).execute()
+            out["shared"] = True
+        except Exception as exc:
+            out["share_error"] = str(exc)[:200]
+    print(json.dumps(out, ensure_ascii=False))
+
+
 # =========================================================================
 # CLI parser
 # =========================================================================
@@ -958,6 +991,14 @@ def main():
     p = docs_sub.add_parser("get")
     p.add_argument("doc_id")
     p.set_defaults(func=docs_get)
+
+    p = docs_sub.add_parser("create-from-html",
+                            help="Create an editable Google Doc from an HTML file (Drive conversion)")
+    p.add_argument("title")
+    p.add_argument("--html-file", required=True)
+    p.add_argument("--share", default=None, help="Email to grant reader access")
+    p.add_argument("--folder", default=None, help="Parent Drive folder id")
+    p.set_defaults(func=docs_create_from_html)
 
     args = parser.parse_args()
     args.func(args)
