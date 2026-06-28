@@ -183,23 +183,15 @@ Helper создаёт два файла:
 
 ---
 
-## Step 4b — Sync to master Sheet (meetings only)
+## Step 4b — Sheet sync (АВТОМАТИЧЕСКИ — отдельный вызов НЕ нужен)
 
-Только для `meeting_type` ∈ {`meeting`, `call`, `protocol`} — после успешного `--save`
-пробрось протокол в мастер-таблицу (строка в `Протоколы` + по строке на action item в `Задачи`,
-с колонкой `Направление`). **Best-effort:** ошибка синка НЕ отменяет сохранённую заметку.
-
-```bash
-/opt/hermes/.venv/bin/python /opt/hermes/skills/ceo/_lib/sheets_meeting_sync.py \
-  --save '<тот же JSON, что в Step 4>' \
-  --area '<направление или опусти>' \
-  --note-id '<saved_path из ответа notes_log>'
-```
-
-Возвращает `{"protocol_written": true, "tasks_written": N, "area": "..."}`
-или (при сбое) `{"sheets_error": "...", "note_saved": true, "warning": "⚠️ заметка сохранена, но не записана в Sheet"}`.
-Если пришёл `sheets_error` — добавь в ack (Step 5) одну строку-предупреждение; заметка всё равно сохранена.
-Если env `HERMES_MEETING_SHEET_ID` не задан — скрипт вернёт код 2 (таблица ещё не настроена), это не ошибка.
+`notes_log.py` сам детерминированно зеркалит встречи (`meeting_type` ∈ {`meeting`, `call`,
+`protocol`}) в мастер-таблицу (строка в `Протоколы` + по строке на action item в `Задачи`,
+колонка `Направление`). Результат приходит в ответе `--save` как `"sheet_sync": {...}`.
+- `{"synced": true, "protocol_written": true, ...}` → записано в таблицу, можешь упомянуть в ack.
+- `{"synced": false, "reason": "..."}` (кроме `not-a-meeting` / `no-sheet-configured`) → в ack добавь
+  одну строку, что в таблицу не записалось (заметка всё равно сохранена — best-effort).
+Чтобы колонка `Направление` была точной — добавляй поле `area` в JSON (см. Step 4).
 
 ---
 

@@ -34,6 +34,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 
@@ -212,7 +213,42 @@ def cmd_save(payload: dict) -> dict:
         "index_path": str(idx_path),
         "obsidian_eta": "next morning (~06:00 EEST) after launchd sync runs",
         "action_items_count": len(payload.get("action_items") or []),
+        "sheet_sync": _sync_to_sheet(payload, str(note_path)),
     }
+
+
+def _sync_to_sheet(payload: dict, saved_path: str) -> dict:
+    """Best-effort: mirror a meeting into the master Google Sheet. Never raises.
+
+    Runs deterministically here (not as an LLM step) so every meeting/call/protocol
+    reaches the Sheet. Non-meeting notes and a missing sheet config are no-ops.
+    """
+    mtype = payload.get("meeting_type") or "note"
+    if mtype not in ("meeting", "call", "protocol"):
+        return {"synced": False, "reason": "not-a-meeting"}
+    sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
+    if not sheet_id:
+        return {"synced": False, "reason": "no-sheet-configured"}
+
+    script = os.environ.get("HERMES_SHEETS_SYNC",
+                            "/opt/hermes/skills/ceo/_lib/sheets_meeting_sync.py")
+    if not os.path.exists(script):
+        script = str(pathlib.Path(__file__).resolve().parents[2] / "_lib" / "sheets_meeting_sync.py")
+    try:
+        cmd = [sys.executable, script, "--save", json.dumps(payload, ensure_ascii=False),
+               "--note-id", saved_path]
+        area = payload.get("area")
+        if area:
+            cmd += ["--area", str(area)]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        if r.returncode == 0:
+            try:
+                return {"synced": True, **json.loads((r.stdout or "").strip() or "{}")}
+            except Exception:
+                return {"synced": True, "raw": (r.stdout or "").strip()[:200]}
+        return {"synced": False, "reason": ((r.stdout or "") + (r.stderr or "")).strip()[:200]}
+    except Exception as exc:
+        return {"synced": False, "reason": str(exc)[:200]}
 
 
 def cmd_gather() -> dict:
