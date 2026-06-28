@@ -67,6 +67,15 @@ DIARY_RANGE = f"{DIARY_TAB}!A:G"
 DIARY_HDR_RANGE = f"{DIARY_TAB}!A1:G1"
 DIARY_HEADERS = ["Дата", "Время", "Запись", "Энергия", "Настрой", "Контекст", "Создано"]
 
+TRIPS_TAB = "Поездки"
+TRIPS_RANGE = f"{TRIPS_TAB}!A:L"
+TRIPS_HDR_RANGE = f"{TRIPS_TAB}!A1:L1"
+TRIPS_ID_RANGE = f"{TRIPS_TAB}!A:A"  # trip_id column for idempotency
+TRIP_HEADERS = [
+    "trip_id", "Дата записи", "Направление", "Пункт назначения",
+    "Начало", "Конец", "Дней", "Цель", "План / встречи", "Задачи", "Статус", "Создано",
+]
+
 GOOGLE_API = os.environ.get(
     "HERMES_GOOGLE_API",
     "/opt/hermes/skills/productivity/google-workspace/scripts/google_api.py",
@@ -166,6 +175,9 @@ class GoogleApiGW:
         self._run("sheets", "update", sheet_id, rng,
                   "--values", json.dumps(values, ensure_ascii=False))
 
+    def ensure_tab(self, sheet_id: str, title: str) -> None:
+        self._run("sheets", "ensure-tab", sheet_id, title)
+
 
 def ensure_headers(gw, sheet_id: str) -> dict:
     """Write row-1 headers to each tab if missing. Idempotent (no-op if present)."""
@@ -204,6 +216,66 @@ def sync_diary_entry(entry: dict, sheet_id: str, gw, now_iso: str, *, dry_run: b
         ensure_diary_headers(gw, sheet_id)
         gw.append(sheet_id, DIARY_RANGE, [row])
     return {"diary_written": True}
+
+
+def _trip_days(start: str, end: str) -> str:
+    """Inclusive day count between two ISO dates; "" if either is missing/invalid."""
+    try:
+        s = _dt.date.fromisoformat((start or "")[:10])
+        e = _dt.date.fromisoformat((end or "")[:10])
+    except ValueError:
+        return ""
+    d = (e - s).days + 1
+    return str(d) if d > 0 else ""
+
+
+def build_trip_row(trip: dict, trip_id: str, area: str, now_iso: str) -> list[str]:
+    start = str(trip.get("start_date", "") or "")
+    end = str(trip.get("end_date", "") or "")
+    agenda = trip.get("agenda") or []
+    actions = trip.get("action_items") or []
+    return [
+        trip_id,
+        now_iso[:10],
+        area,
+        str(trip.get("destination", "") or ""),
+        start,
+        end,
+        _trip_days(start, end),
+        str(trip.get("purpose", "") or ""),
+        "; ".join(str(x) for x in agenda),
+        "; ".join(str(x) for x in actions),
+        str(trip.get("status", "") or "planned"),
+        now_iso,
+    ]
+
+
+def ensure_trip_headers(gw, sheet_id: str) -> bool:
+    """Write Поездки row-1 headers if missing. Idempotent."""
+    existing = gw.get(sheet_id, TRIPS_HDR_RANGE)
+    first = existing[0] if existing else []
+    if not first or not any(str(c).strip() for c in first):
+        gw.update(sheet_id, TRIPS_HDR_RANGE, [TRIP_HEADERS])
+        return True
+    return False
+
+
+def sync_trip(trip: dict, area_hint: str | None, sheet_id: str, gw,
+              now_iso: str, *, trip_id: str, dry_run: bool = False) -> dict:
+    """Idempotent: skip if trip_id already in Поездки!A:A. Returns a summary."""
+    text = " ".join([str(trip.get("purpose", "") or ""), str(trip.get("destination", "") or "")])
+    area = classify_area(area_hint, text)
+    # Self-create the Поездки tab on first use (the master Sheet ships without it).
+    if not dry_run:
+        gw.ensure_tab(sheet_id, TRIPS_TAB)
+    existing = {row[0] for row in gw.get(sheet_id, TRIPS_ID_RANGE) if row}
+    if trip_id in existing:
+        return {"trip_written": False, "skipped": True, "area": area}
+    row = build_trip_row(trip, trip_id, area, now_iso)
+    if not dry_run:
+        ensure_trip_headers(gw, sheet_id)
+        gw.append(sheet_id, TRIPS_RANGE, [row])
+    return {"trip_written": True, "skipped": False, "area": area}
 
 
 def sync_note(note: dict, area_hint: str | None, sheet_id: str, gw,
@@ -255,6 +327,8 @@ def main(argv=None) -> int:
                     help="Run a built-in test note end-to-end with full traceback (diagnostics)")
     ap.add_argument("--diary", action="store_true",
                     help="Treat --save payload as a diary entry → Дневник tab")
+    ap.add_argument("--trip", action="store_true",
+                    help="Treat --save payload as a trip plan → Поездки tab")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -290,6 +364,23 @@ def main(argv=None) -> int:
             log_sync_error(f"diary: {exc}")
             print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
                               "warning": "⚠️ запись дневника сохранена, но не в Sheet"},
+                             ensure_ascii=False))
+            return 3
+
+    if a.trip:
+        if not a.save or not a.note_id:
+            sys.stderr.write("--save and --note-id are required for --trip\n")
+            return 2
+        trip = json.loads(a.save)
+        try:
+            res = sync_trip(trip, a.area, sheet_id, GoogleApiGW(), _now_iso(),
+                            trip_id=a.note_id, dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception as exc:
+            log_sync_error(f"trip note_id={a.note_id}: {exc}")
+            print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
+                              "warning": "⚠️ поездка сохранена, но не записана в Sheet"},
                              ensure_ascii=False))
             return 3
 

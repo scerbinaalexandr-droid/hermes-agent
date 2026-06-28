@@ -11,14 +11,17 @@ from skills.ceo._lib.sheets_meeting_sync import (
     PROTO_HEADERS,
     TASK_HEADERS,
     TASKS_HDR_RANGE,
+    TRIP_HEADERS,
     build_diary_row,
     build_protocol_row,
     build_task_rows,
+    build_trip_row,
     classify_area,
     ensure_headers,
     parse_action_item,
     sync_diary_entry,
     sync_note,
+    sync_trip,
 )
 
 NOTE = {
@@ -96,6 +99,10 @@ class FakeGW:
         self.headers_present = headers_present
         self.appended = []  # list of (range, values)
         self.updated = []  # list of (range, values)
+        self.tabs_ensured = []  # list of tab titles
+
+    def ensure_tab(self, sheet_id, title):
+        self.tabs_ensured.append(title)
 
     def get(self, sheet_id, rng):
         if "A1:" in rng:  # header row lookup (any tab)
@@ -181,6 +188,66 @@ def test_sync_diary_dry_run_writes_nothing():
     gw = FakeGW()
     sync_diary_entry({"content": "x"}, "SID", gw, "2026-06-28T10:00:00Z", dry_run=True)
     assert gw.appended == [] and gw.updated == []
+
+
+# --- trips -------------------------------------------------------------------
+TRIP = {
+    "destination": "Бухарест, Румыния",
+    "start_date": "2026-07-10",
+    "end_date": "2026-07-12",
+    "purpose": "Переговоры по Pharma",
+    "agenda": ["10.07 встреча с поставщиком A", "11.07 осмотр квартиры"],
+    "action_items": ["Подготовить договор", "Забронировать отель"],
+    "status": "planned",
+}
+TRIP_ID = "2026-06-28-buharest-rumyniya.md"
+
+
+def test_build_trip_row_shape_and_days():
+    row = build_trip_row(TRIP, TRIP_ID, "Pharma Project Romania", NOW)
+    assert len(row) == len(TRIP_HEADERS) == 12
+    assert row[0] == TRIP_ID and row[2] == "Pharma Project Romania"
+    assert row[3] == "Бухарест, Румыния" and row[4] == "2026-07-10" and row[5] == "2026-07-12"
+    assert row[6] == "3"  # inclusive day count
+    assert row[8] == "10.07 встреча с поставщиком A; 11.07 осмотр квартиры"
+    assert row[9] == "Подготовить договор; Забронировать отель"
+    assert row[10] == "planned" and row[11] == NOW
+
+
+def test_build_trip_row_no_dates_blank_days():
+    row = build_trip_row({"destination": "Кишинёв"}, TRIP_ID, "Не определено", NOW)
+    assert row[4] == "" and row[5] == "" and row[6] == ""
+    assert row[10] == "planned"  # default status
+
+
+def test_sync_trip_appends_with_headers():
+    gw = FakeGW(headers_present=False)
+    res = sync_trip(TRIP, "Pharma Project Romania", "SID", gw, NOW, trip_id=TRIP_ID)
+    assert res["trip_written"] and not res["skipped"]
+    assert "Поездки" in gw.tabs_ensured  # tab self-created
+    assert any("Поездки" in r for r, _ in gw.updated)  # header written
+    assert any("Поездки" in r for r, _ in gw.appended)  # row appended
+
+
+def test_sync_trip_idempotent_skip():
+    gw = FakeGW(existing_ids=[TRIP_ID])
+    res = sync_trip(TRIP, None, "SID", gw, NOW, trip_id=TRIP_ID)
+    assert res["skipped"] and not res["trip_written"] and gw.appended == []
+
+
+def test_sync_trip_dry_run_writes_nothing():
+    gw = FakeGW()
+    sync_trip(TRIP, None, "SID", gw, NOW, trip_id=TRIP_ID, dry_run=True)
+    assert gw.appended == [] and gw.updated == []
+
+
+def test_main_trip_success(monkeypatch, capsys):
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    monkeypatch.setattr(m, "GoogleApiGW", lambda *a, **k: FakeGW())
+    rc = m.main(["--trip", "--save", json.dumps(TRIP), "--note-id", TRIP_ID])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["trip_written"] and out["area"] == "Не определено"
 
 
 # --- CLI / adapter ----------------------------------------------------------
