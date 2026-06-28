@@ -162,6 +162,17 @@ def main() -> None:
         model = {"default": MODEL_ENV, "provider": PROVIDER_FALLBACK}
     cfg["model"] = model
 
+    # STT: switch to Groq whisper-large-v3-turbo when GROQ_API_KEY is present
+    # (accurate + fast for Russian, free tier). Falls back to local otherwise.
+    if os.environ.get("GROQ_API_KEY"):
+        stt = cfg.get("stt") if isinstance(cfg.get("stt"), dict) else {}
+        stt["enabled"] = True
+        stt["provider"] = "groq"
+        groq = stt.get("groq") if isinstance(stt.get("groq"), dict) else {}
+        groq["model"] = "whisper-large-v3-turbo"
+        stt["groq"] = groq
+        cfg["stt"] = stt
+
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK
     tlg = cfg.get("tool_loop_guardrails") if isinstance(cfg.get("tool_loop_guardrails"), dict) else {}
