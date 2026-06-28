@@ -598,6 +598,32 @@ def drive_about(args):
     ))
 
 
+def drive_share(args):
+    """Share a Drive file with an email at the given role (default reader).
+
+    Works under the drive.file scope for files this app created (e.g. the master
+    Sheet) — lets the CEO read the data Hermes accumulates. Re-running for an
+    already-granted email is treated as success (idempotent)."""
+    service = build_service("drive", "v3")
+    body = {"type": "user", "role": args.role, "emailAddress": args.email}
+    try:
+        perm = service.permissions().create(
+            fileId=args.file_id, body=body,
+            sendNotificationEmail=args.notify, fields="id",
+        ).execute()
+        print(json.dumps({"file_id": args.file_id, "email": args.email,
+                          "role": args.role, "permission_id": perm.get("id", ""),
+                          "shared": True}, ensure_ascii=False))
+    except Exception as exc:
+        msg = str(exc)
+        if "already" in msg.lower() or "duplicate" in msg.lower():
+            print(json.dumps({"file_id": args.file_id, "email": args.email,
+                              "role": args.role, "shared": True,
+                              "note": "already shared"}, ensure_ascii=False))
+            return
+        raise
+
+
 # =========================================================================
 # Contacts
 # =========================================================================
@@ -878,6 +904,13 @@ def main():
 
     p = drv_sub.add_parser("about", help="Print the authenticated account email + name")
     p.set_defaults(func=drive_about)
+
+    p = drv_sub.add_parser("share", help="Share a file with an email at a role (default reader)")
+    p.add_argument("file_id")
+    p.add_argument("email")
+    p.add_argument("--role", default="reader", choices=["reader", "commenter", "writer"])
+    p.add_argument("--notify", action="store_true", help="Send Google notification email")
+    p.set_defaults(func=drive_share)
 
     # --- Contacts ---
     con = sub.add_parser("contacts")
