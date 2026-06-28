@@ -1225,13 +1225,18 @@ class TelegramAdapter(BasePlatformAdapter):
         if not content or not content.strip():
             return SendResult(success=True, message_id=None)
 
-        # Hands-free menu: detect + strip the [[menu_keyboard]] marker before
-        # formatting; if present, attach the persistent CEO reply-keyboard below.
+        # Inline markers (stripped before formatting; keyboard attached below):
+        #   [[menu_keyboard]]  → persistent CEO reply-keyboard (main menu)
+        #   [[draft_actions]]  → inline ✅ Сохранить / ✏️ Дополнить / 🗑 Удалить
+        #                        on a draft message (hands-free draft control)
         attach_menu_kbd = "[[menu_keyboard]]" in content
         if attach_menu_kbd:
             content = content.replace("[[menu_keyboard]]", "").strip()
-            if not content:
-                content = "Меню:"  # never send an empty body just to show the keyboard
+        attach_draft_actions = "[[draft_actions]]" in content
+        if attach_draft_actions:
+            content = content.replace("[[draft_actions]]", "").strip()
+        if not content:
+            content = "Меню:" if attach_menu_kbd else "Черновик:"
 
         try:
             # Format and split message if needed
@@ -1251,16 +1256,25 @@ class TelegramAdapter(BasePlatformAdapter):
             message_ids = []
             thread_id = self._metadata_thread_id(metadata)
 
-            menu_markup = None
-            if attach_menu_kbd:
+            # Build the markup for the first chunk: inline draft-actions take
+            # precedence over the persistent menu keyboard (one markup per message).
+            first_chunk_markup = None
+            if attach_draft_actions:
+                from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+                first_chunk_markup = InlineKeyboardMarkup([[
+                    InlineKeyboardButton("✅ Сохранить", callback_data="da:save"),
+                    InlineKeyboardButton("✏️ Дополнить", callback_data="da:more"),
+                    InlineKeyboardButton("🗑 Удалить", callback_data="da:del"),
+                ]])
+            elif attach_menu_kbd:
                 from telegram import ReplyKeyboardMarkup, KeyboardButton
                 _rows = [[KeyboardButton(lbl) for lbl, _c in row]
                          for row in self._CEO_MENU_BUTTONS]
                 try:
-                    menu_markup = ReplyKeyboardMarkup(
+                    first_chunk_markup = ReplyKeyboardMarkup(
                         _rows, resize_keyboard=True, is_persistent=True)
                 except TypeError:  # older python-telegram-bot without is_persistent
-                    menu_markup = ReplyKeyboardMarkup(_rows, resize_keyboard=True)
+                    first_chunk_markup = ReplyKeyboardMarkup(_rows, resize_keyboard=True)
 
             try:
                 from telegram.error import NetworkError as _NetErr
@@ -1282,7 +1296,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 reply_to_id = int(reply_to) if should_thread else None
                 effective_thread_id = self._message_thread_id_for_send(thread_id)
                 # Keyboard only on the first chunk (one keyboard per message).
-                _kbd = menu_markup if i == 0 else None
+                _kbd = first_chunk_markup if i == 0 else None
 
                 msg = None
                 for _send_attempt in range(3):
@@ -1958,6 +1972,58 @@ class TelegramAdapter(BasePlatformAdapter):
             chat_id = str(query.message.chat_id) if query.message else None
             if chat_id:
                 await self._handle_model_picker_callback(query, data, chat_id)
+            return
+
+        # --- Draft-action callbacks (da:save / da:more / da:del) ---
+        # Inline buttons on a draft message. The draft itself lives in the LLM
+        # conversation context (it just produced it), so a tap is resolved by
+        # injecting a short user turn — the LLM saves/discards via the skill's
+        # own helper. "more" is a no-op toast; the user just keeps dictating.
+        if data.startswith("da:"):
+            action = data.split(":", 1)[1]
+            caller_id = str(getattr(query.from_user, "id", ""))
+            if not self._is_callback_user_authorized(
+                caller_id,
+                chat_id=query_chat_id,
+                chat_type=str(query_chat_type) if query_chat_type is not None else None,
+                thread_id=str(query_thread_id) if query_thread_id is not None else None,
+                user_name=query_user_name,
+            ):
+                await query.answer(text="⛔ Не авторизовано.")
+                return
+            if action == "more":
+                await query.answer(text="Диктуй дополнение — добавлю к черновику.")
+                return
+            await query.answer(text="💾 Сохраняю…" if action == "save" else "🗑 Отменяю черновик…")
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)  # consume the buttons
+            except Exception:
+                pass
+            if query_chat_id is None:
+                return
+            _ct = "dm"
+            if query_chat_type in (ChatType.GROUP, ChatType.SUPERGROUP):
+                _ct = "group"
+            elif query_chat_type == ChatType.CHANNEL:
+                _ct = "channel"
+            _src = self.build_source(
+                chat_id=str(query_chat_id),
+                chat_name=getattr(query_chat, "title", None),
+                chat_type=_ct,
+                user_id=str(getattr(query.from_user, "id", "")) or str(query_chat_id),
+                user_name=query_user_name,
+                thread_id=str(query_thread_id) if query_thread_id is not None else None,
+            )
+            _text = ("Сохрани текущий черновик (нажата кнопка ✅ Сохранить)."
+                     if action == "save"
+                     else "Отмени текущий черновик, НЕ сохраняй (нажата кнопка 🗑 Удалить).")
+            await self.handle_message(MessageEvent(
+                text=_text,
+                message_type=MessageType.TEXT,
+                source=_src,
+                raw_message=query_message,
+                message_id=str(getattr(query_message, "message_id", "")),
+            ))
             return
 
         # --- Exec approval callbacks (ea:choice:id) ---
