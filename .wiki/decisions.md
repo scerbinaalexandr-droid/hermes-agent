@@ -491,3 +491,42 @@
 **Reversal cost:** Легко (решения, не код).
 **Decided by:** Claude Opus 4.8 (прод-данные) + User (Александр).
 **Status:** ✅ Pilot-review закрыт. Master kill-criterion (60-day audit) остаётся на 2026-07-27.
+
+---
+
+## 2026-06-24 — meeting-to-sheets (первый срез роли ассистента)
+**Type:** L2/L3 (engineering / product)
+**Domain:** Engineering / CEO OS skills / Google Workspace
+**Context:** Серия диагностики (00–05) показала: инфраструктура здорова (модель/allowlist/cron работают — джобы `last_status: ok`), но Hermes функционально — информационный инструмент, а не executive assistant. Аудит target-vs-actual (7 возможностей) выявил топ-гэп: нет облачного хранилища (Drive/Sheets). `google_api.py` уже имеет write-scope `spreadsheets` + `sheets_append/update`, но НИ ОДИН CEO-скилл их не вызывал. Построен первый end-to-end срез: голосовая заметка о встрече → резюме+задачи → мастер-Google-Sheet.
+**Built (Tasks 1–4 из `docs/plans/meeting-to-sheets.md`):**
+- `skills/ceo/_lib/sheets_meeting_sync.py` (новый, stdlib-only) — классификатор направления (тег `по <area>:` → LLM-hint → фолбэк `Не определено`), парсер `action_items` (`owner / due — текст`), построение строк, идемпотентный append, CLI + `--dry-run`, best-effort обёртка.
+- `tests/ceo/test_sheets_meeting_sync.py` (новый) — 20 unit-тестов, Google замокан, **все зелёные**.
+- 2 вкладки: `Протоколы` (1 строка/встреча) + `Задачи` (1 строка/action item, колонка `статус=open` — **сеет** будущий трекер #4, не реализует его). Колонка `направление` в обеих.
+**Decisions:**
+1. **Отдельный stateless-модуль, не правка `/notes`/`/diary`.** Переиспользуем их JSON-выход и `google_api.py`; проводка — шагом в `SKILL.md` (текст, не Python). 0 правок Python `/notes`/`/diary`.
+2. **Идемпотентность по `note_id`** (= `saved_path` заметки) и `task_id` (`note_id#index`): повтор → `skipped`, без дублей.
+3. **Sheet ID в env `HERMES_MEETING_SHEET_ID`** (не в коде, не в git). Создание/шеринг Sheet + любой re-consent OAuth = действие CEO.
+4. **Best-effort синк:** сбой Sheets → лог в `errors.log` + предупреждение боту («⚠️ заметка сохранена, но не записана в Sheet»); `.md` сохраняется всегда (exit 3, не падение).
+**Why:** (a) самый дешёвый высокоэффективный гэп — склейка готового (write-scope + sheets_append уже есть), не стройка; (b) разблокирует мобильный доступ + будущие встречи→Sheets и задачи→Sheets; (c) отдельный модуль = ноль риска регрессии рабочих `/notes`/`/diary`.
+**How to apply:** новые «запись в облако» функции — отдельным stateless-скриптом поверх `google_api.py`, идемпотентность по стабильному ID, секреты/ID только в env, синк к существующим скиллам = best-effort (не блокирует канонический артефакт), проводка через `SKILL.md`-инструкцию а не правку helper-Python.
+**Reversal cost:** Низкая — новый изолированный модуль + (позже) один шаг в `notes/SKILL.md` (revert текста).
+**Decided by:** Claude Opus 4.8 (plan+implement по нумерованным промптам CEO) + User (Александр).
+**Status:** ✅ Ядро (Tasks 1–4) построено + 20 тестов зелёные. ⏳ Блокировано на CEO: создать мастер-Sheet (2 вкладки) + дать `HERMES_MEETING_SHEET_ID`. Затем: Task 0 (scope dry-run, риск `403`→re-consent), Task 6 (e2e dry-run), Task 5 (проводка в `/notes` — последней). Не закоммичено (ждёт апрува).
+
+---
+
+## 2026-06-28 — Hermes executive-cockpit: Google fix + deterministic Sheet sync + voice
+**Type:** L3 (engineering / product)
+**Domain:** CEO OS / Google Workspace / STT
+**Context:** Сессия началась с Codex-прожарки «почему агент не работает». Диагностика показала: инфраструктура (модель/allowlist/cron) здорова, проблема — функциональный разрыв. Построен голос-первый кокпит: встречи/дневник → Google Sheets, голос через Groq.
+**Decisions:**
+1. **Hermes владеет своей таблицей под `scerbina21@gmail.com`** — не CEO-owned+share. У CEO 3+ Google-аккаунта; Hermes-токен под scerbina21 (узнано через `google_api drive about`). Master Sheet `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU` (Протоколы/Задачи/Дневник), ID в env `HERMES_MEETING_SHEET_ID`.
+2. **Проводка в Sheet — детерминированно в helper** (`notes_log.py`/`diary.py`), не отдельный LLM Step 4b: LLM непредсказуемо пропускал шаг. Best-effort: сбой не блокирует `.md`.
+3. **Routing встреч → `/notes`** через заострение frontmatter-описаний (capture перестал claim-ить встречи). CEO-skills деплоятся через `external_dirs` (manifest trap только bundled-hub).
+4. **STT → Groq `whisper-large-v3-turbo`** при `GROQ_API_KEY` (ensure_config seeding).
+5. **Codex model-downgrade ОТКАЧЕН** — `claude-sonnet-4-6` валиден, downgrade вреден; OAuth-токен истёк (`invalid_grant`) — фикс через re-auth под scerbina21 + drive.file.
+**Why:** функциональная роль ассистента важнее «жив ли бот»; детерминизм важнее надежды на LLM-шаг; правильный аккаунт снимает 403.
+**How to apply:** новые «в облако» функции — отдельный stateless-скрипт поверх google_api, проводка в helper (не SKILL.md-шаг), секреты/ID в env; прод-операции — простые argv через `railway ssh` (ssh ломает пробелы/кавычки/pipe/redirect), диагностика через `--selftest`-флаги в коде.
+**Reversal cost:** Низкая (изолированные модули + env).
+**Decided by:** Claude Opus 4.8 + User (Александр).
+**Status:** ✅ Встречи+дневник→Sheets live, голос деплоится. ⏳ TODO: поездки, Word, чистка тест-артефактов.

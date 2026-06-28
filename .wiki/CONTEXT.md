@@ -636,3 +636,52 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 2. Если просят «команды в Telegram-меню» → правка `_CEO_TELEGRAM_MENU_NAMES` + railway up (protected core, объявить).
 3. Любая прод-проверка → volume-файл паттерн (ssh теряет stdout).
 4. ДР/почта/календарь — всё live; проверка в боте: «кто празднует на неделе», «что в почте», «разбери почту».
+
+---
+
+## Snapshot 2026-06-28 14:30 (auto-saved before /compact)
+
+**Сессия:** Codex-прожарка стека → meeting→Sheets pipeline → диагностика «агент не работает» → большое видение (голос-первый кокпит).
+**Закрыта на:** №2 (дневник→Sheet) готово, №1 (GROQ-голос) деплоится; осталось №3 поездки, №4 Word.
+**Контекст:** ~71%.
+
+### 🏗 Архитектурные решения
+- **Hermes владеет своей Google-таблицей под `scerbina21@gmail.com`** (не CEO-owned + share). Обошли путаницу аккаунтов CEO (3+ Google). Reversal: легко.
+- **Детерминированная проводка в `notes_log.py`/`diary.py`** (не LLM-шаг Step 4b) — LLM пропускал отдельный шаг; теперь helper сам зеркалит в Sheet best-effort. Reversal: легко.
+- **Routing-фикс встреч → `/notes`**: убрал «meeting recap» из description `capture` (оба скилла claim-или встречи → LLM выбирал capture/memory). Reversal: git revert SKILL.md.
+- **STT → Groq `whisper-large-v3-turbo`** при наличии `GROQ_API_KEY` (через `ensure_config.py`, идемпотентно). Reversal: убрать ключ → local.
+- **Codex model-downgrade ОТКАЧЕН** (вредный): `claude-sonnet-4-6` — валидная текущая модель, downgrade на 4-5 не нужен. CEO-skills деплоятся через `external_dirs` (manifest trap только про bundled-hub).
+
+### 📁 Ключевые file paths
+- `skills/ceo/_lib/sheets_meeting_sync.py` — проводка встреч+дневника, ensure_headers, `--diary`, `--selftest`
+- `skills/ceo/notes/scripts/notes_log.py` — `_sync_to_sheet` (детерминированно)
+- `skills/ceo/diary/scripts/diary.py` — `_sync_diary` (entry→Дневник, protocol→Протоколы)
+- `skills/productivity/google-workspace/scripts/google_api.py` — `drive about`, `sheets create`, `sheets ensure-tab`
+- `skills/productivity/google-workspace/scripts/setup.py` — добавлен scope `drive.file`
+- `scripts/hooks/ensure_config.py` — STT→groq seeding
+- `tests/ceo/test_sheets_meeting_sync.py` — 26 тестов
+
+### 🔑 Идентификаторы
+- **Hermes Google-аккаунт: `scerbina21@gmail.com`** (НЕ alexandr.scerbina@gmail.com и НЕ scerbinaalexandr@gmail.com — у CEO 3+ Google!)
+- Master Sheet: `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU` (вкладки Протоколы / Задачи / Дневник)
+- OAuth project: `904462126373` / stellar-works-500105 (под НЕ-alexandr аккаунтом, app в Testing mode)
+- ENV (имена): `HERMES_MEETING_SHEET_ID`, `GROQ_API_KEY`, `HERMES_MODEL`, `TELEGRAM_ALLOWED_USERS`
+- Commits сессии: `238e828ab` (drive.file) → `c28014eb8` (meeting pipeline) → `ae176e643` (routing) → `ab4662dec` (selftest) → `b15cb0df1` (notes_log sync) → `4f15fc015` (diary) → `d8e61ac4b` (STT groq)
+
+### 📋 Open TODOs
+- [ ] №3 — skill поездки/командировки (план + цели → папка/таблица в Drive)
+- [ ] №4 — Word/PDF отчёты (`python-docx` установка + экспорт)
+- [ ] Проверить GROQ-голос end-to-end (голосовая боту после деплоя)
+- [ ] reader-доступ CEO на Sheet (drive.file granted — можно `share role=reader`)
+- [ ] Почистить тест-артефакты (selftest-строка в Протоколы, test Drive-файлы, test-письма)
+
+### ⚠ Lessons
+- **`railway ssh` транспорт ограничен:** только простые argv. Ломает пробелы/кавычки/pipe/redirect/stdin. Запись файлов и произвольный python через ssh НЕ работают. Email subject/body с пробелами → подчёркивания (это ssh-канал, не Hermes — бот шлёт нормальный текст нативно).
+- **OAuth-токен истекал (`invalid_grant`)** → re-auth обязателен под ПРАВИЛЬНЫМ аккаунтом (`scerbina21`). Под чужим (`alexandr.scerbina`) → `access_denied` (Testing-app + не тот test-user).
+- **Google-аккаунты CEO путаются** — всегда сверять через `google_api drive about`. См. память `hermes-google-account`.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + память `hermes-google-account` (Hermes = scerbina21).
+2. №3 поездки: новый skill `skills/ceo/trip/` + проводка в Drive (паттерн как diary→Sheet).
+3. №4 Word: установить `python-docx` (requirements/Dockerfile) → skill экспорта задач/протоколов в .docx на почту.
+4. Прод-операции: только простые argv через `railway ssh`; запись/диагностика — через `--selftest`-подобные флаги в коде, деплоить.

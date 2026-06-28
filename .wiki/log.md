@@ -176,3 +176,31 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-22] session-end | No commits (main)
 
 ## [2026-06-22] session-end | 1 commits on main
+
+## [2026-06-22] session-end | 2 commits on main
+
+## [2026-06-24] session-end | No commits (main)
+
+## [2026-06-25] session-end | No commits (main)
+
+## [2026-06-25] session-end | 1 commits on main
+
+## [2026-06-26] session-end | No commits (main)
+
+## [2026-06-27] session-end | 1 commits on main
+
+## [2026-06-27] session-end | 2 commits on main
+
+## [2026-06-28] session-end | No commits (main)
+
+## [2026-06-28] session-end | 1 commits on main
+
+## [2026-06-28] session-end | 3 commits on main
+
+## [2026-06-28] session-end | 4 commits on main
+
+## [2026-06-28] pre-compact snapshot | Google fix + meeting/diary→Sheets + GROQ voice
+- OAuth токен re-auth (Hermes=scerbina21, invalid_grant fixed), drive.file granted
+- meeting→Sheets + diary→Sheets детерминированно; routing fix (встречи→/notes)
+- STT→groq whisper-large-v3-turbo; Codex model-downgrade откачен
+- 7 commits 238e828ab→d8e61ac4b. Снапшот в CONTEXT.md.
