@@ -1261,11 +1261,12 @@ class TelegramAdapter(BasePlatformAdapter):
             first_chunk_markup = None
             if attach_draft_actions:
                 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
-                first_chunk_markup = InlineKeyboardMarkup([[
-                    InlineKeyboardButton("✅ Сохранить", callback_data="da:save"),
-                    InlineKeyboardButton("✏️ Дополнить", callback_data="da:more"),
-                    InlineKeyboardButton("🗑 Удалить", callback_data="da:del"),
-                ]])
+                first_chunk_markup = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("✅ Сохранить", callback_data="da:save"),
+                     InlineKeyboardButton("➕ Добавить", callback_data="da:more")],
+                    [InlineKeyboardButton("✏️ Редактировать", callback_data="da:edit"),
+                     InlineKeyboardButton("🗑 Удалить", callback_data="da:del")],
+                ])
             elif attach_menu_kbd:
                 from telegram import ReplyKeyboardMarkup, KeyboardButton
                 _rows = [[KeyboardButton(lbl) for lbl, _c in row]
@@ -1992,7 +1993,10 @@ class TelegramAdapter(BasePlatformAdapter):
                 await query.answer(text="⛔ Не авторизовано.")
                 return
             if action == "more":
-                await query.answer(text="Диктуй дополнение — добавлю к черновику.")
+                await query.answer(text="🎙 Диктуй, что добавить — допишу в черновик.")
+                return
+            if action == "edit":
+                await query.answer(text="🎙 Диктуй правку — изменю черновик.")
                 return
             await query.answer(text="💾 Сохраняю…" if action == "save" else "🗑 Отменяю черновик…")
             try:

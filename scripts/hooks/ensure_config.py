@@ -55,6 +55,33 @@ SOUL_EMAIL_RULE = """
 
 Границы (Phase-1): чтение свободно; отправка письма / создание события — ТОЛЬКО после явного подтверждения Александра.
 """
+
+# Universal draft-action buttons rule. Every saveable draft/confirmation across
+# ALL skills must end with the [[draft_actions]] marker so the gateway renders
+# the 4 hands-free buttons. Lives in the persona (loaded every message) so it
+# applies everywhere, including skills without an explicit marker. Idempotent.
+_SOUL_DRAFT_MARKER = "КНОПКИ ЧЕРНОВИКА — универсальное правило"
+SOUL_DRAFT_RULE = """
+
+---
+
+## 🔘 КНОПКИ ЧЕРНОВИКА — универсальное правило (любой сохраняемый черновик, ВЕЗДЕ)
+
+Когда показываешь ЛЮБОЙ черновик / подтверждение, который можно сохранить (заметка,
+задача, протокол встречи, поездка, дневник, напоминание, событие, отчёт — ЧТО УГОДНО),
+ВСЕГДА заканчивай сообщение строкой `[[draft_actions]]` на отдельной последней строке.
+
+ЗАПРЕЩЕНО писать текстом «Подтверди: ✅ да / ✏️ поправь», «Сохранить? да/нет» и любые
+текстовые варианты подтверждения — ТОЛЬКО маркер `[[draft_actions]]`. НЕ объясняй его и
+НЕ показывай как текст. Гейтвей превратит его в 4 кнопки под сообщением:
+✅ Сохранить · ➕ Добавить · ✏️ Редактировать · 🗑 Удалить.
+
+Реакция на нажатия (приходят как сообщения от пользователя):
+- «Сохрани текущий черновик…» → сохрани показанный черновик его обычным способом (helper скилла).
+- пользователь диктует дополнение (после ➕ Добавить) → допиши в черновик, снова покажи с `[[draft_actions]]`.
+- пользователь диктует правку (после ✏️ Редактировать) → измени черновик, снова покажи с `[[draft_actions]]`.
+- «Отмени текущий черновик…» → НЕ сохраняй, ответь «🗑 Черновик отменён».
+"""
 # Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
 # rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
 MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
@@ -118,11 +145,16 @@ def _ensure_soul_rule() -> None:
             return
         with open(SOUL_PATH, encoding="utf-8") as fh:
             content = fh.read()
-        if _SOUL_RULE_MARKER in content:
-            return
-        with open(SOUL_PATH, "a", encoding="utf-8") as fh:
-            fh.write(SOUL_EMAIL_RULE)
-        sys.stderr.write("[ceo-os-init] SOUL.md email-routing rule appended\n")
+        appended = 0
+        for marker, block in ((_SOUL_RULE_MARKER, SOUL_EMAIL_RULE),
+                              (_SOUL_DRAFT_MARKER, SOUL_DRAFT_RULE)):
+            if marker not in content:
+                with open(SOUL_PATH, "a", encoding="utf-8") as fh:
+                    fh.write(block)
+                content += block
+                appended += 1
+        if appended:
+            sys.stderr.write(f"[ceo-os-init] SOUL.md rules appended ({appended})\n")
     except Exception as exc:
         sys.stderr.write(f"[ceo-os-init] SOUL.md rule ensure skipped ({exc})\n")
 
