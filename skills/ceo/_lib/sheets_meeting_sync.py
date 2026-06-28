@@ -62,6 +62,11 @@ TASK_HEADERS = [
     "Задача", "Ответственный", "Срок", "Статус", "Создано",
 ]
 
+DIARY_TAB = "Дневник"
+DIARY_RANGE = f"{DIARY_TAB}!A:G"
+DIARY_HDR_RANGE = f"{DIARY_TAB}!A1:G1"
+DIARY_HEADERS = ["Дата", "Время", "Запись", "Энергия", "Настрой", "Контекст", "Создано"]
+
 GOOGLE_API = os.environ.get(
     "HERMES_GOOGLE_API",
     "/opt/hermes/skills/productivity/google-workspace/scripts/google_api.py",
@@ -174,6 +179,33 @@ def ensure_headers(gw, sheet_id: str) -> dict:
     return written
 
 
+def ensure_diary_headers(gw, sheet_id: str) -> bool:
+    """Write Дневник row-1 headers if missing. Idempotent."""
+    existing = gw.get(sheet_id, DIARY_HDR_RANGE)
+    first = existing[0] if existing else []
+    if not first or not any(str(c).strip() for c in first):
+        gw.update(sheet_id, DIARY_HDR_RANGE, [DIARY_HEADERS])
+        return True
+    return False
+
+
+def build_diary_row(entry: dict, now_iso: str) -> list[str]:
+    return [
+        now_iso[:10], now_iso[11:16],
+        str(entry.get("content", "")), str(entry.get("energy", "")),
+        str(entry.get("mood", "")), str(entry.get("context", "")), now_iso,
+    ]
+
+
+def sync_diary_entry(entry: dict, sheet_id: str, gw, now_iso: str, *, dry_run: bool = False) -> dict:
+    """Append a diary entry to the Дневник tab (append-only, for later analytics)."""
+    row = build_diary_row(entry, now_iso)
+    if not dry_run:
+        ensure_diary_headers(gw, sheet_id)
+        gw.append(sheet_id, DIARY_RANGE, [row])
+    return {"diary_written": True}
+
+
 def sync_note(note: dict, area_hint: str | None, sheet_id: str, gw,
               now_iso: str, *, note_id: str, dry_run: bool = False) -> dict:
     """Idempotent: skip if note_id already in Протоколы!A:A. Returns a summary."""
@@ -221,6 +253,8 @@ def main(argv=None) -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--selftest", action="store_true",
                     help="Run a built-in test note end-to-end with full traceback (diagnostics)")
+    ap.add_argument("--diary", action="store_true",
+                    help="Treat --save payload as a diary entry → Дневник tab")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -244,6 +278,19 @@ def main(argv=None) -> int:
             return 0
         except Exception:
             _tb.print_exc()
+            return 3
+
+    if a.diary:
+        entry = json.loads(a.save) if a.save else {}
+        try:
+            res = sync_diary_entry(entry, sheet_id, GoogleApiGW(), _now_iso(), dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception as exc:
+            log_sync_error(f"diary: {exc}")
+            print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
+                              "warning": "⚠️ запись дневника сохранена, но не в Sheet"},
+                             ensure_ascii=False))
             return 3
 
     if not a.save or not a.note_id:

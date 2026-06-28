@@ -11,11 +11,13 @@ from skills.ceo._lib.sheets_meeting_sync import (
     PROTO_HEADERS,
     TASK_HEADERS,
     TASKS_HDR_RANGE,
+    build_diary_row,
     build_protocol_row,
     build_task_rows,
     classify_area,
     ensure_headers,
     parse_action_item,
+    sync_diary_entry,
     sync_note,
 )
 
@@ -96,8 +98,8 @@ class FakeGW:
         self.updated = []  # list of (range, values)
 
     def get(self, sheet_id, rng):
-        if "A1:J1" in rng:  # header row lookup
-            return [["note_id"]] if self.headers_present else []
+        if "A1:" in rng:  # header row lookup (any tab)
+            return [["hdr"]] if self.headers_present else []
         return [[i] for i in self.existing]
 
     def append(self, sheet_id, rng, values):
@@ -156,6 +158,29 @@ def test_sync_writes_headers_before_append():
     sync_note(NOTE, "Health", "SID", gw, NOW, note_id=NID)
     assert len(gw.updated) == 2  # headers written for both tabs
     assert any("Протоколы" in r for r, _ in gw.appended)
+
+
+# --- diary ------------------------------------------------------------------
+def test_build_diary_row():
+    row = build_diary_row(
+        {"content": "устал", "energy": "6/10", "mood": "ок", "context": "работа"},
+        "2026-06-28T10:00:00Z",
+    )
+    assert row == ["2026-06-28", "10:00", "устал", "6/10", "ок", "работа", "2026-06-28T10:00:00Z"]
+
+
+def test_sync_diary_appends_with_headers():
+    gw = FakeGW(headers_present=False)
+    res = sync_diary_entry({"content": "тест"}, "SID", gw, "2026-06-28T10:00:00Z")
+    assert res == {"diary_written": True}
+    assert any("Дневник" in r for r, _ in gw.updated)  # header written
+    assert any("Дневник" in r for r, _ in gw.appended)  # row appended
+
+
+def test_sync_diary_dry_run_writes_nothing():
+    gw = FakeGW()
+    sync_diary_entry({"content": "x"}, "SID", gw, "2026-06-28T10:00:00Z", dry_run=True)
+    assert gw.appended == [] and gw.updated == []
 
 
 # --- CLI / adapter ----------------------------------------------------------

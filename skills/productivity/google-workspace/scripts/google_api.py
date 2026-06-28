@@ -750,6 +750,23 @@ def sheets_create(args):
     print(json.dumps({"spreadsheetId": res["spreadsheetId"], "created": True}, ensure_ascii=False))
 
 
+def sheets_ensure_tab(args):
+    """Idempotently ensure a tab (sheet) with the given title exists."""
+    service = build_service("sheets", "v4")
+    meta = service.spreadsheets().get(
+        spreadsheetId=args.sheet_id, fields="sheets.properties.title",
+    ).execute()
+    existing = {s["properties"]["title"] for s in meta.get("sheets", [])}
+    if args.title in existing:
+        print(json.dumps({"tab": args.title, "created": False}, ensure_ascii=False))
+        return
+    service.spreadsheets().batchUpdate(
+        spreadsheetId=args.sheet_id,
+        body={"requests": [{"addSheet": {"properties": {"title": args.title}}}]},
+    ).execute()
+    print(json.dumps({"tab": args.title, "created": True}, ensure_ascii=False))
+
+
 # =========================================================================
 # Docs
 # =========================================================================
@@ -895,6 +912,11 @@ def main():
     p.add_argument("title")
     p.add_argument("--tabs", default=None, help="Comma-separated tab names (e.g. 'Протоколы,Задачи')")
     p.set_defaults(func=sheets_create)
+
+    p = sh_sub.add_parser("ensure-tab", help="Idempotently ensure a tab exists in a spreadsheet")
+    p.add_argument("sheet_id")
+    p.add_argument("title")
+    p.set_defaults(func=sheets_ensure_tab)
 
     # --- Docs ---
     docs = sub.add_parser("docs")

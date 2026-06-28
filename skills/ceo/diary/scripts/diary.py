@@ -36,6 +36,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import sys
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
@@ -204,7 +205,39 @@ def save(payload: dict) -> dict[str, object]:
         "kind": kind,
         "date": date,
         "action_items_count": len(_coerce_list(payload.get("action_items"))),
+        "sheet_sync": _sync_diary(payload, str(path)),
     }
+
+
+def _sync_diary(payload: dict, saved_path: str) -> dict:
+    """Best-effort mirror to Sheet: entry → Дневник, protocol → Протоколы. Never raises."""
+    sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
+    if not sheet_id:
+        return {"synced": False, "reason": "no-sheet-configured"}
+    script = os.environ.get("HERMES_SHEETS_SYNC",
+                            "/opt/hermes/skills/ceo/_lib/sheets_meeting_sync.py")
+    if not os.path.exists(script):
+        script = str(pathlib.Path(__file__).resolve().parents[2] / "_lib" / "sheets_meeting_sync.py")
+    kind = (payload.get("kind") or "entry").strip().lower()
+    try:
+        if kind == "protocol":
+            cmd = [sys.executable, script, "--save", json.dumps(payload, ensure_ascii=False),
+                   "--note-id", saved_path]
+            area = payload.get("area")
+            if area:
+                cmd += ["--area", str(area)]
+        else:
+            cmd = [sys.executable, script, "--diary",
+                   "--save", json.dumps(payload, ensure_ascii=False)]
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        if r.returncode == 0:
+            try:
+                return {"synced": True, **json.loads((r.stdout or "").strip() or "{}")}
+            except Exception:
+                return {"synced": True, "raw": (r.stdout or "").strip()[:200]}
+        return {"synced": False, "reason": ((r.stdout or "") + (r.stderr or "")).strip()[:200]}
+    except Exception as exc:
+        return {"synced": False, "reason": str(exc)[:200]}
 
 
 def gather() -> dict[str, object]:
