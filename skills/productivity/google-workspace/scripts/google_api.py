@@ -819,6 +819,15 @@ def docs_get(args):
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
+def _scrub_sensitive(s: str) -> str:
+    """Redact emails + long ID-like tokens from a provider error string before it
+    reaches a user-facing channel (privacy guard). Raw detail goes to stderr/logs."""
+    import re
+    s = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "<email>", s or "")
+    s = re.sub(r"[A-Za-z0-9_-]{20,}", "<id>", s)
+    return s
+
+
 def docs_create_from_html(args):
     """Create an editable Google Doc by converting an HTML file (Drive native).
 
@@ -848,7 +857,8 @@ def docs_create_from_html(args):
             ).execute()
             out["shared"] = True
         except Exception as exc:
-            out["share_error"] = str(exc)[:200]
+            sys.stderr.write(f"[docs_create_from_html] share failed: {exc}\n")
+            out["share_error"] = _scrub_sensitive(str(exc))[:200]
     print(json.dumps(out, ensure_ascii=False))
 
 

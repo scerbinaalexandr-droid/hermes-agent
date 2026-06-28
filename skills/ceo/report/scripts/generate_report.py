@@ -133,6 +133,14 @@ def html_to_pdf(html_path: pathlib.Path, pdf_path: pathlib.Path, timeout: int = 
 # ── Google Doc (editable copy in Drive archive) ───────────────────────────
 
 
+def _scrub_sensitive(s: str) -> str:
+    """Redact emails + long ID-like tokens from a provider error string before it
+    reaches the Telegram caption / result JSON (privacy guard)."""
+    s = re.sub(r"[\w.+-]+@[\w-]+\.[\w.-]+", "<email>", s or "")
+    s = re.sub(r"[A-Za-z0-9_-]{20,}", "<id>", s)
+    return s
+
+
 def create_gdoc_from_html(html_path: pathlib.Path, title: str,
                           share: str | None = None, timeout: int = 60) -> dict:
     """Best-effort: convert the report HTML into an editable Google Doc via the
@@ -156,7 +164,7 @@ def create_gdoc_from_html(html_path: pathlib.Path, title: str,
             err = (proc.stderr or proc.stdout or "").strip()
             # Surface the actual error (last traceback line), not the noisy header.
             reason = err.splitlines()[-1].strip() if err else "google_api failed"
-            return {"ok": False, "reason": reason[:200]}
+            return {"ok": False, "reason": _scrub_sensitive(reason)[:200]}
         data = json.loads((proc.stdout or "").strip() or "{}")
         return {"ok": bool(data.get("link")), "link": data.get("link"),
                 "doc_id": data.get("doc_id"), "shared": data.get("shared", False)}
