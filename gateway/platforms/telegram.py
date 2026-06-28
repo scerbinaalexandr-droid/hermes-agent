@@ -1271,11 +1271,11 @@ class TelegramAdapter(BasePlatformAdapter):
                 from telegram import ReplyKeyboardMarkup, KeyboardButton
                 _rows = [[KeyboardButton(lbl) for lbl, _c in row]
                          for row in self._CEO_MENU_BUTTONS]
-                try:
-                    first_chunk_markup = ReplyKeyboardMarkup(
-                        _rows, resize_keyboard=True, is_persistent=True)
-                except TypeError:  # older python-telegram-bot without is_persistent
-                    first_chunk_markup = ReplyKeyboardMarkup(_rows, resize_keyboard=True)
+                # one_time_keyboard: the menu collapses after use so it doesn't
+                # hog the screen; the user re-summons it via the input-field
+                # keyboard icon, or by sending /menu again.
+                first_chunk_markup = ReplyKeyboardMarkup(
+                    _rows, resize_keyboard=True, one_time_keyboard=True)
 
             try:
                 from telegram.error import NetworkError as _NetErr
