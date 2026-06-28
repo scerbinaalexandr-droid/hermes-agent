@@ -146,7 +146,7 @@ class GoogleApiGW:
             capture_output=True, text=True, timeout=60,
         )
         if r.returncode != 0:
-            raise RuntimeError(f"google_api failed: {r.stderr.strip()[:300]}")
+            raise RuntimeError(f"google_api failed: {r.stderr.strip()[:2000]}")
         return r.stdout
 
     def get(self, sheet_id: str, rng: str) -> list[list[str]]:
@@ -215,10 +215,12 @@ def _now_iso() -> str:
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--save", required=True)
+    ap.add_argument("--save")
     ap.add_argument("--area", default=None)
-    ap.add_argument("--note-id", required=True)
+    ap.add_argument("--note-id")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--selftest", action="store_true",
+                    help="Run a built-in test note end-to-end with full traceback (diagnostics)")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -226,6 +228,26 @@ def main(argv=None) -> int:
         sys.stderr.write(
             "HERMES_MEETING_SHEET_ID is not set — CEO must create the Sheet and set the env var.\n"
         )
+        return 2
+
+    if a.selftest:
+        import traceback as _tb
+        note = {
+            "topic": "SELFTEST встреча", "date": _now_iso()[:10], "participants": ["Тест"],
+            "summary": "по Finance: selftest", "decisions": ["решение 1"],
+            "action_items": ["Тест / до пятницы — задача"],
+        }
+        try:
+            res = sync_note(note, None, sheet_id, GoogleApiGW(), _now_iso(),
+                            note_id="__selftest__/0000-selftest.md", dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception:
+            _tb.print_exc()
+            return 3
+
+    if not a.save or not a.note_id:
+        sys.stderr.write("--save and --note-id are required (or use --selftest)\n")
         return 2
 
     note = json.loads(a.save)
