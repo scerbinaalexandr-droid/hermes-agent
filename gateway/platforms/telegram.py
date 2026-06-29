@@ -1203,12 +1203,68 @@ class TelegramAdapter(BasePlatformAdapter):
     # maps to a deterministic slash command; _handle_text_message rewrites a tap
     # into that exact command so it routes via the slash resolver, never the LLM
     # (avoids the capture/notes routing drift).
-    _CEO_MENU_BUTTONS = [
+    #
+    # Two modes (Работа ⇄ Личное). The top row is a mode toggle whose "command"
+    # is a `__mode:<work|personal>` sentinel handled in _handle_text_message
+    # (flips per-chat state + re-renders the keyboard), NOT routed to a skill.
+    _CEO_MENU_WORK = [
+        [("👤 Личное →", "__mode:personal")],
         [("🎙 Заметка", "/capture"), ("📋 Встреча", "/notes")],
         [("✈️ Поездка", "/trip"), ("📄 Отчёт", "/report")],
         [("📊 День", "/brief"), ("🌙 Вечер", "/evening")],
-        [("🎂 Личное", "/birthday"), ("⚙️ Ещё", "/menu")],
+        [("🛠 Настройка", "/tune"), ("⚙️ Ещё", "/menu")],
     ]
+    _CEO_MENU_PERSONAL = [
+        [("💼 Работа →", "__mode:work")],
+        [("🎙 Заметка", "/capture"), ("🎂 ДР", "/birthday")],
+        [("📔 Дневник", "/diary"), ("🧭 Коуч", "/coach")],
+        [("🌙 Вечер", "/evening"), ("🔍 Поиск", "/find")],
+        [("🛠 Настройка", "/tune"), ("⚙️ Ещё", "/menu")],
+    ]
+
+    @classmethod
+    def _menu_label_to_command(cls, label: str) -> Optional[str]:
+        """Resolve a tapped reply-keyboard label to its command across BOTH modes
+        (the live keyboard may be either Работа or Личное). Returns None if no match.
+        """
+        for layout in (cls._CEO_MENU_WORK, cls._CEO_MENU_PERSONAL):
+            for row in layout:
+                for lbl, cmd in row:
+                    if lbl == label:
+                        return cmd
+        return None
+
+    def _menu_mode_path(self) -> "_Path":
+        home = os.environ.get("HERMES_HOME") or str(_Path.home() / ".hermes")
+        return _Path(home) / "menu_mode.json"
+
+    def _load_menu_modes(self) -> Dict[str, str]:
+        """Lazily load the per-chat menu mode store ({chat_id: work|personal})."""
+        if getattr(self, "_menu_modes", None) is not None:
+            return self._menu_modes
+        self._menu_modes: Dict[str, str] = {}
+        try:
+            p = self._menu_mode_path()
+            if p.exists():
+                data = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(data, dict):
+                    self._menu_modes = {str(k): str(v) for k, v in data.items()}
+        except Exception:
+            self._menu_modes = {}
+        return self._menu_modes
+
+    def _get_menu_mode(self, chat_id) -> str:
+        return self._load_menu_modes().get(str(chat_id), "work")
+
+    def _set_menu_mode(self, chat_id, mode: str) -> None:
+        modes = self._load_menu_modes()
+        modes[str(chat_id)] = "personal" if mode == "personal" else "work"
+        try:
+            p = self._menu_mode_path()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(json.dumps(modes, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
 
     async def send(
         self,
@@ -1269,8 +1325,12 @@ class TelegramAdapter(BasePlatformAdapter):
                 ])
             elif attach_menu_kbd:
                 from telegram import ReplyKeyboardMarkup, KeyboardButton
+                # Pick the layout for this chat's current mode (Работа default).
+                _layout = (self._CEO_MENU_PERSONAL
+                           if self._get_menu_mode(chat_id) == "personal"
+                           else self._CEO_MENU_WORK)
                 _rows = [[KeyboardButton(lbl) for lbl, _c in row]
-                         for row in self._CEO_MENU_BUTTONS]
+                         for row in _layout]
                 # one_time_keyboard: the menu collapses after use so it doesn't
                 # hog the screen; the user re-summons it via the input-field
                 # keyboard icon, or by sending /menu again.
@@ -3077,8 +3137,17 @@ class TelegramAdapter(BasePlatformAdapter):
         # If it matches a menu button, route it exactly like the typed slash
         # command (deterministic — same path as /trip, never the LLM router).
         _tapped = (event.text or "").strip()
-        _cmd = next((c for row in self._CEO_MENU_BUTTONS for lbl, c in row if lbl == _tapped), None)
+        _cmd = self._menu_label_to_command(_tapped)
         if _cmd:
+            # Mode toggle tile: flip per-chat state and re-render the keyboard in
+            # the new mode (no skill routed). Sentinel "__mode:<work|personal>".
+            if _cmd.startswith("__mode:"):
+                new_mode = _cmd.split(":", 1)[1]
+                self._set_menu_mode(update.message.chat_id, new_mode)
+                _hdr = ("👤 Личный режим" if new_mode == "personal"
+                        else "💼 Рабочий режим")
+                await self.send(str(update.message.chat_id), f"{_hdr}\n\n[[menu_keyboard]]")
+                return
             cmd_event = self._build_message_event(
                 update.message, MessageType.COMMAND, update_id=update.update_id)
             cmd_event.text = _cmd
