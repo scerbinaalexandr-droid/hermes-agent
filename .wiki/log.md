@@ -231,4 +231,14 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-29] meeting-prep | Фаза A: calendar create --recurrence/--reminders (0d5e866da); /prep skill — повестки вопросов на встречи дня из календаря+контекста → вкладка «Встречи» (upsert), бриф по блокам (bca439033); cron `e900bfffe343` «CEO Meeting Prep 07:00 EEST» (0 4 * * *, skill prep, deliver telegram:746810595, next 2026-06-30T04:00Z). Verified --gather на проде. Фаза B (напоминание за 1ч до встречи) — ОТМЕНЕНА юзером: нужен только один утренний бриф в 07:00, без per-meeting напоминаний. Фича завершена. 73 теста зелёных.
 
+## [2026-06-29] qa-hardening | Прод-смок (мой) + кросс-вендор прожарка Codex (GPT-5) сегодняшнего кода. ПОЙМАНО 11 РЕАЛЬНЫХ БАГОВ, все фикс+verified на проде. Мой смок 3: GoogleApiGW.get крах на непустой вкладке → 2-я запись в любую таблицу падала (08a0c3505); recurring-событие без timeZone → HTTP400; sync_note/diary не создавали вкладки (0b8d27db0). Codex 8 (7d02dcca4) — HIGH: /tune deny-list bypass (RU «без согласования»/«показывай пароли») → NFKC + расширенные паттерны; Sheets formula injection (=IMPORTDATA) → санитизация ячеек; guard.py не ловил open(...,'w') / cd&&>>SOUL → Python-write + bare basename. MED: non-list→char-split; bad-json traceback; tz хардкод (zoneinfo); cmd_save non-dict краш. LOW: non-atomic menu_mode write. Verified на проде: formula→текст, CFO не разбита, safety-bypass rejected, guard блокирует open-write/redirect но пускает tune.py. 0 critical осталось. 97 тестов зелёных. Урок: разные семьи моделей = некоррелированные слепые зоны (я — runtime-краши, Codex — security/edge-cases).
+
 ## [2026-06-29] session-end | 10 commits on main
+
+## [2026-06-29] session-end | 1 commits on main
+
+## [2026-06-29] session-end | 2 commits on main
+
+## [2026-06-29] session-end | 3 commits on main
+
+## [2026-06-29] session-end | 4 commits on main
