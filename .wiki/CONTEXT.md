@@ -780,3 +780,48 @@ selftest-строка Протоколы!A2:J2 очищена; Drive `Hermes-Tes
 1. Прочитать этот snapshot.
 2. Ждать фидбэк live-теста → Phase-4 точечно.
 3. Не ротировать TELEGRAM-токен пока юзер тестит.
+
+
+---
+
+## Snapshot 2026-06-29 (massive build+QA day — voice cockpit → full CEO loop)
+
+**Сессия:** один большой день. ~14 фич/фикс-коммитов, всё на проде (Railway `hermes`, все деплои SUCCESS). Контекст ~66% → снапшот перед /compact.
+
+### 🏗 Архитектурные решения (сегодня)
+- **Всё в Google-таблицы CEO (dual-write):** capture/notes/diary/trip/prep/tasks/morning/feedback → вкладки master-Sheet (Задачи/Решения/Идеи/Протоколы/Дневник/Поездки/Встречи/Корректировки/Фокус). markdown остаётся внутренним индексом для брифа. Подтверждения называют ВКЛАДКУ, не путь. Reversal: легко.
+- **Текст = голос:** persona-правило (ensure_config SOUL) — свободный текст про задачу/мысль сразу даёт черновик с кнопками.
+- **`/tune` самомодификация персоны:** правило → append в `/opt/data/SOUL.md` (раздел «Живые корректировки»), safety-гейт `_rule_is_unsafe` (NFKC + RU/EN deny-list + injection-скан синхронно с loader). guard.py `_SOUL_RE` блокирует прочие записи. Живые правила НЕ переопределяют hard safety guards.
+- **Меню Работа⇄Личное:** два набора плиток (telegram.py `_CEO_MENU_WORK/_PERSONAL`), toggle `__mode:` sentinel, per-chat state `menu_mode.json` (atomic write).
+- **Полный CEO-цикл:** встреча → `/prep` повестка → `/notes` голос-протокол → задачи в «Задачи» → `/tasks` контроль. + личный `/morning` (медитация+фокус) отдельно от рабочего `/brief`.
+- **Утро консолидировано (по выбору юзера, перегруз пингами):** ТОЛЬКО авто 06:50 Утро + 07:30 День. /prep, /tasks — on-demand (их утренние cron УДАЛЕНЫ).
+
+### 📁 Ключевые файлы (новое/изменённое сегодня)
+- `skills/ceo/_lib/sheets_meeting_sync.py` — все sync_* (capture/note/diary/trip/meeting/feedback/focus), GoogleApiGW (FIX: bare-list parse), _as_list, _sanitize_cell, _ensure_hdr, CLI флаги
+- `skills/ceo/{capture,trip,prep,tasks,morning,tune}/` — скиллы (+helpers)
+- `gateway/platforms/telegram.py` — меню-toggle, draft-buttons маркеры
+- `scripts/hooks/ensure_config.py` — SOUL-правила (email/draft/capture/tune)
+- `scripts/hooks/guard.py` — _SOUL_RE + _PY_WRITE_RE
+- `skills/productivity/google-workspace/scripts/google_api.py` — calendar recurrence/reminders/timezone, drive trash, sheets clear
+
+### 🔑 Идентификаторы
+- Master Sheet: `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU` (Hermes=scerbina21)
+- Активные cron: Morning `4413758e1c3e` (50 3 = 06:50 EEST) · Brief `92ee5dfa0e33` (30 4 = 07:30). УДАЛЕНЫ: e900bfffe343 (prep), b85e53e4148d (tasks).
+- ENV: HERMES_HOME=/opt/data (Dockerfile ENV), HERMES_MEETING_SHEET_ID (set), HERMES_CEO_EMAIL (НЕ set — для авто-шаринга отчётов)
+- Tests: 107 зелёных (tests/ceo/ + tests/gateway/test_ceo_menu_toggle.py). Прогон: `uv run python -m pytest tests/ceo/ -o addopts="" -q`
+
+### 🛡 QA (сегодня) — 11 реальных багов пойманы+фикс+verified на проде
+Мой прод-смок 3: GoogleApiGW.get крах на непустой вкладке (2-я запись падала); recurring-событие без timeZone; sync_note/diary не создавали вкладки. Codex-прожарка 8: /tune deny-list bypass; Sheets formula injection; guard open(...,'w')/cd&&>>SOUL; non-list char-split; bad-json traceback; tz хардкод; cmd_save non-dict; non-atomic menu_mode. 0 critical осталось.
+
+### 📋 Open TODO (всё требует юзера)
+- [ ] Задать свой утренний фокус (тапнуть 🌅 Утро / «мой утренний фокус: …») — иначе Утро онбордит
+- [ ] ЖИВОЙ ТЕСТ за рулём — главное (накопилось много непротестированных фич)
+- [ ] HERMES_CEO_EMAIL — авто-шаринг /report Doc (его клик в Railway или авторизовать меня)
+- [ ] Опц. ротация секретов (не срочно, git чист)
+
+### 🔗 Continuation
+1. Прочитать этот snapshot + `.wiki/log.md` (последние записи 2026-06-29).
+2. Память: `ceo-data-and-selftune-architecture`, `telegram-buttons-and-persona-pattern`.
+3. Ждать фидбэк живого теста → Phase-4 полировка точечно (НЕ слепой рерайт).
+4. НЕ плодить утренние пинги (порог на шум низкий). НЕ строить спекулятивные фичи — юзер уже отметил перегруз.
+
