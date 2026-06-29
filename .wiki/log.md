@@ -237,6 +237,7 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-29] morning-ritual | /morning skill (Личное) — личный утренний ритуал: ротируемая медитация-кью + личный фокус из вкладки «Фокус» (задаётся голосом, sync_focus). Онбординг при пустом фокусе. Плитка 🌅 Утро в Личное-меню (пара с 🌙 Вечер). Cron `4413758e1c3e` «CEO Morning 06:50 EEST» (50 3 * * *, skill morning). Утро/День разделены: Утро=личный настрой, День=рабочий фокус. Verified --gather на проде. 107 тестов. ВНИМАНИЕ: утро теперь 4 пинга (06:50/07:00/07:15/07:30) — предложить юзеру слить рабочие 3 в одно. Commit d4a807102.
 ## [2026-06-29] morning-consolidation | Юзер (перегруз пингами) выбрал «только Утро + День» авто. УДАЛЕНЫ cron e900bfffe343 (Meeting Prep 07:00) + b85e53e4148d (Tasks 07:15). Остались авто: 4413758e1c3e Morning 06:50 + 92ee5dfa0e33 Brief 07:30. /prep и /tasks — теперь ТОЛЬКО on-demand (скиллы живы, без утренних cron). Урок: не плодить утренние пинги — у CEO порог на шум низкий.
+## 2026-06-29 — pre-compact snapshot | /save-snapshot: CONTEXT.md секция «Snapshot 2026-06-29» + 2 L3-решения в decisions.md (Sheets dual-write; /tune safety model) + episode. Контекст ~66%. Сессия: full CEO loop (Утро/Повестка/Встреча/Протокол/Задачи/Контроль) + 11 багов QA. ~14 коммитов, всё на проде.
 ## [2026-06-29] session-end | 10 commits on main
 
 ## [2026-06-29] session-end | 1 commits on main

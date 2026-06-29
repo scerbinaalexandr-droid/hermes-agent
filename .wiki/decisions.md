@@ -556,3 +556,19 @@
 **Why:** избегает LLM-роутинг неоднозначности (была регрессия capture/notes); переиспользует существующую callback-инфру; минимальный blast radius.
 **How to apply:** новые кнопочные фичи → маркер + рендер в `send()` + детерминированный callback/label-роутинг. Не слать общий текст-ярлык в LLM-роутер.
 **Reversal:** легко.
+
+
+---
+
+## 2026-06-29 — Все записи CEO живут в Google Sheets (dual-write с markdown-индексом)
+
+**Decision:** Каждая запись (capture task/decision/insight, notes-протокол, diary, trip, meeting-agenda, tune-feedback, morning-focus) пишется в master-Sheet `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU` (вкладки Задачи/Решения/Идеи/Протоколы/Дневник/Поездки/Встречи/Корректировки/Фокус). markdown `memory/*.md` остаётся внутренним индексом для брифа.
+**Why:** CEO не видит/не правит markdown на телефоне; ему нужны таблицы, которые он открывает и редактирует сам. Подтверждения называют ВКЛАДКУ, не путь к файлу.
+**How to apply:** Новый тип записи → добавить вкладку + `sync_*` в `skills/ceo/_lib/sheets_meeting_sync.py` (паттерн: ensure_tab + _ensure_hdr + идемпотентность по id + CLI-флаг). Скилл шеллит helper детерминированно (best-effort, never raises). Все write-ячейки проходят `_sanitize_cell` (анти-formula-injection). `GoogleApiGW.get` возвращает ГОЛЫЙ список (не {"values"}). Reversal: легко (markdown остаётся).
+
+## 2026-06-29 — /tune: самомодификация персоны через единственный санкционированный путь + code-level safety gate
+
+**Decision:** Поведение бота правится голосом через `/tune` → `tune.py` дописывает правило в `/opt/data/SOUL.md` (раздел «Живые корректировки», append-only). `_rule_is_unsafe` (NFKC-нормализация + RU/EN deny-list ослабления защиты + injection-скан синхронно с loader) — код, не только промпт. `guard.py _SOUL_RE`+`_PY_WRITE_RE` блокируют ВСЕ прочие записи в SOUL (write_file/shell/open(...,'w')), кроме tune.py-subprocess. Живые правила НЕ переопределяют hard safety guards (privacy/подтверждение отправки/секреты).
+**Why:** дать CEO править бота на ходу, но самомодифицирующаяся персона — риск (self-DoS через injection-фразу зануляет персону; правило может ослабить защиту). Защита должна быть в КОДЕ, не только в тексте промпта.
+**How to apply:** Расширять safety — паттерны в `_SAFETY_DENYLIST`/`_INJECTION_PATTERNS` (tune.py) + покрытие в guard.py. Никогда не давать боту прямой write в SOUL мимо tune.py. Reversal: легко (правило удаляется из SOUL).
+
