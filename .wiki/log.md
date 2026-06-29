@@ -220,3 +220,11 @@ Append-only лог событий. Karpathy convention.
 - Задеплоено: /report→Google Doc+PDF+HTML · /trip→Поездки Sheet · меню-плитки + ≡-команды · кнопки черновика (универсально через persona, 4 кнопки) · сворачиваемое меню (one_time) · CEO-доступ к мастер-Sheet.
 - 9 коммитов (d59f4ed10…ef65d29f9). Всё на проде, гейтвей здоров.
 - См. CONTEXT.md секцию "Snapshot 2026-06-28 23:35" + decisions.md.
+
+## [2026-06-29] session-end | 7 commits on main
+
+## [2026-06-29] session-end | 8 commits on main
+
+## [2026-06-29] session-end | 9 commits on main
+
+## [2026-06-29] big-build-day | capture→Sheets (Задачи/Решения/Идеи) + текст=голос; /tune самонастройка+фидбэк (SOUL append, safety gate); меню Работа⇄Личное (плитки, per-chat state); adversarial-review workflow (17 агентов)→4 security/correctness фикса; cleanup primitives (drive trash / sheets clear) + почищены тест-артефакты. 9 коммитов 61dac47a5→6db7248f3, все на проде SUCCESS. Секреты: git чист (прошлые утечки = Railway-токены, авто-ревок). 69 тестов зелёных. См. CONTEXT snapshot 2026-06-29.

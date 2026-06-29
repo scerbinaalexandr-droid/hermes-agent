@@ -742,3 +742,41 @@ Fork Nous Research Hermes Agent, переоснащённый для испол�
 2. Дождаться фидбэка юзера по сворачиваемому меню (ef65d29f9) + универсальным кнопкам.
 3. По желанию: Работа⇄Личное toggle, авто-шаринг Doc (HERMES_CEO_EMAIL), Этап-4 стиль.
 4. Не забыть напомнить про ротацию секретов.
+
+---
+
+## Snapshot 2026-06-29 (big build day — capture→Sheets, /tune, menu toggle, hardening)
+
+**Сессия:** длинный продуктивный день, 9 коммитов `61dac47a5`→`6db7248f3`. Все на проде (Railway service `hermes`, последний деплой SUCCESS).
+
+### 🏗 Что построено и задеплоено
+- **`/capture` → Google-таблицы CEO** (не только невидимый markdown): task→Задачи, decision→Решения (нов.), insight→Идеи (нов.). Dual-write: markdown остаётся индексом для брифа, Sheet — видимый дом. `sheets_meeting_sync.sync_capture` + CLI `--capture`. Подтверждение называет ВКЛАДКУ, не путь.
+- **Текст = голос** (persona-правило в ensure_config): свободный текст про задачу/мысль сразу даёт черновик с кнопками.
+- **`/tune` — канал самонастройки/фидбэка**: «настройся/это неправильно» → правило в персону (`/opt/data/SOUL.md`, раздел «🎛 Живые корректировки», append-only, helper `tune.py`) ИЛИ баг в очередь разработчику (`logs/feedback.md`). Копия в таблицу «Корректировки».
+- **Меню Работа⇄Личное** (плитки): два набора `_CEO_MENU_WORK`/`_CEO_MENU_PERSONAL` в telegram.py, верхняя плитка-тоггл `__mode:` sentinel, состояние per-chat в `menu_mode.json` (на volume — Dockerfile `ENV HERMES_HOME=/opt/data`).
+- **fix:** логи брифа → `/opt/data/logs/daily` (был read-only образ); route_capture пустая секция; cli-config dated model ID.
+- **Cleanup primitives:** `google_api drive trash` + `sheets clear`.
+
+### 🛡 Адверсариальное ревью (ultracode workflow, 17 агентов) → 4 фикса
+- Self-DoS: правило с injection-фразой зануляло всю SOUL → `tune.py._rule_is_unsafe` скринит (синхронно с loader patterns).
+- Deny-list: правило, ослабляющее защиту (RU+EN) → отклоняется на ревью; живые правила НЕ переопределяют hard safety guards.
+- guard.py: добавлен `_SOUL_RE` — прямая запись в `/SOUL.md` блокируется (tune.py subprocess проходит).
+- capture task context («Бухарест») сворачивается в ячейку Задача.
+- Тесты: 69 CEO/gateway зелёных.
+
+### 🔒 Секреты — УТОЧНЕНО (корректирует старый TODO выше про «4 утёкших»)
+В git **нет** реальных секретов (15 «совпадений» = upstream тестфикстуры + пример в доке; `.env` gitignored). Прошлые утечки = Railway **account-токены** в скриншотах (Railway авто-ревокает). 4 API-ключа в env, не в репо → срочной ротации из-за git-утечки НЕТ. Ротация — опц. предосторожность, делать ПОСЛЕ теста (TELEGRAM-токен отключит бота).
+
+### 🧹 Тест-артефакты — почищено
+selftest-строка Протоколы!A2:J2 очищена; Drive `Hermes-Test-File`, `Tandem отчёт` → корзина. Master Sheet нетронут.
+
+### 📋 Open (требует юзера)
+- [ ] Живой тест за рулём: capture→Задачи, текст=голос, `/tune`, меню-тоггл, кнопки.
+- [ ] Phase-4 визуальный стиль — точечно по замечаниям из теста.
+- [ ] HERMES_CEO_EMAIL (авто-шаринг отчётов) — Railway UI или авторизовать меня.
+- [ ] Опц. ротация секретов — после теста, по шагам.
+
+### 🔗 Continuation
+1. Прочитать этот snapshot.
+2. Ждать фидбэк live-теста → Phase-4 точечно.
+3. Не ротировать TELEGRAM-токен пока юзер тестит.
