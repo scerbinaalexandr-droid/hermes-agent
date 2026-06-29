@@ -524,6 +524,18 @@ def calendar_create(args):
         event["description"] = args.description
     if args.attendees:
         event["attendees"] = [{"email": e.strip()} for e in args.attendees.split(",") if e.strip()]
+    if getattr(args, "recurrence", ""):
+        rule = args.recurrence.strip()
+        if not rule.upper().startswith(("RRULE:", "RDATE:", "EXRULE:", "EXDATE:")):
+            rule = "RRULE:" + rule  # accept bare 'FREQ=WEEKLY;BYDAY=MO'
+        event["recurrence"] = [rule]
+    if getattr(args, "reminders", ""):
+        mins = [int(m) for m in args.reminders.split(",") if m.strip().lstrip("-").isdigit()]
+        if mins:
+            event["reminders"] = {
+                "useDefault": False,
+                "overrides": [{"method": "popup", "minutes": m} for m in mins],
+            }
 
     if _gws_binary():
         result = _run_gws(
@@ -949,6 +961,10 @@ def main():
     p.add_argument("--location", default="")
     p.add_argument("--description", default="")
     p.add_argument("--attendees", default="", help="Comma-separated email addresses")
+    p.add_argument("--recurrence", default="",
+                   help="RRULE, e.g. 'RRULE:FREQ=WEEKLY;BYDAY=MO' (or bare 'FREQ=WEEKLY;BYDAY=MO')")
+    p.add_argument("--reminders", default="",
+                   help="Comma-separated minutes-before for popup reminders, e.g. '60,1440'")
     p.add_argument("--calendar", default="primary")
     p.set_defaults(func=calendar_create)
 
