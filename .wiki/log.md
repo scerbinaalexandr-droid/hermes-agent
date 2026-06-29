@@ -233,6 +233,8 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-06-29] qa-hardening | Прод-смок (мой) + кросс-вендор прожарка Codex (GPT-5) сегодняшнего кода. ПОЙМАНО 11 РЕАЛЬНЫХ БАГОВ, все фикс+verified на проде. Мой смок 3: GoogleApiGW.get крах на непустой вкладке → 2-я запись в любую таблицу падала (08a0c3505); recurring-событие без timeZone → HTTP400; sync_note/diary не создавали вкладки (0b8d27db0). Codex 8 (7d02dcca4) — HIGH: /tune deny-list bypass (RU «без согласования»/«показывай пароли») → NFKC + расширенные паттерны; Sheets formula injection (=IMPORTDATA) → санитизация ячеек; guard.py не ловил open(...,'w') / cd&&>>SOUL → Python-write + bare basename. MED: non-list→char-split; bad-json traceback; tz хардкод (zoneinfo); cmd_save non-dict краш. LOW: non-atomic menu_mode write. Verified на проде: formula→текст, CFO не разбита, safety-bypass rejected, guard блокирует open-write/redirect но пускает tune.py. 0 critical осталось. 97 тестов зелёных. Урок: разные семьи моделей = некоррелированные слепые зоны (я — runtime-краши, Codex — security/edge-cases).
 
+## [2026-06-29] tasks-loop | /tasks skill — открытые задачи из вкладки «Задачи» по срокам (🔴 просрочено / 🟡 неделя / ⚪ без срока), читает через fixed GoogleApiGW, парсит сроки (ISO/dd.mm.yyyy/dd.mm=тек.год). On-demand + cron `b85e53e4148d` «CEO Tasks 07:15 EEST» (15 4 * * *, skill tasks). Замыкает цикл: встреча→протокол(/notes)→задачи→утренний контроль(/tasks). Утро теперь: 07:00 /prep · 07:15 /tasks · 07:30 /brief. Verified на проде. Дочищена stale selftest-задача Задачи!A2 (пропущена при прошлой чистке Протоколов). Commit ed3daf064. 101 тест зелёный.
+
 ## [2026-06-29] session-end | 10 commits on main
 
 ## [2026-06-29] session-end | 1 commits on main
@@ -242,3 +244,7 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-29] session-end | 3 commits on main
 
 ## [2026-06-29] session-end | 4 commits on main
+
+## [2026-06-29] session-end | 5 commits on main
+
+## [2026-06-29] session-end | 6 commits on main
