@@ -262,16 +262,34 @@ def test_cli_requires_sheet_id(monkeypatch, capsys):
     assert "HERMES_MEETING_SHEET_ID" in capsys.readouterr().err
 
 
-def test_gw_get_parses_subprocess(monkeypatch):
+def _patch_run(monkeypatch, stdout):
     def fake_run(cmd, capture_output, text, timeout):
         class R:
             returncode = 0
-            stdout = json.dumps({"values": [["id1"], ["id2"]]})
             stderr = ""
+        R.stdout = stdout
         return R()
     monkeypatch.setattr(subprocess, "run", fake_run)
+
+
+def test_gw_get_parses_bare_list(monkeypatch):
+    # google_api `sheets get` prints a BARE values list — the real contract.
+    _patch_run(monkeypatch, json.dumps([["id1"], ["id2"]]))
     gw = m.GoogleApiGW("/path/google_api.py")
     assert gw.get("SID", "Протоколы!A:A") == [["id1"], ["id2"]]
+
+
+def test_gw_get_tolerates_values_dict(monkeypatch):
+    # defensive: also accept {"values": [...]}
+    _patch_run(monkeypatch, json.dumps({"values": [["id1"]]}))
+    gw = m.GoogleApiGW("/path/google_api.py")
+    assert gw.get("SID", "Протоколы!A:A") == [["id1"]]
+
+
+def test_gw_get_empty(monkeypatch):
+    _patch_run(monkeypatch, "[]")
+    gw = m.GoogleApiGW("/path/google_api.py")
+    assert gw.get("SID", "Протоколы!A:A") == []
 
 
 def test_gw_raises_on_nonzero(monkeypatch):

@@ -201,7 +201,15 @@ class GoogleApiGW:
 
     def get(self, sheet_id: str, rng: str) -> list[list[str]]:
         out = self._run("sheets", "get", sheet_id, rng)
-        return (json.loads(out) or {}).get("values", []) if out.strip() else []
+        if not out.strip():
+            return []
+        data = json.loads(out)
+        # google_api `sheets get` prints a BARE values list (result.get("values", []));
+        # tolerate a {"values": [...]} dict too. Calling .get() on the bare list was
+        # a crash ("'list' object has no attribute 'get'") on any non-empty range.
+        if isinstance(data, dict):
+            return data.get("values", [])
+        return data if isinstance(data, list) else []
 
     def append(self, sheet_id: str, rng: str, values: list[list[str]]) -> None:
         self._run("sheets", "append", sheet_id, rng,
