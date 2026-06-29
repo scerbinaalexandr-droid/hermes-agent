@@ -624,6 +624,18 @@ def drive_share(args):
         raise
 
 
+def drive_trash(args):
+    """Move a Drive file to trash (reversible ~30 days). Works under the drive.file
+    scope for files this app created (e.g. test artifacts Hermes generated)."""
+    service = build_service("drive", "v3")
+    meta = service.files().update(
+        fileId=args.file_id, body={"trashed": True}, fields="id, name, trashed",
+    ).execute()
+    print(json.dumps({"file_id": meta.get("id", args.file_id),
+                      "name": meta.get("name", ""),
+                      "trashed": meta.get("trashed", True)}, ensure_ascii=False))
+
+
 # =========================================================================
 # Contacts
 # =========================================================================
@@ -743,6 +755,16 @@ def sheets_append(args):
         valueInputOption="USER_ENTERED", insertDataOption="INSERT_ROWS", body=body,
     ).execute()
     print(json.dumps({"updatedCells": result.get("updates", {}).get("updatedCells", 0)}, indent=2))
+
+
+def sheets_clear(args):
+    """Clear the VALUES in a range (cells blanked, row structure kept). Used to
+    remove diagnostic/selftest rows; a later append reuses the emptied cells."""
+    service = build_service("sheets", "v4")
+    result = service.spreadsheets().values().clear(
+        spreadsheetId=args.sheet_id, range=args.range, body={},
+    ).execute()
+    print(json.dumps({"clearedRange": result.get("clearedRange", "")}, ensure_ascii=False))
 
 
 def sheets_create(args):
@@ -955,6 +977,10 @@ def main():
     p.add_argument("--notify", action="store_true", help="Send Google notification email")
     p.set_defaults(func=drive_share)
 
+    p = drv_sub.add_parser("trash", help="Move a Drive file to trash (reversible ~30 days)")
+    p.add_argument("file_id")
+    p.set_defaults(func=drive_trash)
+
     # --- Contacts ---
     con = sub.add_parser("contacts")
     con_sub = con.add_subparsers(dest="action", required=True)
@@ -983,6 +1009,11 @@ def main():
     p.add_argument("range")
     p.add_argument("--values", required=True, help="JSON array of arrays")
     p.set_defaults(func=sheets_append)
+
+    p = sh_sub.add_parser("clear", help="Clear values in a range (cells blanked, structure kept)")
+    p.add_argument("sheet_id")
+    p.add_argument("range")
+    p.set_defaults(func=sheets_clear)
 
     p = sh_sub.add_parser("create", help="Idempotently create a spreadsheet owned by this account")
     p.add_argument("title")
