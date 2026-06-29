@@ -96,6 +96,15 @@ IDEA_HEADERS = ["idea_id", "Дата", "Направление", "Контекс
 
 CAPTURE_TASKS_ID_RANGE = f"{TASKS_TAB}!A:A"  # capture tasks dedupe by task_id in Задачи
 
+# Meeting agendas (/prep): one row per meeting/day with the question checklist the
+# CEO focuses on. UPSERT by meeting_id (regenerating an agenda updates the row, not
+# duplicates). The CEO can edit the Повестка cell directly in Sheets.
+MEETINGS_TAB = "Встречи"
+MEETINGS_RANGE = f"{MEETINGS_TAB}!A:G"
+MEETINGS_HDR_RANGE = f"{MEETINGS_TAB}!A1:G1"
+MEETINGS_ID_RANGE = f"{MEETINGS_TAB}!A:A"
+MEETING_HEADERS = ["meeting_id", "Дата", "Время", "Название", "Участники", "Повестка", "Статус"]
+
 # Feedback / corrections (/tune): self-tune rules + dev bug reports, for audit.
 FEEDBACK_TAB = "Корректировки"
 FEEDBACK_RANGE = f"{FEEDBACK_TAB}!A:F"
@@ -380,6 +389,44 @@ def sync_capture(cap: dict, area_hint: str | None, sheet_id: str, gw,
     return {"capture_written": True, "skipped": False, "tab": tab, "area": area}
 
 
+def build_meeting_row(mtg: dict, meeting_id: str) -> list[str]:
+    parts = mtg.get("participants")
+    parts_cell = "; ".join(str(p) for p in parts) if isinstance(parts, list) else str(parts or "")
+    agenda = mtg.get("agenda")
+    if isinstance(agenda, list):
+        agenda_cell = "\n".join(f"{i + 1}. {q}" for i, q in enumerate(agenda))
+    else:
+        agenda_cell = str(agenda or "")
+    return [
+        meeting_id,
+        str(mtg.get("date", "")),
+        str(mtg.get("time", "")),
+        str(mtg.get("title", "")),
+        parts_cell,
+        agenda_cell,
+        str(mtg.get("status", "") or "planned"),
+    ]
+
+
+def sync_meeting(mtg: dict, sheet_id: str, gw, now_iso: str,
+                 *, meeting_id: str, dry_run: bool = False) -> dict:
+    """Upsert a meeting agenda into the Встречи tab. Updates the row if meeting_id
+    already exists (re-prep overwrites), else appends. Self-creates the tab."""
+    if not dry_run:
+        gw.ensure_tab(sheet_id, MEETINGS_TAB)
+        _ensure_hdr(gw, sheet_id, MEETINGS_HDR_RANGE, MEETING_HEADERS)
+    row = build_meeting_row(mtg, meeting_id)
+    ids = [r[0] if r else "" for r in gw.get(sheet_id, MEETINGS_ID_RANGE)]
+    if meeting_id in ids:
+        idx = ids.index(meeting_id) + 1  # col A includes header at row 1
+        if not dry_run:
+            gw.update(sheet_id, f"{MEETINGS_TAB}!A{idx}:G{idx}", [row])
+        return {"meeting_written": True, "updated": True, "row": idx}
+    if not dry_run:
+        gw.append(sheet_id, MEETINGS_RANGE, [row])
+    return {"meeting_written": True, "updated": False}
+
+
 def build_feedback_row(fb: dict, feedback_id: str, now_iso: str) -> list[str]:
     kind = str(fb.get("kind", "")) or "правило"
     status = "open" if kind == "баг" else "applied"
@@ -457,6 +504,8 @@ def main(argv=None) -> int:
                          "(task→Задачи / decision→Решения / insight→Идеи)")
     ap.add_argument("--feedback", action="store_true",
                     help="Treat --save payload as a /tune feedback entry → Корректировки tab")
+    ap.add_argument("--meeting", action="store_true",
+                    help="Treat --save payload as a meeting agenda (upsert) → Встречи tab")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -543,6 +592,23 @@ def main(argv=None) -> int:
             log_sync_error(f"feedback id={a.note_id}: {exc}")
             print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
                               "warning": "⚠️ корректировка записана локально, но не в Sheet"},
+                             ensure_ascii=False))
+            return 3
+
+    if a.meeting:
+        if not a.save or not a.note_id:
+            sys.stderr.write("--save and --note-id are required for --meeting\n")
+            return 2
+        mtg = json.loads(a.save)
+        try:
+            res = sync_meeting(mtg, sheet_id, GoogleApiGW(), _now_iso(),
+                               meeting_id=a.note_id, dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception as exc:
+            log_sync_error(f"meeting id={a.note_id}: {exc}")
+            print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
+                              "warning": "⚠️ повестка не записана в Sheet"},
                              ensure_ascii=False))
             return 3
 

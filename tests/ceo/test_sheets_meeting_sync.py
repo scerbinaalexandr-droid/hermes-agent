@@ -13,6 +13,7 @@ from skills.ceo._lib.sheets_meeting_sync import (
     TASKS_HDR_RANGE,
     TRIP_HEADERS,
     build_diary_row,
+    build_meeting_row,
     build_protocol_row,
     build_task_rows,
     build_trip_row,
@@ -22,6 +23,7 @@ from skills.ceo._lib.sheets_meeting_sync import (
     sync_capture,
     sync_diary_entry,
     sync_feedback,
+    sync_meeting,
     sync_note,
     sync_trip,
 )
@@ -421,3 +423,40 @@ def test_main_feedback_success(monkeypatch, capsys):
     rc = m.main(["--feedback", "--save", json.dumps(fb), "--note-id", FB_ID])
     assert rc == 0
     assert json.loads(capsys.readouterr().out)["feedback_written"]
+
+
+# --- meetings (/prep agendas) -----------------------------------------------
+MTG = {"date": "2026-06-30", "time": "10:00", "title": "Finance",
+       "participants": ["CFO"], "agenda": ["Кэшфлоу?", "Отсрочка?"], "status": "planned"}
+MTG_ID = "evt_abc123"
+
+
+def test_sync_meeting_appends_new():
+    gw = FakeGW(headers_present=True)  # empty id column → append
+    res = sync_meeting(MTG, "SID", gw, NOW, meeting_id=MTG_ID)
+    assert res["meeting_written"] and not res["updated"]
+    rng, vals = gw.appended[0]
+    assert "Встречи" in rng
+    assert vals[0][0] == MTG_ID and vals[0][3] == "Finance"
+    assert "1. Кэшфлоу?" in vals[0][5] and "2. Отсрочка?" in vals[0][5]  # numbered list
+
+
+def test_sync_meeting_upserts_existing():
+    gw = FakeGW(existing_ids=["meeting_id", MTG_ID], headers_present=True)  # header + 1 row
+    res = sync_meeting(MTG, "SID", gw, NOW, meeting_id=MTG_ID)
+    assert res["meeting_written"] and res["updated"] and res["row"] == 2
+    assert any("Встречи!A2:G2" in r for r, _ in gw.updated)
+    assert gw.appended == []  # updated in place, not duplicated
+
+
+def test_build_meeting_row_string_agenda_passthrough():
+    row = build_meeting_row({"title": "X", "agenda": "свободный текст"}, "id1")
+    assert row[5] == "свободный текст" and row[0] == "id1"
+
+
+def test_main_meeting_success(monkeypatch, capsys):
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    monkeypatch.setattr(m, "GoogleApiGW", lambda *a, **k: FakeGW(headers_present=True))
+    rc = m.main(["--meeting", "--save", json.dumps(MTG), "--note-id", MTG_ID])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["meeting_written"]
