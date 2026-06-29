@@ -36,6 +36,7 @@ from skills.ceo._lib.memory import (  # noqa: E402
     assert_memory_present,
     last_entries,
     load_memory,
+    memory_root,
     projects_by_priority,
     today_iso,
 )
@@ -67,8 +68,9 @@ def write_logs(final_text: str) -> dict[str, str]:
     date = today_iso()
     now_hhmm = _dt.datetime.now().strftime("%H:%M")
 
-    # Per-day full log: logs/daily/YYYY-MM-DD.md
-    per_day = _REPO_ROOT / "logs" / "daily" / f"{date}.md"
+    # Per-day full log: logs/daily/YYYY-MM-DD.md beside the active memory root.
+    # Prod: HERMES_CEO_MEMORY_ROOT=/opt/data/memory -> /opt/data/logs/daily.
+    per_day = memory_root().parent / "logs" / "daily" / f"{date}.md"
     per_day.parent.mkdir(parents=True, exist_ok=True)
     if not per_day.exists():
         per_day.write_text(f"# Daily Log — {date}\n", encoding="utf-8")
