@@ -79,14 +79,16 @@ strictly.
 
 ## Step 2 — Show draft (CRITICAL — НЕ сохраняй сразу)
 
-Покажи user'у **черновик распознанного** с inline кнопками-like prompts:
+Покажи user'у **черновик распознанного** с inline кнопками-like prompts.
+**Назначение показывай как ВКЛАДКУ его Google-таблицы** (task→«Задачи», decision→«Решения»,
+insight→«Идеи») — НИКОГДА не показывай внутренние пути `memory/*.md` (user их не видит):
 
 ```
 🎤 Распознал:
 *Тип:* {type}
 *Контекст:* {context}
 *Содержание:* {content_after_redaction}
-→ Сохранить в `{target_file}::{target_section}`
+→ В таблицу «{Задачи|Решения|Идеи}»
 
 [[draft_actions]]
 ```
@@ -108,28 +110,33 @@ strictly.
 python skills/ceo/capture/scripts/capture.py --type <тип> --context "<context>" --content "<content>"
 ```
 
-Helper использует `route_capture()` из `skills/ceo/_lib/memory.py`:
+Helper делает **dual-write**: пишет в markdown-индекс (для брифа) **и** детерминированно
+зеркалит в Google-таблицу CEO (видимый дом записей). User видит вкладку таблицы.
 
-| Type | Target file | Action |
+| Type | Вкладка таблицы (видит user) | markdown-индекс (внутренний) |
 |---|---|---|
-| `meeting` / `recap` | `memory/daily_log.md` | Append today's `### Capture (HH:MM) — <тип>` block |
-| `decision` | `memory/decisions.md` | Append entry с Date/Decision/Reason/Expected/Review/Status=pending |
-| `insight` | `memory/memory.md::Current Strategic Themes` | In-place append bullet |
-| `task` | `memory/memory.md::Active Priorities (this week)` | In-place append `- [ ] ...` bullet |
+| `task` | **Задачи** | `memory/memory.md::Active Priorities` |
+| `decision` | **Решения** | `memory/decisions.md` |
+| `insight` | **Идеи** | `memory/memory.md::Current Strategic Themes` |
+| `meeting` / `recap` | → используй `/notes` (Протоколы) / `/diary` (Дневник) | `memory/daily_log.md` |
 
-Returns `{file, action, snippet}`.
+Returns `{file, action, snippet, capture_id, sheet_sync}`. `sheet_sync.tab` — вкладка,
+куда легла запись (показывай её в подтверждении).
 
 ---
 
 ## Step 4 — Acknowledge (после save)
 
-≤2 строки + next-steps:
+≤2 строки + next-steps. Подтверждай **вкладкой таблицы** (`sheet_sync.tab`), не путём файла:
 
 ```
-✅ {file}::{section} ← {2-3 word summary}
+✅ Записал в таблицу «{Задачи|Решения|Идеи}» ← {2-3 word summary}
 
 Что дальше? · /brief · /capture · /projects {if context был project}
 ```
+
+Если `sheet_sync.synced` = false (нет конфига/ошибка Sheet) — запись всё равно сохранена
+в индексе; скажи «✅ Записал ← {summary}» без названия вкладки, не показывай ошибку user'у.
 
 **НЕ** показывай шаблон structured input — user уже понимает что voice-first работает.
 

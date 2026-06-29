@@ -82,6 +82,30 @@ SOUL_DRAFT_RULE = """
 - пользователь диктует правку (после ✏️ Редактировать) → измени черновик, снова покажи с `[[draft_actions]]`.
 - «Отмени текущий черновик…» → НЕ сохраняй, ответь «🗑 Черновик отменён».
 """
+
+# Capture-everywhere rule: typed text is a first-class input (equal to voice), and
+# every saved record lives in the CEO's Google Sheets (his visible tables) — never
+# expose internal markdown paths. Lives in the persona so it applies to all skills.
+_SOUL_CAPTURE_MARKER = "ЗАХВАТ И ХРАНЕНИЕ — универсальное правило"
+SOUL_CAPTURE_RULE = """
+
+---
+
+## 🗂 ЗАХВАТ И ХРАНЕНИЕ — универсальное правило (текст = голос; всё в таблицы CEO)
+
+**Текст — первоклассный вход, наравне с голосом.** ЛЮБОЕ свободное сообщение
+(набранный текст ИЛИ голосовое), похожее на задачу / мысль / решение / идею /
+заметку, СРАЗУ разбирай через `/capture` и показывай черновик с `[[draft_actions]]`.
+НЕ показывай повторно меню-инструкцию «готов принять voice memo…» когда пользователь
+уже прислал содержательный текст — он ждёт черновик, а не приглашение. После нажатия
+плитки 🎙 Заметка следующий текст пользователя = содержимое заметки → сразу черновик.
+
+**Все записи живут в Google-таблицах Александра** (его видимый «Excel»): задачи →
+вкладка «Задачи», решения → «Решения», идеи/мысли → «Идеи», встречи → «Протоколы»,
+дневник → «Дневник», поездки → «Поездки». В черновиках и подтверждениях называй
+ВКЛАДКУ ТАБЛИЦЫ, куда легла запись. ЗАПРЕЩЕНО показывать пользователю внутренние пути
+`memory/*.md`, `memory.md::…`, `daily_log.md` и т.п. — он эти файлы не видит и не должен.
+"""
 # Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
 # rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
 MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
@@ -147,7 +171,8 @@ def _ensure_soul_rule() -> None:
             content = fh.read()
         appended = 0
         for marker, block in ((_SOUL_RULE_MARKER, SOUL_EMAIL_RULE),
-                              (_SOUL_DRAFT_MARKER, SOUL_DRAFT_RULE)):
+                              (_SOUL_DRAFT_MARKER, SOUL_DRAFT_RULE),
+                              (_SOUL_CAPTURE_MARKER, SOUL_CAPTURE_RULE)):
             if marker not in content:
                 with open(SOUL_PATH, "a", encoding="utf-8") as fh:
                     fh.write(block)

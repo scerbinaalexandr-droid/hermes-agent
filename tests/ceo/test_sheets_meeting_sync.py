@@ -19,6 +19,7 @@ from skills.ceo._lib.sheets_meeting_sync import (
     classify_area,
     ensure_headers,
     parse_action_item,
+    sync_capture,
     sync_diary_entry,
     sync_note,
     sync_trip,
@@ -305,3 +306,73 @@ def test_main_success(monkeypatch, capsys):
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["protocol_written"] and out["tasks_written"] == 2
+
+
+# --- capture (standalone task / decision / insight) -------------------------
+CAP_ID = "cap/2026-06-29/070200-task"
+
+
+def test_sync_capture_task_to_zadachi_tab():
+    gw = FakeGW(headers_present=True)
+    cap = {"type": "task", "context": "Бухарест", "content": "Купить лекарства"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id=CAP_ID)
+    assert res["capture_written"] and res["tab"] == "Задачи" and not res["skipped"]
+    rng, vals = gw.appended[0]
+    assert "Задачи" in rng
+    assert vals[0][0] == CAP_ID and vals[0][4] == "Заметка"
+    assert vals[0][5] == "Купить лекарства"
+
+
+def test_sync_capture_decision_to_resheniya_tab():
+    gw = FakeGW(headers_present=True)
+    cap = {"type": "decision", "context": "Pharma Project Romania", "content": "Берём отсрочку"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/1-decision")
+    assert res["tab"] == "Решения"
+    assert any("Решения" in r for r, _ in gw.appended)
+    assert "Решения" in gw.tabs_ensured
+
+
+def test_sync_capture_insight_to_idei_tab():
+    gw = FakeGW(headers_present=True)
+    cap = {"type": "insight", "context": "", "content": "Рынок смещается в премиум"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/1-insight")
+    assert res["tab"] == "Идеи"
+    assert any("Идеи" in r for r, _ in gw.appended)
+
+
+def test_sync_capture_idempotent_skip():
+    gw = FakeGW(existing_ids=[CAP_ID], headers_present=True)
+    cap = {"type": "task", "context": "", "content": "дубль"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id=CAP_ID)
+    assert res["skipped"] and not res["capture_written"] and gw.appended == []
+
+
+def test_sync_capture_writes_headers_when_absent():
+    gw = FakeGW(headers_present=False)
+    cap = {"type": "task", "context": "", "content": "новая задача"}
+    sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/2-task")
+    assert gw.updated and any("Задачи" in r for r, _ in gw.updated)
+
+
+def test_sync_capture_unknown_type_noop():
+    gw = FakeGW(headers_present=True)
+    cap = {"type": "meeting", "context": "", "content": "встреча"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/3-meeting")
+    assert not res["capture_written"] and gw.appended == []
+
+
+def test_sync_capture_dry_run_writes_nothing():
+    gw = FakeGW(headers_present=False)
+    cap = {"type": "task", "context": "", "content": "dry"}
+    res = sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/4-task", dry_run=True)
+    assert gw.appended == [] and gw.updated == [] and res["capture_written"]
+
+
+def test_main_capture_success(monkeypatch, capsys):
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    monkeypatch.setattr(m, "GoogleApiGW", lambda *a, **k: FakeGW(headers_present=True))
+    cap = {"type": "task", "context": "Бухарест", "content": "Купить лекарства"}
+    rc = m.main(["--capture", "--save", json.dumps(cap), "--note-id", CAP_ID])
+    assert rc == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["capture_written"] and out["tab"] == "Задачи"
