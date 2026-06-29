@@ -135,6 +135,18 @@ def test_idempotent_skip_when_note_id_exists():
     assert res["skipped"] and res["tasks_written"] == 0 and gw.appended == []
 
 
+def test_sync_note_self_creates_tabs():
+    gw = FakeGW()
+    sync_note(NOTE, "Health", "SID", gw, NOW, note_id=NID)
+    assert "Протоколы" in gw.tabs_ensured and "Задачи" in gw.tabs_ensured
+
+
+def test_sync_diary_self_creates_tab():
+    gw = FakeGW(headers_present=False)
+    sync_diary_entry({"content": "x"}, "SID", gw, NOW)
+    assert "Дневник" in gw.tabs_ensured
+
+
 def test_dry_run_writes_nothing():
     gw = FakeGW()
     res = sync_note(NOTE, "Health", "SID", gw, NOW, note_id=NID, dry_run=True)

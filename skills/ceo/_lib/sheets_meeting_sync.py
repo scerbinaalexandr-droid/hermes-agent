@@ -257,6 +257,7 @@ def sync_diary_entry(entry: dict, sheet_id: str, gw, now_iso: str, *, dry_run: b
     """Append a diary entry to the Дневник tab (append-only, for later analytics)."""
     row = build_diary_row(entry, now_iso)
     if not dry_run:
+        gw.ensure_tab(sheet_id, DIARY_TAB)  # self-create (parity with other syncs)
         ensure_diary_headers(gw, sheet_id)
         gw.append(sheet_id, DIARY_RANGE, [row])
     return {"diary_written": True}
@@ -461,6 +462,9 @@ def sync_note(note: dict, area_hint: str | None, sheet_id: str, gw,
     """Idempotent: skip if note_id already in Протоколы!A:A. Returns a summary."""
     text = " ".join([note.get("summary", ""), note.get("raw_text", "")])
     area = classify_area(area_hint, text)
+    if not dry_run:  # self-create tabs (parity with sync_capture/trip/meeting)
+        gw.ensure_tab(sheet_id, PROTO_TAB)
+        gw.ensure_tab(sheet_id, TASKS_TAB)
     existing = {row[0] for row in gw.get(sheet_id, ID_RANGE) if row}
     if note_id in existing:
         return {"protocol_written": False, "tasks_written": 0, "skipped": True, "area": area}

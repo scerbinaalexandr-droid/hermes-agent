@@ -524,6 +524,13 @@ def calendar_create(args):
         event["description"] = args.description
     if args.attendees:
         event["attendees"] = [{"email": e.strip()} for e in args.attendees.split(",") if e.strip()]
+    # Recurring events REQUIRE an IANA timeZone on start/end (a dateTime offset alone
+    # → HTTP 400 "Missing time zone definition"). Default to Europe/Chisinau (CEO is
+    # in Moldova) when recurring and no explicit --timezone; single events unchanged.
+    tz = getattr(args, "timezone", "") or ("Europe/Chisinau" if getattr(args, "recurrence", "") else "")
+    if tz:
+        event["start"]["timeZone"] = tz
+        event["end"]["timeZone"] = tz
     if getattr(args, "recurrence", ""):
         rule = args.recurrence.strip()
         if not rule.upper().startswith(("RRULE:", "RDATE:", "EXRULE:", "EXDATE:")):
@@ -965,6 +972,8 @@ def main():
                    help="RRULE, e.g. 'RRULE:FREQ=WEEKLY;BYDAY=MO' (or bare 'FREQ=WEEKLY;BYDAY=MO')")
     p.add_argument("--reminders", default="",
                    help="Comma-separated minutes-before for popup reminders, e.g. '60,1440'")
+    p.add_argument("--timezone", default="",
+                   help="IANA tz for start/end (e.g. Europe/Chisinau). Auto-set for recurring events.")
     p.add_argument("--calendar", default="primary")
     p.set_defaults(func=calendar_create)
 
