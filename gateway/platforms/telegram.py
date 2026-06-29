@@ -1216,9 +1216,9 @@ class TelegramAdapter(BasePlatformAdapter):
     ]
     _CEO_MENU_PERSONAL = [
         [("💼 Работа →", "__mode:work")],
-        [("🎙 Заметка", "/capture"), ("🎂 ДР", "/birthday")],
+        [("🌅 Утро", "/morning"), ("🌙 Вечер", "/evening")],
         [("📔 Дневник", "/diary"), ("🧭 Коуч", "/coach")],
-        [("🌙 Вечер", "/evening"), ("🔍 Поиск", "/find")],
+        [("🎙 Заметка", "/capture"), ("🎂 ДР", "/birthday")],
         [("🛠 Настройка", "/tune"), ("⚙️ Ещё", "/menu")],
     ]
 

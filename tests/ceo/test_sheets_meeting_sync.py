@@ -25,6 +25,7 @@ from skills.ceo._lib.sheets_meeting_sync import (
     sync_capture,
     sync_diary_entry,
     sync_feedback,
+    sync_focus,
     sync_meeting,
     sync_note,
     sync_trip,
@@ -529,3 +530,19 @@ def test_main_meeting_success(monkeypatch, capsys):
     rc = m.main(["--meeting", "--save", json.dumps(MTG), "--note-id", MTG_ID])
     assert rc == 0
     assert json.loads(capsys.readouterr().out)["meeting_written"]
+
+
+# --- focus (/morning) -------------------------------------------------------
+def test_sync_focus_appends_to_fokus():
+    gw = FakeGW(headers_present=True)
+    res = sync_focus({"text": "Я спокоен и собран"}, "SID", gw, NOW, focus_id="focus/x/1")
+    assert res["focus_written"] and not res["skipped"]
+    rng, vals = gw.appended[0]
+    assert "Фокус" in rng and vals[0][0] == "focus/x/1" and vals[0][2] == "Я спокоен и собран"
+    assert "Фокус" in gw.tabs_ensured
+
+
+def test_sync_focus_idempotent():
+    gw = FakeGW(existing_ids=["focus/x/1"], headers_present=True)
+    res = sync_focus({"text": "dup"}, "SID", gw, NOW, focus_id="focus/x/1")
+    assert res["skipped"] and gw.appended == []

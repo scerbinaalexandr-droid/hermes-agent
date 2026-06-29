@@ -105,6 +105,14 @@ MEETINGS_HDR_RANGE = f"{MEETINGS_TAB}!A1:G1"
 MEETINGS_ID_RANGE = f"{MEETINGS_TAB}!A:A"
 MEETING_HEADERS = ["meeting_id", "Дата", "Время", "Название", "Участники", "Повестка", "Статус"]
 
+# Personal morning focus (/morning): the things the CEO affirms each morning.
+# He sets them by voice; reads + edits in the Фокус tab. Append-only by focus_id.
+FOCUS_TAB = "Фокус"
+FOCUS_RANGE = f"{FOCUS_TAB}!A:D"
+FOCUS_HDR_RANGE = f"{FOCUS_TAB}!A1:D1"
+FOCUS_ID_RANGE = f"{FOCUS_TAB}!A:A"
+FOCUS_HEADERS = ["focus_id", "Дата", "Фокус", "Создано"]
+
 # Feedback / corrections (/tune): self-tune rules + dev bug reports, for audit.
 FEEDBACK_TAB = "Корректировки"
 FEEDBACK_RANGE = f"{FEEDBACK_TAB}!A:F"
@@ -458,6 +466,25 @@ def sync_meeting(mtg: dict, sheet_id: str, gw, now_iso: str,
     return {"meeting_written": True, "updated": False}
 
 
+def build_focus_row(item: dict, focus_id: str, now_iso: str) -> list[str]:
+    return [focus_id, now_iso[:10], str(item.get("text", "")), now_iso]
+
+
+def sync_focus(item: dict, sheet_id: str, gw, now_iso: str,
+               *, focus_id: str, dry_run: bool = False) -> dict:
+    """Append a personal morning-focus item to the Фокус tab. Idempotent by id."""
+    if not dry_run:
+        gw.ensure_tab(sheet_id, FOCUS_TAB)
+    existing = {r[0] for r in gw.get(sheet_id, FOCUS_ID_RANGE) if r}
+    if focus_id in existing:
+        return {"focus_written": False, "skipped": True}
+    row = build_focus_row(item, focus_id, now_iso)
+    if not dry_run:
+        _ensure_hdr(gw, sheet_id, FOCUS_HDR_RANGE, FOCUS_HEADERS)
+        gw.append(sheet_id, FOCUS_RANGE, [row])
+    return {"focus_written": True, "skipped": False}
+
+
 def build_feedback_row(fb: dict, feedback_id: str, now_iso: str) -> list[str]:
     kind = str(fb.get("kind", "")) or "правило"
     status = "open" if kind == "баг" else "applied"
@@ -540,6 +567,8 @@ def main(argv=None) -> int:
                     help="Treat --save payload as a /tune feedback entry → Корректировки tab")
     ap.add_argument("--meeting", action="store_true",
                     help="Treat --save payload as a meeting agenda (upsert) → Встречи tab")
+    ap.add_argument("--focus", action="store_true",
+                    help="Treat --save payload as a morning-focus item → Фокус tab")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -652,6 +681,23 @@ def main(argv=None) -> int:
             log_sync_error(f"meeting id={a.note_id}: {exc}")
             print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
                               "warning": "⚠️ повестка не записана в Sheet"},
+                             ensure_ascii=False))
+            return 3
+
+    if a.focus:
+        if not a.save or not a.note_id:
+            sys.stderr.write("--save and --note-id are required for --focus\n")
+            return 2
+        item = parsed
+        try:
+            res = sync_focus(item, sheet_id, GoogleApiGW(), _now_iso(),
+                             focus_id=a.note_id, dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception as exc:
+            log_sync_error(f"focus id={a.note_id}: {exc}")
+            print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
+                              "warning": "⚠️ фокус не записан в Sheet"},
                              ensure_ascii=False))
             return 3
 

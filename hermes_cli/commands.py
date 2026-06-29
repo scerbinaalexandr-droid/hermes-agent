@@ -709,7 +709,7 @@ _CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
     # (Commands NOT listed here stay fully typeable; this only curates the popup
     # so the CEO doesn't accidentally tap rarely-used admin commands.)
     "menu",
-    "brief", "evening", "week",          # day / ritual
+    "morning", "brief", "evening", "week",  # day / ritual (morning = personal)
     "capture", "notes", "diary", "trip", # voice-first capture
     "prep",                              # meeting agenda prep
     "tasks",                             # open-task follow-up
