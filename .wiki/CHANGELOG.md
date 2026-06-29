@@ -30,3 +30,23 @@
 - **2026-05-24** (main): 308729216 docs(ceo-os): INSTRUCTION_03 closed — daily backup cron created (job f35d551d4a4b)
 - **2026-05-24** (main): eb0bb6c3c docs(ceo-os): pre-compact snapshot 2026-05-24 — INSTRUCTION_01/02/03 + provider root-cause
 - **2026-05-24** (main): 515ccdb88 feat(ceo-os): /coach — персональный AI-коуч (ICF/GROW/Колесо/Co-Active + ритмы)
+- **2026-06-22** (main): 059059c6c docs(wiki): pre-compact snapshot 2026-06-22 (Google+email+birthday buildout)
+- **2026-06-22** (main): d8914a458 docs(wiki): birthday system milestone (88 ДР, /birthday, reminders, TZ fix)
+- **2026-06-25** (main): 238e828ab feat(google-workspace): add drive.file scope (Hermes owns + shares its own Sheets)
+- **2026-06-27** (main): c28014eb8 feat(ceo-os): meeting→Sheets pipeline — Hermes-owned sheet + /notes wiring
+- **2026-06-27** (main): ae176e643 fix(ceo-os): route meetings to /notes — sharpen skill descriptions
+- **2026-06-28** (main): ab4662dec chore(ceo-os): add --selftest diagnostic + widen sync error logging
+- **2026-06-28** (main): 4f15fc015 feat(ceo-os): diary → Sheets (Дневник tab) for analytics
+- **2026-06-28** (main): b15cb0df1 fix(ceo-os): wire Sheet sync deterministically into notes_log
+- **2026-06-28** (main): d8e61ac4b feat(ceo-os): STT → Groq whisper-large-v3-turbo when GROQ_API_KEY set
+- **2026-06-28** (main): 0d5fae296 docs(wiki): pre-compact snapshot 2026-06-28 (Google fix + Sheets pipeline + voice)
+- **2026-06-28** (main): 5b0e836ac feat(gateway): drive share command — give CEO reader access to Hermes-owned files
+- **2026-06-28** (main): d59f4ed10 feat(ceo-os): /trip skill — voice-first trip planner → Поездки Sheet tab
+- **2026-06-28** (main): 285c461bd feat(ceo-os): /report → editable Google Doc (Drive archive) alongside HTML/PDF
+- **2026-06-28** (main): a10d2a3bc fix(ceo-os): scrub email/Drive-IDs from Google API error strings (privacy guard)
+- **2026-06-28** (main): 42f0886a9 feat(ceo-os): curate Telegram ≡ command menu — add live voice-first skills
+- **2026-06-28** (main): 4bdd8500a feat(ceo-os): hands-free reply-keyboard menu — tap → deterministic slash command
+- **2026-06-28** (main): 14114a404 feat(ceo-os): inline draft-action buttons (Сохранить/Дополнить/Удалить)
+- **2026-06-28** (main): 9863e8687 fix(ceo-os): universal 4-button draft actions across ALL skills (persona rule)
+- **2026-06-28** (main): ef65d29f9 fix(ceo-os): collapsible menu keyboard (one_time) — frees screen space
+- **2026-06-28** (main): 588d09002 docs(wiki): pre-compact snapshot 2026-06-28 (Telegram voice-cockpit buildout)
