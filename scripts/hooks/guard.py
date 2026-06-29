@@ -35,6 +35,11 @@ _MEM_RE = re.compile(
     r'\.md\b',
     re.IGNORECASE,
 )
+# The injected persona file (prod: /opt/data/SOUL.md). Direct write/patch to it is
+# blocked — the only sanctioned mutation is the /tune skill's bounded append, which
+# runs inside its own `python .../tune/scripts/tune.py` process (no /SOUL.md path nor
+# a shell write-op in the command), so this matcher never fires on that path.
+_SOUL_RE = re.compile(r'/SOUL\.md\b', re.IGNORECASE)
 # Shell write/delete operators that indicate a mutation (reads like cat/grep pass).
 _WRITE_OP_RE = re.compile(r'(>>?|(?<!\w)(?:rm|mv|cp|tee|truncate|dd)\b|sed\s+-i)')
 _GIT_PUSH_RE = re.compile(r'\bgit\s+push\b')
@@ -68,6 +73,12 @@ def main() -> None:
                 "Память меняется только через скиллы /capture, /evening, /week — "
                 "или попроси Александра подтвердить изменение в чате."
             )
+        if _SOUL_RE.search(blob):
+            _block(
+                "Прямая запись/патч в персону SOUL.md заблокирована (CEO OS guard). "
+                "Поведение меняется только через скилл /tune (он валидирует правило) — "
+                "или попроси Александра подтвердить изменение в чате."
+            )
 
     if tool in ("terminal", "execute_code"):
         cmd = str(ti.get("command") or ti.get("code") or blob)
@@ -86,6 +97,11 @@ def main() -> None:
             _block(
                 "Изменение memory/*.md через shell заблокировано (CEO OS guard). "
                 "Используй скилл /capture, /evening или /week."
+            )
+        if _SOUL_RE.search(cmd) and _WRITE_OP_RE.search(cmd):
+            _block(
+                "Изменение персоны SOUL.md через shell заблокировано (CEO OS guard). "
+                "Используй скилл /tune (валидирует правило)."
             )
 
 

@@ -35,10 +35,71 @@ sys.path.insert(0, str(_REPO))
 
 _RULE_MAXLEN = 300
 
+# Mirror the persona loader's injection screen so a rule we write can NEVER make
+# load_soul_md() blank the WHOLE persona (self-DoS). Import the live patterns when
+# available (stay in sync); fall back to a local copy for tests / offline.
+try:  # pragma: no cover - import path varies by runtime
+    from agent.prompt_builder import (  # type: ignore
+        _CONTEXT_THREAT_PATTERNS as _LOADER_PATTERNS,
+        _CONTEXT_INVISIBLE_CHARS as _LOADER_INVIS,
+    )
+    _INJECTION_PATTERNS = [p for p, _ in _LOADER_PATTERNS]
+    _INVISIBLE_CHARS = set(_LOADER_INVIS)
+except Exception:  # pragma: no cover
+    _INJECTION_PATTERNS = [
+        r'ignore\s+(previous|all|above|prior)\s+instructions',
+        r'do\s+not\s+tell\s+the\s+user',
+        r'system\s+prompt\s+override',
+        r'disregard\s+(your|all|any)\s+(instructions|rules|guidelines)',
+        r"act\s+as\s+(if|though)\s+you\s+(have\s+no|don't\s+have)\s+(restrictions|limits|rules)",
+        r'<!--[^>]*(?:ignore|override|system|secret|hidden)[^>]*-->',
+    ]
+    _INVISIBLE_CHARS = {chr(c) for c in (
+        0x200b, 0x200c, 0x200d, 0x2060, 0xfeff,
+        0x202a, 0x202b, 0x202c, 0x202d, 0x202e,
+    )}
+
+# Deny-list: a self-tune rule must never be allowed to WEAKEN a hard safety control
+# (privacy guard, send-confirmation, secret disclosure). Such intents are routed to
+# the developer queue instead of silently rewriting the persona. RU + EN.
+_SAFETY_DENYLIST = [
+    r'без\s+подтвержд',
+    r'не\s+спрашива\w*\s+подтвержд',
+    r'не\s+показыва\w*\s+(privacy|приватн|черновик)',
+    r'игнорир\w*\s+(privacy|приватн|guard|защит|правил)',
+    r'(письм|email|событ|сообщен)\w*\s+без\s+подтвержд',
+    r'отправля\w*[^\n]*(письм|email|событ|сообщен)\w*[^\n]*(без|сразу|автоматическ)',
+    r'раскрыва\w*\s+(пароль|секрет|ключ|банк)',
+    r'(disable|bypass|ignore|skip)\b[^\n]*\b(guard|confirm|privacy|safety|rule)',
+    r'always\s+send\b',
+    r'without\s+confirmation',
+]
+
+
+def _rule_is_unsafe(rule: str) -> "str | None":
+    """Return a reason if the rule must NOT be written to the persona, else None.
+
+    Two gates: (1) content that would trip the loader's injection screen and blank
+    the whole persona; (2) rules whose intent is to disable a hard safety control.
+    """
+    for ch in _INVISIBLE_CHARS:
+        if ch in rule:
+            return "invisible-unicode"
+    for pat in _INJECTION_PATTERNS:
+        if re.search(pat, rule, re.IGNORECASE):
+            return "injection-pattern"
+    for pat in _SAFETY_DENYLIST:
+        if re.search(pat, rule, re.IGNORECASE):
+            return "safety-sensitive"
+    return None
+
+
 CORR_HEADER = "## 🎛 Живые корректировки CEO (live, append-only — правила от Александра)"
 CORR_INTRO = (
-    "Правила ниже добавлены самим Александром через /tune. Они имеют ПРИОРИТЕТ над\n"
-    "более ранними инструкциями при конфликте. Применяй их всегда."
+    "Правила ниже добавлены самим Александром через /tune. При конфликте они имеют\n"
+    "ПРИОРИТЕТ над более ранними инструкциями — КРОМЕ жёстких правил безопасности\n"
+    "(privacy guard; подтверждение отправки писем/событий; неразглашение паролей,\n"
+    "банковских и медданных): эти правила через /tune переопределить НЕЛЬЗЯ."
 )
 
 
@@ -64,6 +125,11 @@ def append_rule_to_soul(rule: str, date: str) -> dict:
     rule = " ".join((rule or "").split())[:_RULE_MAXLEN].strip()
     if not rule:
         return {"applied": False, "reason": "empty-rule"}
+    unsafe = _rule_is_unsafe(rule)
+    if unsafe:
+        # Refuse to write: would either blank the persona (injection scan) or
+        # weaken a hard safety control. Caller routes it to human review instead.
+        return {"applied": False, "reason": unsafe}
     path = _soul_path()
     if not path.exists():
         return {"applied": False, "reason": f"soul-missing:{path}"}
@@ -135,9 +201,16 @@ def main() -> int:
         if not args.rule.strip():
             print("ERROR: --rule cannot be empty.", file=sys.stderr)
             return 2
-        kind, text = "правило", args.rule.strip()
+        text = args.rule.strip()
         soul = append_rule_to_soul(text, date)
-        result = {"kind": kind, "applied": soul.get("applied", False), "soul": soul}
+        applied = soul.get("applied", False)
+        reason = soul.get("reason")
+        # A rule refused for safety/injection reasons is NOT silently dropped — it
+        # becomes a flagged item for human review (logged as "правило-отклонено").
+        rejected_unsafe = (not applied and reason in (
+            "safety-sensitive", "injection-pattern", "invisible-unicode"))
+        kind = "правило-отклонено" if rejected_unsafe else "правило"
+        result = {"kind": "правило", "applied": applied, "reason": reason, "soul": soul}
     else:
         if not args.bug.strip():
             print("ERROR: --bug cannot be empty.", file=sys.stderr)
@@ -145,7 +218,7 @@ def main() -> int:
         kind, text = "баг", args.bug.strip()
         result = {"kind": kind, "applied": False, "soul": {"applied": False, "reason": "bug-not-applied"}}
 
-    fid = _feedback_id("rule" if kind == "правило" else "bug")
+    fid = _feedback_id("rule" if kind.startswith("правило") else "bug")
     result["feedback_id"] = fid
     result["log"] = log_feedback(kind, text, fid, now_iso)
     result["sheet_sync"] = mirror_to_sheet(kind, text, fid)

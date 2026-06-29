@@ -318,9 +318,14 @@ def _ensure_hdr(gw, sheet_id: str, hdr_range: str, headers: list[str]) -> bool:
 def build_capture_task_row(cap: dict, capture_id: str, area: str, now_iso: str) -> list[str]:
     # Reuse Задачи schema: task_id, note_id, Дата, Направление, Встреча, Задача,
     # Ответственный, Срок, Статус, Создано. "Заметка" marks a standalone capture.
+    # Free-form context (e.g. "Бухарест") that isn't one of the 12 areas would be
+    # lost otherwise — fold it into the task cell so it survives in the Sheet.
+    content = str(cap.get("content", ""))
+    ctx = str(cap.get("context", "")).strip()
+    task_cell = f"{content} — {ctx}" if ctx and ctx not in content else content
     return [
         capture_id, "", now_iso[:10], area, "Заметка",
-        str(cap.get("content", "")), "", "", "open", now_iso,
+        task_cell, "", "", "open", now_iso,
     ]
 
 

@@ -321,7 +321,15 @@ def test_sync_capture_task_to_zadachi_tab():
     rng, vals = gw.appended[0]
     assert "Задачи" in rng
     assert vals[0][0] == CAP_ID and vals[0][4] == "Заметка"
-    assert vals[0][5] == "Купить лекарства"
+    # free-form context folded into the task cell so it is not lost in the Sheet
+    assert vals[0][5] == "Купить лекарства — Бухарест"
+
+
+def test_sync_capture_task_no_context_keeps_plain_content():
+    gw = FakeGW(headers_present=True)
+    cap = {"type": "task", "context": "", "content": "Позвонить юристу"}
+    sync_capture(cap, None, "SID", gw, NOW, capture_id="cap/x/9-task")
+    assert gw.appended[0][1][0][5] == "Позвонить юристу"
 
 
 def test_sync_capture_decision_to_resheniya_tab():
