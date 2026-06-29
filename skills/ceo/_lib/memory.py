@@ -426,8 +426,11 @@ def route_capture(memo_type: str, context: str, content: str) -> dict[str, str]:
     else:  # insight
         header = "Current Strategic Themes"
         bullet = f"- {content}" + (f" — {context}" if context else "")
+    # Capture ONLY the header line (trailing spaces/tabs, not blank lines) so an
+    # empty section doesn't let `\s*` swallow the blank line and push the bullet
+    # into the NEXT section. Body starts right after the header newline.
     pattern = re.compile(
-        rf"^(##\s+{re.escape(header)}\s*\n)(.*?)(?=\n##\s|\Z)",
+        rf"^(##\s+{re.escape(header)}[ \t]*\n)(.*?)(?=\n##\s|\Z)",
         flags=re.MULTILINE | re.DOTALL,
     )
     m = pattern.search(text)
