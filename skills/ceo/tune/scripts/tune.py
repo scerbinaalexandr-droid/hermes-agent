@@ -29,6 +29,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import unicodedata
 
 _REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(_REPO))
@@ -63,16 +64,24 @@ except Exception:  # pragma: no cover
 # (privacy guard, send-confirmation, secret disclosure). Such intents are routed to
 # the developer queue instead of silently rewriting the persona. RU + EN.
 _SAFETY_DENYLIST = [
-    r'без\s+подтвержд',
-    r'не\s+спрашива\w*\s+подтвержд',
-    r'не\s+показыва\w*\s+(privacy|приватн|черновик)',
-    r'игнорир\w*\s+(privacy|приватн|guard|защит|правил)',
-    r'(письм|email|событ|сообщен)\w*\s+без\s+подтвержд',
-    r'отправля\w*[^\n]*(письм|email|событ|сообщен)\w*[^\n]*(без|сразу|автоматическ)',
-    r'раскрыва\w*\s+(пароль|секрет|ключ|банк)',
-    r'(disable|bypass|ignore|skip)\b[^\n]*\b(guard|confirm|privacy|safety|rule)',
+    # weaken send / action confirmation (RU): без подтверждения/проверки/согласования/
+    # одобрения/разрешения/спроса
+    r'без\s+(подтвержд|проверк|согласован|одобрен|разрешен|спрос)',
+    r'не\s+(спрашива\w*|запрашива\w*|жди\w*|дожида\w*)\s+(подтвержд|разрешен|согласов|одобрен|спрос)',
+    r'не\s+согласов\w*',
+    r'(письм|email|событи|сообщени|календар|встреч|перевод|плат)\w*[^\n]{0,40}(без\s+подтвержд|без\s+согласов|сразу|автоматическ)',
+    r'(отправля|создава|удаля|шли|переводи|плати)\w*[^\n]{0,40}(без\s+подтвержд|без\s+согласов|без\s+разрешен|сразу|автоматическ)',
+    # disclose secrets (RU): показывай/выводи/присылай/сообщай/раскрывай … пароль/секрет/…
+    r'(показыв|вывод|присыл|сообщ|раскрыв|дава|называ)\w*[^\n]{0,30}(парол|секрет|ключ|банк|pin|cvv|реквизит|токен)',
+    # ignore / disable / hide guards (RU)
+    r'игнорир\w*[^\n]{0,30}(privacy|приватн|guard|защит|правил|безопасн|ограничен)',
+    r'не\s+показыв\w*[^\n]{0,20}(privacy|приватн|guard|защит|черновик)',
+    r'(отключ|обход|сними|убери)\w*[^\n]{0,30}(privacy|приватн|guard|защит|ограничен|проверк|подтвержд)',
+    # EN
+    r'(disable|bypass|ignore|skip|turn\s+off|override)\b[^\n]{0,30}\b(guard|confirm|privacy|safety|rule|restriction|check)',
     r'always\s+send\b',
-    r'without\s+confirmation',
+    r'without\s+(confirmation|asking|approval|permission)',
+    r'(reveal|show|print|expose)\b[^\n]{0,30}(password|secret|api\s*key|token|bank)',
 ]
 
 
@@ -81,15 +90,19 @@ def _rule_is_unsafe(rule: str) -> "str | None":
 
     Two gates: (1) content that would trip the loader's injection screen and blank
     the whole persona; (2) rules whose intent is to disable a hard safety control.
+    Text is NFKC-normalized so fullwidth / homoglyph / decomposed unicode can't slip
+    a banned phrase past the patterns.
     """
+    raw = rule or ""
     for ch in _INVISIBLE_CHARS:
-        if ch in rule:
+        if ch in raw:
             return "invisible-unicode"
+    norm = unicodedata.normalize("NFKC", " ".join(raw.split()))
     for pat in _INJECTION_PATTERNS:
-        if re.search(pat, rule, re.IGNORECASE):
+        if re.search(pat, norm, re.IGNORECASE):
             return "injection-pattern"
     for pat in _SAFETY_DENYLIST:
-        if re.search(pat, rule, re.IGNORECASE):
+        if re.search(pat, norm, re.IGNORECASE):
             return "safety-sensitive"
     return None
 

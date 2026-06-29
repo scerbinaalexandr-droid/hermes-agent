@@ -12,6 +12,8 @@ from skills.ceo._lib.sheets_meeting_sync import (
     TASK_HEADERS,
     TASKS_HDR_RANGE,
     TRIP_HEADERS,
+    _as_list,
+    _sanitize_cell,
     build_diary_row,
     build_meeting_row,
     build_protocol_row,
@@ -302,6 +304,43 @@ def test_gw_get_empty(monkeypatch):
     _patch_run(monkeypatch, "[]")
     gw = m.GoogleApiGW("/path/google_api.py")
     assert gw.get("SID", "Протоколы!A:A") == []
+
+
+# --- hardening: formula injection / non-list / bad-json -------------------
+def test_sanitize_cell_neutralizes_formulas():
+    assert _sanitize_cell('=IMPORTDATA("x")') == "'=IMPORTDATA(\"x\")"
+    assert _sanitize_cell("+cmd") == "'+cmd"
+    assert _sanitize_cell("@x") == "'@x"
+    assert _sanitize_cell("-cmd") == "'-cmd"  # leading dash, non-numeric → escaped
+    assert _sanitize_cell("-5") == "-5"        # negative number preserved
+    assert _sanitize_cell("обычный текст") == "обычный текст"
+
+
+def test_gw_append_sanitizes(monkeypatch):
+    captured = {}
+
+    def fake_run(self, *args):
+        captured["args"] = args
+        return ""
+    monkeypatch.setattr(m.GoogleApiGW, "_run", fake_run)
+    gw = m.GoogleApiGW("/p")
+    gw.append("SID", "Задачи!A:J", [["=EVIL()", "ok"]])
+    assert "'=EVIL()" in captured["args"][-1]  # formula escaped in the JSON values
+
+
+def test_as_list_coerces_string():
+    assert _as_list("CFO") == ["CFO"] and _as_list(None) == [] and _as_list(["a"]) == ["a"]
+
+
+def test_protocol_row_string_participants_not_char_split():
+    row = build_protocol_row(dict(NOTE, participants="CFO"), NID, "Health", NOW)
+    assert row[5] == "CFO"  # NOT "C; F; O"
+
+
+def test_main_bad_json_clean_exit(monkeypatch, capsys):
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    rc = m.main(["--capture", "--save", "{bad json", "--note-id", "x"])
+    assert rc == 2 and "JSON" in capsys.readouterr().err
 
 
 def test_gw_raises_on_nonzero(monkeypatch):

@@ -37,11 +37,18 @@ _MEM_RE = re.compile(
 )
 # The injected persona file (prod: /opt/data/SOUL.md). Direct write/patch to it is
 # blocked — the only sanctioned mutation is the /tune skill's bounded append, which
-# runs inside its own `python .../tune/scripts/tune.py` process (no /SOUL.md path nor
-# a shell write-op in the command), so this matcher never fires on that path.
-_SOUL_RE = re.compile(r'/SOUL\.md\b', re.IGNORECASE)
+# runs inside its own `python .../tune/scripts/tune.py` process (no SOUL.md path nor a
+# write-op in the command), so this matcher never fires on that path. Matches the bare
+# basename too (e.g. `cd /opt/data && echo x >> SOUL.md`).
+_SOUL_RE = re.compile(r'\bSOUL\.md\b', re.IGNORECASE)
 # Shell write/delete operators that indicate a mutation (reads like cat/grep pass).
 _WRITE_OP_RE = re.compile(r'(>>?|(?<!\w)(?:rm|mv|cp|tee|truncate|dd)\b|sed\s+-i)')
+# Python write APIs inside execute_code / a -c one-liner (shell write-ops alone miss
+# these): open(..., "w"/"a"/"x"/"+"), .write_text(, .write_bytes(.
+_PY_WRITE_RE = re.compile(
+    r'''open\s*\([^)]*['"][wax+]|\.write_text\s*\(|\.write_bytes\s*\(''',
+    re.IGNORECASE,
+)
 _GIT_PUSH_RE = re.compile(r'\bgit\s+push\b')
 # curl/wget uploading a local file to a URL.
 _EXFIL_RE = re.compile(
@@ -93,14 +100,14 @@ def main() -> None:
                 "(CEO OS guard — защита от exfiltration). Если это легитимная "
                 "загрузка — попроси Александра."
             )
-        if _MEM_RE.search(cmd) and _WRITE_OP_RE.search(cmd):
+        if _MEM_RE.search(cmd) and (_WRITE_OP_RE.search(cmd) or _PY_WRITE_RE.search(cmd)):
             _block(
-                "Изменение memory/*.md через shell заблокировано (CEO OS guard). "
+                "Изменение memory/*.md через shell/код заблокировано (CEO OS guard). "
                 "Используй скилл /capture, /evening или /week."
             )
-        if _SOUL_RE.search(cmd) and _WRITE_OP_RE.search(cmd):
+        if _SOUL_RE.search(cmd) and (_WRITE_OP_RE.search(cmd) or _PY_WRITE_RE.search(cmd)):
             _block(
-                "Изменение персоны SOUL.md через shell заблокировано (CEO OS guard). "
+                "Изменение персоны SOUL.md через shell/код заблокировано (CEO OS guard). "
                 "Используй скилл /tune (валидирует правило)."
             )
 

@@ -122,6 +122,26 @@ def _norm(s: object) -> str:
     return re.sub(r"\s+", " ", str(s or "").strip().lower())
 
 
+def _as_list(v: object) -> list:
+    """Coerce a field to a list. A bare string would otherwise be iterated by
+    CHARACTER (e.g. "CFO" → ["C","F","O"]) when joined into a cell."""
+    if v is None:
+        return []
+    if isinstance(v, list):
+        return v
+    return [str(v)]
+
+
+def _sanitize_cell(v: object) -> str:
+    """Neutralize spreadsheet formula injection: a cell starting with = + @ (or a
+    non-numeric -) is interpreted as a formula under USER_ENTERED. Prefix ' so
+    user/LLM-supplied content like '=IMPORTDATA(...)' lands as literal text."""
+    s = str(v)
+    if s and (s[0] in ("=", "+", "@") or (s[0] == "-" and not s[1:2].isdigit())):
+        return "'" + s
+    return s
+
+
 def classify_area(area_hint: str | None, text: str) -> str:
     """Explicit tag `по <area>:` / `#<area>` wins, else valid LLM hint, else fallback."""
     ntext = _norm(text)
@@ -157,15 +177,15 @@ def parse_action_item(s: str) -> tuple[str, str, str]:
 
 
 def build_protocol_row(note: dict, note_id: str, area: str, now_iso: str) -> list[str]:
-    ai = note.get("action_items") or []
-    decisions = note.get("decisions") or []
+    ai = _as_list(note.get("action_items"))
+    decisions = _as_list(note.get("decisions"))
     return [
         note_id,
         note.get("date", ""),
         _time_from_note_id(note_id),
         area,
         note.get("topic", ""),
-        "; ".join(note.get("participants") or []),
+        "; ".join(str(p) for p in _as_list(note.get("participants"))),
         note.get("summary", ""),
         " ".join(f"{i + 1}) {d}" for i, d in enumerate(decisions)),
         str(len(ai)),
@@ -175,7 +195,7 @@ def build_protocol_row(note: dict, note_id: str, area: str, now_iso: str) -> lis
 
 def build_task_rows(note: dict, note_id: str, area: str, now_iso: str) -> list[list[str]]:
     rows = []
-    for i, item in enumerate(note.get("action_items") or []):
+    for i, item in enumerate(_as_list(note.get("action_items"))):
         owner, due, task = parse_action_item(item)
         rows.append([
             f"{note_id}#{i}", note_id, note.get("date", ""), area,
@@ -212,12 +232,14 @@ class GoogleApiGW:
         return data if isinstance(data, list) else []
 
     def append(self, sheet_id: str, rng: str, values: list[list[str]]) -> None:
+        safe = [[_sanitize_cell(c) for c in row] for row in values]
         self._run("sheets", "append", sheet_id, rng,
-                  "--values", json.dumps(values, ensure_ascii=False))
+                  "--values", json.dumps(safe, ensure_ascii=False))
 
     def update(self, sheet_id: str, rng: str, values: list[list[str]]) -> None:
+        safe = [[_sanitize_cell(c) for c in row] for row in values]
         self._run("sheets", "update", sheet_id, rng,
-                  "--values", json.dumps(values, ensure_ascii=False))
+                  "--values", json.dumps(safe, ensure_ascii=False))
 
     def ensure_tab(self, sheet_id: str, title: str) -> None:
         self._run("sheets", "ensure-tab", sheet_id, title)
@@ -277,8 +299,8 @@ def _trip_days(start: str, end: str) -> str:
 def build_trip_row(trip: dict, trip_id: str, area: str, now_iso: str) -> list[str]:
     start = str(trip.get("start_date", "") or "")
     end = str(trip.get("end_date", "") or "")
-    agenda = trip.get("agenda") or []
-    actions = trip.get("action_items") or []
+    agenda = _as_list(trip.get("agenda"))
+    actions = _as_list(trip.get("action_items"))
     return [
         trip_id,
         now_iso[:10],
@@ -527,6 +549,15 @@ def main(argv=None) -> int:
         )
         return 2
 
+    # Parse --save ONCE, with a controlled error (not a raw traceback) on bad JSON.
+    parsed = None
+    if a.save:
+        try:
+            parsed = json.loads(a.save)
+        except json.JSONDecodeError as exc:
+            sys.stderr.write(f"--save expects valid JSON ({exc})\n")
+            return 2
+
     if a.selftest:
         import traceback as _tb
         note = {
@@ -544,7 +575,7 @@ def main(argv=None) -> int:
             return 3
 
     if a.diary:
-        entry = json.loads(a.save) if a.save else {}
+        entry = parsed or {}
         try:
             res = sync_diary_entry(entry, sheet_id, GoogleApiGW(), _now_iso(), dry_run=a.dry_run)
             print(json.dumps(res, ensure_ascii=False))
@@ -560,7 +591,7 @@ def main(argv=None) -> int:
         if not a.save or not a.note_id:
             sys.stderr.write("--save and --note-id are required for --trip\n")
             return 2
-        trip = json.loads(a.save)
+        trip = parsed
         try:
             res = sync_trip(trip, a.area, sheet_id, GoogleApiGW(), _now_iso(),
                             trip_id=a.note_id, dry_run=a.dry_run)
@@ -577,7 +608,7 @@ def main(argv=None) -> int:
         if not a.save or not a.note_id:
             sys.stderr.write("--save and --note-id are required for --capture\n")
             return 2
-        cap = json.loads(a.save)
+        cap = parsed
         try:
             res = sync_capture(cap, a.area, sheet_id, GoogleApiGW(), _now_iso(),
                                capture_id=a.note_id, dry_run=a.dry_run)
@@ -594,7 +625,7 @@ def main(argv=None) -> int:
         if not a.save or not a.note_id:
             sys.stderr.write("--save and --note-id are required for --feedback\n")
             return 2
-        fb = json.loads(a.save)
+        fb = parsed
         try:
             res = sync_feedback(fb, sheet_id, GoogleApiGW(), _now_iso(),
                                 feedback_id=a.note_id, dry_run=a.dry_run)
@@ -611,7 +642,7 @@ def main(argv=None) -> int:
         if not a.save or not a.note_id:
             sys.stderr.write("--save and --note-id are required for --meeting\n")
             return 2
-        mtg = json.loads(a.save)
+        mtg = parsed
         try:
             res = sync_meeting(mtg, sheet_id, GoogleApiGW(), _now_iso(),
                                meeting_id=a.note_id, dry_run=a.dry_run)
@@ -628,7 +659,7 @@ def main(argv=None) -> int:
         sys.stderr.write("--save and --note-id are required (or use --selftest)\n")
         return 2
 
-    note = json.loads(a.save)
+    note = parsed
     try:
         res = sync_note(note, a.area, sheet_id, GoogleApiGW(), _now_iso(),
                         note_id=a.note_id, dry_run=a.dry_run)

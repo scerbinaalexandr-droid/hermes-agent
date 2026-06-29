@@ -47,3 +47,28 @@ def test_memory_md_still_blocked():
     out = _run({"tool_name": "write_file",
                 "tool_input": {"path": "memory/soul.md", "content": "x"}})
     assert _blocked(out)
+
+
+def test_python_open_write_to_soul_blocked():
+    out = _run({"tool_name": "execute_code",
+                "tool_input": {"code": "open('/opt/data/SOUL.md','w').write('x')"}})
+    assert _blocked(out)
+
+
+def test_cd_relative_redirect_to_soul_blocked():
+    out = _run({"tool_name": "terminal",
+                "tool_input": {"command": "cd /opt/data && echo hi >> SOUL.md"}})
+    assert _blocked(out)
+
+
+def test_write_text_to_soul_blocked():
+    out = _run({"tool_name": "execute_code",
+                "tool_input": {"code": "import pathlib; pathlib.Path('/opt/data/SOUL.md').write_text('x')"}})
+    assert _blocked(out)
+
+
+def test_tune_subprocess_with_soul_word_in_rule_allowed():
+    # a rule that mentions "SOUL.md" but runs via tune.py (no write-op) must NOT block
+    out = _run({"tool_name": "terminal",
+                "tool_input": {"command": "python /opt/hermes/skills/ceo/tune/scripts/tune.py --rule \"не пиши про SOUL.md\""}})
+    assert not _blocked(out)

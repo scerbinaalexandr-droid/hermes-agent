@@ -1248,7 +1248,11 @@ class TelegramAdapter(BasePlatformAdapter):
             if p.exists():
                 data = json.loads(p.read_text(encoding="utf-8"))
                 if isinstance(data, dict):
-                    self._menu_modes = {str(k): str(v) for k, v in data.items()}
+                    # validate values to a known set (defends against a corrupt file)
+                    self._menu_modes = {
+                        str(k): ("personal" if str(v) == "personal" else "work")
+                        for k, v in data.items()
+                    }
         except Exception:
             self._menu_modes = {}
         return self._menu_modes
@@ -1262,7 +1266,11 @@ class TelegramAdapter(BasePlatformAdapter):
         try:
             p = self._menu_mode_path()
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(json.dumps(modes, ensure_ascii=False), encoding="utf-8")
+            # atomic write: a crash mid-write must not leave truncated JSON that
+            # _load_menu_modes would reject (resetting every chat to work-mode).
+            tmp = p.with_name(p.name + ".tmp")
+            tmp.write_text(json.dumps(modes, ensure_ascii=False), encoding="utf-8")
+            os.replace(tmp, p)
         except Exception:
             pass
 

@@ -28,8 +28,13 @@ sys.path.insert(0, str(_REPO))
 if pathlib.Path("/opt/hermes/skills/ceo/_lib/memory.py").exists() and "/opt/hermes" not in sys.path:
     sys.path.insert(0, "/opt/hermes")
 
-# EEST (Chisinau summer) — matches the "CEO Brief 07:30 EEST" cron convention.
-TZ = _dt.timezone(_dt.timedelta(hours=3))
+# Real Chisinau tz (handles EET/EEST DST). Fall back to a fixed +03:00 offset only
+# if the tz database is unavailable (correct in summer; matches the brief cron).
+try:
+    from zoneinfo import ZoneInfo
+    TZ = ZoneInfo("Europe/Chisinau")
+except Exception:  # pragma: no cover - tzdata missing
+    TZ = _dt.timezone(_dt.timedelta(hours=3))
 
 
 def _today_bounds() -> tuple[str, str, str]:
@@ -79,7 +84,11 @@ def cmd_gather() -> dict:
 
 
 def cmd_save(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        return {"saved": False, "reason": "payload-not-dict", "count": 0}
     meetings = payload.get("meetings") or []
+    if not isinstance(meetings, list):
+        return {"saved": False, "reason": "meetings-not-list", "count": 0}
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
     if not sheet_id:
         return {"saved": False, "reason": "no-sheet-configured", "count": 0}
@@ -91,6 +100,9 @@ def cmd_save(payload: dict) -> dict:
     now = _now_iso()
     results = []
     for m in meetings:
+        if not isinstance(m, dict):
+            results.append({"meeting_written": False, "reason": "invalid-meeting-item"})
+            continue
         mid = (m.get("meeting_id")
                or f"{m.get('date', '')}/{m.get('time', '')}/{m.get('title', '')}").strip("/")
         try:
