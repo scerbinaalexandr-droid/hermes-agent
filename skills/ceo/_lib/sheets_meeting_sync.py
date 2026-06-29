@@ -96,6 +96,13 @@ IDEA_HEADERS = ["idea_id", "Дата", "Направление", "Контекс
 
 CAPTURE_TASKS_ID_RANGE = f"{TASKS_TAB}!A:A"  # capture tasks dedupe by task_id in Задачи
 
+# Feedback / corrections (/tune): self-tune rules + dev bug reports, for audit.
+FEEDBACK_TAB = "Корректировки"
+FEEDBACK_RANGE = f"{FEEDBACK_TAB}!A:F"
+FEEDBACK_HDR_RANGE = f"{FEEDBACK_TAB}!A1:F1"
+FEEDBACK_ID_RANGE = f"{FEEDBACK_TAB}!A:A"
+FEEDBACK_HEADERS = ["feedback_id", "Дата", "Тип", "Текст", "Статус", "Создано"]
+
 GOOGLE_API = os.environ.get(
     "HERMES_GOOGLE_API",
     "/opt/hermes/skills/productivity/google-workspace/scripts/google_api.py",
@@ -368,6 +375,27 @@ def sync_capture(cap: dict, area_hint: str | None, sheet_id: str, gw,
     return {"capture_written": True, "skipped": False, "tab": tab, "area": area}
 
 
+def build_feedback_row(fb: dict, feedback_id: str, now_iso: str) -> list[str]:
+    kind = str(fb.get("kind", "")) or "правило"
+    status = "open" if kind == "баг" else "applied"
+    return [feedback_id, now_iso[:10], kind, str(fb.get("text", "")), status, now_iso]
+
+
+def sync_feedback(fb: dict, sheet_id: str, gw, now_iso: str,
+                  *, feedback_id: str, dry_run: bool = False) -> dict:
+    """Append a /tune entry (rule or bug) to the Корректировки tab. Idempotent by id."""
+    if not dry_run:
+        gw.ensure_tab(sheet_id, FEEDBACK_TAB)
+    existing = {r[0] for r in gw.get(sheet_id, FEEDBACK_ID_RANGE) if r}
+    if feedback_id in existing:
+        return {"feedback_written": False, "skipped": True}
+    row = build_feedback_row(fb, feedback_id, now_iso)
+    if not dry_run:
+        _ensure_hdr(gw, sheet_id, FEEDBACK_HDR_RANGE, FEEDBACK_HEADERS)
+        gw.append(sheet_id, FEEDBACK_RANGE, [row])
+    return {"feedback_written": True, "skipped": False}
+
+
 def sync_note(note: dict, area_hint: str | None, sheet_id: str, gw,
               now_iso: str, *, note_id: str, dry_run: bool = False) -> dict:
     """Idempotent: skip if note_id already in Протоколы!A:A. Returns a summary."""
@@ -422,6 +450,8 @@ def main(argv=None) -> int:
     ap.add_argument("--capture", action="store_true",
                     help="Treat --save payload as a standalone capture "
                          "(task→Задачи / decision→Решения / insight→Идеи)")
+    ap.add_argument("--feedback", action="store_true",
+                    help="Treat --save payload as a /tune feedback entry → Корректировки tab")
     a = ap.parse_args(argv)
 
     sheet_id = os.environ.get("HERMES_MEETING_SHEET_ID")
@@ -491,6 +521,23 @@ def main(argv=None) -> int:
             log_sync_error(f"capture id={a.note_id}: {exc}")
             print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
                               "warning": "⚠️ заметка сохранена, но не записана в Sheet"},
+                             ensure_ascii=False))
+            return 3
+
+    if a.feedback:
+        if not a.save or not a.note_id:
+            sys.stderr.write("--save and --note-id are required for --feedback\n")
+            return 2
+        fb = json.loads(a.save)
+        try:
+            res = sync_feedback(fb, sheet_id, GoogleApiGW(), _now_iso(),
+                                feedback_id=a.note_id, dry_run=a.dry_run)
+            print(json.dumps(res, ensure_ascii=False))
+            return 0
+        except Exception as exc:
+            log_sync_error(f"feedback id={a.note_id}: {exc}")
+            print(json.dumps({"sheets_error": str(exc)[:200], "note_saved": True,
+                              "warning": "⚠️ корректировка записана локально, но не в Sheet"},
                              ensure_ascii=False))
             return 3
 

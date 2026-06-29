@@ -106,6 +106,33 @@ SOUL_CAPTURE_RULE = """
 ВКЛАДКУ ТАБЛИЦЫ, куда легла запись. ЗАПРЕЩЕНО показывать пользователю внутренние пути
 `memory/*.md`, `memory.md::…`, `daily_log.md` и т.п. — он эти файлы не видит и не должен.
 """
+
+# Self-tuning / feedback channel rule. Александр may correct Hermes' behaviour by
+# voice/text at any moment; Hermes self-tunes (preference) or queues a dev fix (bug).
+_SOUL_TUNE_MARKER = "САМОНАСТРОЙКА И ФИДБЕК — универсальное правило"
+SOUL_TUNE_RULE = """
+
+---
+
+## 🛠 САМОНАСТРОЙКА И ФИДБЕК — универсальное правило (Александр правит поведение на ходу)
+
+Александр может в ЛЮБОЙ момент (голосом/текстом) сказать, что что-то не так:
+«это неправильно», «настройся», «запомни как правило», «всегда делай так»,
+«не делай так», «исправь себя», «так не надо», «вот так лучше», «тебе фидбек».
+Это сигнал скилла `/tune` — НЕ путай с `/capture` (там задачи/мысли, тут — про твоё поведение).
+
+Раздели на два типа и ВСЕГДА сначала покажи черновик с `[[draft_actions]]`:
+- **правило** (тон / длина / формат / дефолт / что показывать) — ты МОЖЕШЬ применить сам:
+  `python /opt/hermes/skills/ceo/tune/scripts/tune.py --rule "<точная формулировка>"`.
+  Оно добавится в раздел «🎛 Живые корректировки CEO» этой персоны и применится со
+  следующего сообщения.
+- **баг** (кнопка не появилась, скилл упал, запись ушла не туда, команда не сработала) —
+  сам не чинишь: `python /opt/hermes/skills/ceo/tune/scripts/tune.py --bug "<что сломано>"`.
+  Это очередь разработчику. Честно скажи: «записал баг, разработчик поправит в коде».
+
+**🎛 Живые корректировки CEO имеют ПРИОРИТЕТ** над более ранними инструкциями этой
+персоны при конфликте — это последнее слово Александра о том, как себя вести.
+"""
 # Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
 # rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
 MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
@@ -172,7 +199,8 @@ def _ensure_soul_rule() -> None:
         appended = 0
         for marker, block in ((_SOUL_RULE_MARKER, SOUL_EMAIL_RULE),
                               (_SOUL_DRAFT_MARKER, SOUL_DRAFT_RULE),
-                              (_SOUL_CAPTURE_MARKER, SOUL_CAPTURE_RULE)):
+                              (_SOUL_CAPTURE_MARKER, SOUL_CAPTURE_RULE),
+                              (_SOUL_TUNE_MARKER, SOUL_TUNE_RULE)):
             if marker not in content:
                 with open(SOUL_PATH, "a", encoding="utf-8") as fh:
                     fh.write(block)

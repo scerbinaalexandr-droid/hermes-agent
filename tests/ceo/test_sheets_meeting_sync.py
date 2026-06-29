@@ -21,6 +21,7 @@ from skills.ceo._lib.sheets_meeting_sync import (
     parse_action_item,
     sync_capture,
     sync_diary_entry,
+    sync_feedback,
     sync_note,
     sync_trip,
 )
@@ -376,3 +377,39 @@ def test_main_capture_success(monkeypatch, capsys):
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert out["capture_written"] and out["tab"] == "Задачи"
+
+
+# --- feedback (/tune corrections) -------------------------------------------
+FB_ID = "fb/2026-06-29/072000-rule"
+
+
+def test_sync_feedback_appends_to_korrektirovki():
+    gw = FakeGW(headers_present=True)
+    res = sync_feedback({"kind": "правило", "text": "пиши короче"}, "SID", gw, NOW, feedback_id=FB_ID)
+    assert res["feedback_written"] and not res["skipped"]
+    rng, vals = gw.appended[0]
+    assert "Корректировки" in rng
+    assert vals[0][0] == FB_ID and vals[0][2] == "правило" and vals[0][4] == "applied"
+    assert "Корректировки" in gw.tabs_ensured
+
+
+def test_sync_feedback_bug_status_open():
+    gw = FakeGW(headers_present=True)
+    res = sync_feedback({"kind": "баг", "text": "нет кнопок"}, "SID", gw, NOW, feedback_id="fb/x/1-bug")
+    assert res["feedback_written"]
+    assert gw.appended[0][1][0][4] == "open"  # bug starts open
+
+
+def test_sync_feedback_idempotent_skip():
+    gw = FakeGW(existing_ids=[FB_ID], headers_present=True)
+    res = sync_feedback({"kind": "правило", "text": "дубль"}, "SID", gw, NOW, feedback_id=FB_ID)
+    assert res["skipped"] and not res["feedback_written"] and gw.appended == []
+
+
+def test_main_feedback_success(monkeypatch, capsys):
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    monkeypatch.setattr(m, "GoogleApiGW", lambda *a, **k: FakeGW(headers_present=True))
+    fb = {"kind": "правило", "text": "обращайся на ты"}
+    rc = m.main(["--feedback", "--save", json.dumps(fb), "--note-id", FB_ID])
+    assert rc == 0
+    assert json.loads(capsys.readouterr().out)["feedback_written"]

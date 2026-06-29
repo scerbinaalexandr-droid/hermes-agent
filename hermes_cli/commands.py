@@ -714,6 +714,7 @@ _CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
     "find",                              # view / search
     "report", "dashboard",               # share artefacts
     "birthday",                          # personal
+    "tune",                              # feedback / self-adjustment
     "backup",                            # admin
 })
 
