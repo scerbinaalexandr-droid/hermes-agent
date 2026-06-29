@@ -712,6 +712,7 @@ _CEO_TELEGRAM_MENU_NAMES: frozenset[str] = frozenset({
     "brief", "evening", "week",          # day / ritual
     "capture", "notes", "diary", "trip", # voice-first capture
     "prep",                              # meeting agenda prep
+    "tasks",                             # open-task follow-up
     "find",                              # view / search
     "report", "dashboard",               # share artefacts
     "birthday",                          # personal
