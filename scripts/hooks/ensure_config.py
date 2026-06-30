@@ -138,6 +138,31 @@ privacy guard (пароли/банк/медданные/семейные име�
 переопределить НЕЛЬЗЯ; если корректировка пытается их ослабить — НЕ применяй её,
 оформи как баг разработчику и честно скажи об этом.
 """
+
+# Clean user-facing output — never leak technical/diagnostic noise into messages.
+# Александр reads every message; logging errors, guard notes, file paths, stack
+# traces etc. spoil readability and feel unpleasant (his explicit feedback,
+# 2026-06-30). Internal failures must be handled silently, not narrated to him.
+_SOUL_CLEAN_MARKER = "ЧИСТЫЕ СООБЩЕНИЯ — универсальное правило"
+SOUL_CLEAN_RULE = """
+
+---
+
+## 🧼 ЧИСТЫЕ СООБЩЕНИЯ — универсальное правило (никаких тех-данных в тексте пользователю)
+
+Александр читает КАЖДОЕ сообщение. Технический шум портит текст и неприятен ему.
+ЗАПРЕЩЕНО включать в сообщения любые служебные/технические данные: ошибки и заметки
+логирования («logging note», «не удалось записать в logs/…»), сообщения guard'а, пути
+к файлам, имена инструментов/полей/таблиц как тех-детали, stack traces, коды ошибок,
+статусы внутренних записей, фразы вида «skill инструкции устарели» и т.п.
+
+Если внутренняя операция (логирование, запись в файл/таблицу, sync) не удалась —
+обработай это МОЛЧА: это твоя внутренняя кухня, НЕ докладывай о ней Александру.
+Сообщение содержит ТОЛЬКО то, что полезно и приятно ему как человеку.
+
+Если поломка реально влияет на него — скажи ОДНОЙ короткой человеческой фразой без
+тех-подробностей и оформи баг разработчику через `/tune` (см. правило самонастройки).
+"""
 # Use a DATED Anthropic snapshot — the bare alias `claude-sonnet-4-6` is
 # rejected by the Anthropic API ("not a valid model ID", incident 2026-05-24).
 MODEL_FALLBACK = "claude-sonnet-4-5-20250929"
@@ -205,7 +230,8 @@ def _ensure_soul_rule() -> None:
         for marker, block in ((_SOUL_RULE_MARKER, SOUL_EMAIL_RULE),
                               (_SOUL_DRAFT_MARKER, SOUL_DRAFT_RULE),
                               (_SOUL_CAPTURE_MARKER, SOUL_CAPTURE_RULE),
-                              (_SOUL_TUNE_MARKER, SOUL_TUNE_RULE)):
+                              (_SOUL_TUNE_MARKER, SOUL_TUNE_RULE),
+                              (_SOUL_CLEAN_MARKER, SOUL_CLEAN_RULE)):
             if marker not in content:
                 with open(SOUL_PATH, "a", encoding="utf-8") as fh:
                     fh.write(block)
