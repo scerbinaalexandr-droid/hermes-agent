@@ -30,6 +30,9 @@ def test_gather_reads_focus(monkeypatch):
         def __init__(self, *a, **k):
             pass
 
+        def ensure_tab(self, *a, **k):
+            pass
+
         def get(self, sid, rng):
             return [["focus_id", "Дата", "Фокус", "Создано"],
                     ["f1", "2026-06-29", "Я спокоен и собран", "x"],
@@ -38,6 +41,31 @@ def test_gather_reads_focus(monkeypatch):
     monkeypatch.setattr(sms, "GoogleApiGW", FakeGW)
     out = mo.cmd_gather()
     assert out["count"] == 2 and out["focus"] == ["Я спокоен и собран", "Фокус на главном"]
+
+
+def test_gather_self_creates_missing_tab(monkeypatch):
+    """First-ever run: Фокус tab absent → ensure_tab creates it, read returns
+    empty → clean count 0 with NO scary google_api error (the 2026-06-30 bug)."""
+    monkeypatch.setenv("HERMES_MEETING_SHEET_ID", "SID")
+    import skills.ceo._lib.sheets_meeting_sync as sms
+
+    calls = {"ensure_tab": 0}
+
+    class FakeGW:
+        def __init__(self, *a, **k):
+            pass
+
+        def ensure_tab(self, sid, title):
+            calls["ensure_tab"] += 1
+
+        def get(self, sid, rng):
+            return []  # freshly created empty tab
+
+    monkeypatch.setattr(sms, "GoogleApiGW", FakeGW)
+    out = mo.cmd_gather()
+    assert calls["ensure_tab"] == 1            # tab self-created before reading
+    assert out["count"] == 0 and out["focus"] == []
+    assert "reason" not in out                 # no "google_api failed" surfaced
 
 
 def test_save_validation(monkeypatch):

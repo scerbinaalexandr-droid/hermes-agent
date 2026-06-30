@@ -67,7 +67,13 @@ def cmd_gather() -> dict:
         return out
     try:
         from skills.ceo._lib.sheets_meeting_sync import GoogleApiGW, FOCUS_TAB
-        rows = GoogleApiGW(_google_api()).get(sheet_id, f"{FOCUS_TAB}!A:D")
+        gw = GoogleApiGW(_google_api())
+        # First-ever run: the Фокус tab won't exist yet, and reading a missing
+        # tab makes Sheets return HTTP 400 ("Unable to parse range") — which
+        # surfaced as a scary "google_api failed" instead of a clean "no focus
+        # set yet". Self-create the tab (parity with sync_focus on the save side).
+        gw.ensure_tab(sheet_id, FOCUS_TAB)
+        rows = gw.get(sheet_id, f"{FOCUS_TAB}!A:D")
         focus = [r[2].strip() for r in rows[1:] if len(r) > 2 and r[2].strip()]
         out["focus"] = focus
         out["count"] = len(focus)
