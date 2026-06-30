@@ -175,6 +175,29 @@ def _datetime_with_timezone(value: str) -> str:
     return value + "Z"
 
 
+def _persist_refreshed_token(creds) -> None:
+    """Cache a refreshed token back to disk.
+
+    Best-effort: a persist failure (e.g. wrong file ownership on a shared
+    volume) must NOT take down the caller — the in-memory credentials are
+    still valid for this run. Crashing here previously broke every cron that
+    ran after the access token expired.
+    """
+    try:
+        TOKEN_PATH.write_text(
+            json.dumps(
+                _normalize_authorized_user_payload(json.loads(creds.to_json())),
+                indent=2,
+            )
+        )
+    except OSError as exc:
+        print(
+            f"WARNING: could not persist refreshed Google token ({exc}); "
+            "continuing with in-memory credentials",
+            file=sys.stderr,
+        )
+
+
 def get_credentials():
     """Load and refresh credentials from token file."""
     _ensure_authenticated()
@@ -185,12 +208,7 @@ def get_credentials():
     creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), _stored_token_scopes())
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        TOKEN_PATH.write_text(
-            json.dumps(
-                _normalize_authorized_user_payload(json.loads(creds.to_json())),
-                indent=2,
-            )
-        )
+        _persist_refreshed_token(creds)
     if not creds.valid:
         print("Token is invalid. Re-run setup.", file=sys.stderr)
         sys.exit(1)
