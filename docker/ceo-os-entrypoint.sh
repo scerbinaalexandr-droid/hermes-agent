@@ -135,7 +135,20 @@ done
 # the cron/ dir as a single file in some Hermes setups).
 [ -f "$HERMES_HOME/cron/jobs.json" ] && chown "$HERMES_UID:$HERMES_GID" "$HERMES_HOME/cron/jobs.json" 2>/dev/null || true
 
-echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership on CEO data dirs (memory, logs, backups, reports, cron)"
+# Self-heal ALL ownership across the volume. The per-dir chowns above miss
+# top-level files like google_token.json / google_client_secret.json — when
+# one ends up root-owned (e.g. created in an `ssh`-as-root session), the hermes
+# app silently loses Google access or goes cron-blind until someone notices.
+# Sweep every path NOT already owned by hermes and chown it back. Cheap:
+# `! -user` skips the (vast) majority already correct; lost+found stays root
+# for fsck. Makes ownership drift self-correcting on every boot — the root
+# cause of the 2026-06-30 google_token.json + cron/jobs.json outages.
+find "$HERMES_HOME" -mindepth 1 \
+     -path "$HERMES_HOME/lost+found" -prune -o \
+     \( ! -user "$HERMES_UID" -exec chown -h "$HERMES_UID:$HERMES_GID" {} + \) \
+     2>/dev/null || true
+
+echo "[ceo-os-init] Ensured $HERMES_UID:$HERMES_GID ownership across $HERMES_HOME (CEO dirs + self-heal of any root-owned files)"
 
 # ---- 3. Point skills/ceo/_lib/memory.py at persistent volume ----------------
 export HERMES_CEO_MEMORY_ROOT="$HERMES_HOME/memory"
