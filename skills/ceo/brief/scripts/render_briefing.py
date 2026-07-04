@@ -96,13 +96,28 @@ def main() -> int:
     group.add_argument("--log", metavar="TEXT", help="Append final briefing TEXT to logs.")
     args = parser.parse_args()
 
+    # Guard both paths: assert_memory_present() raises MemoryError if a memory
+    # file is missing (volume mount blip, root-ownership incident, first boot).
+    # Emit a clean JSON error the skill can phrase for the user instead of
+    # letting a raw Python traceback abort the morning brief.
     if args.collect:
-        json.dump(collect(), sys.stdout, ensure_ascii=False, indent=2)
+        try:
+            data = collect()
+        except Exception as e:
+            json.dump({"error": str(e)[:200]}, sys.stdout, ensure_ascii=False)
+            sys.stdout.write("\n")
+            return 1
+        json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 0
 
     if args.log:
-        result = write_logs(args.log)
+        try:
+            result = write_logs(args.log)
+        except Exception as e:
+            json.dump({"error": str(e)[:200]}, sys.stdout, ensure_ascii=False)
+            sys.stdout.write("\n")
+            return 1
         json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
         return 0

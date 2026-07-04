@@ -188,7 +188,9 @@ def mirror_to_sheet(kind: str, text: str, fid: str) -> dict:
     try:
         cmd = [sys.executable, script, "--feedback",
                "--save", json.dumps(payload, ensure_ascii=False), "--note-id", fid]
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=90)
+        # Best-effort mirror (the rule is already saved locally). Cap at 10s so a
+        # slow/unhealthy Sheets API can't hang the user's /tune for 90 seconds.
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
         if r.returncode == 0:
             try:
                 return {"synced": True, **json.loads((r.stdout or "").strip() or "{}")}

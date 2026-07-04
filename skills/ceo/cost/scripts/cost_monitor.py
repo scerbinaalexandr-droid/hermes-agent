@@ -303,13 +303,17 @@ def main() -> int:
     try:
         conn = _connect()
     except sqlite3.OperationalError as e:
-        print(f"❌ Не могу открыть state.db: {e}")
-        return 1
+        sys.stderr.write(f"[cost] cannot open state.db: {e}\n")
+        print("⚠️ Отчёт по расходам сейчас недоступен.")
+        return 0
     try:
-        if debug:
-            out = render_debug(conn)
-        else:
-            out = render(conn)
+        out = render_debug(conn) if debug else render(conn)
+    except Exception as e:
+        # A schema mismatch (e.g. missing cost column after a rollback) must not
+        # abort the no_agent delivery with a raw traceback — degrade cleanly.
+        sys.stderr.write(f"[cost] render failed: {e}\n")
+        print("⚠️ Отчёт по расходам сегодня недоступен.")
+        return 0
     finally:
         conn.close()
     print(out)

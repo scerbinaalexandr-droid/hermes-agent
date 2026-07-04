@@ -40,7 +40,10 @@ try:
     import google_api as gws
 except Exception as exc:  # pragma: no cover - prod-only path
     sys.stderr.write(f"[birthday] cannot import google-workspace helper: {exc}\n")
-    raise SystemExit(1)
+    # no_agent cron: deliver one clean line rather than silently dying (a missed
+    # birthday with zero signal is exactly the silent-failure class we're closing).
+    print("⚠️ Проверка дней рождения сейчас недоступна.")
+    raise SystemExit(0)
 
 BDAY_EMOJI = ("🎂", "💍")
 BDAY_CAL_NAME = "🎂 Дни рождения"

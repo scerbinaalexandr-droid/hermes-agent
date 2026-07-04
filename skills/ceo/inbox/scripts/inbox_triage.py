@@ -32,7 +32,11 @@ try:
     import google_api as gws  # provides build_service(), get_credentials()
 except Exception as exc:  # pragma: no cover - prod-only path
     sys.stderr.write(f"[inbox] cannot import google-workspace helper: {exc}\n")
-    raise SystemExit(1)
+    # no_agent cron delivers stdout verbatim: a bare SystemExit(1) would deliver
+    # nothing (or a technical error doc) and the CEO would never learn triage
+    # silently stopped. Deliver one clean human line instead.
+    print("⚠️ Разбор входящих сейчас недоступен — не удалось подключиться к Google.")
+    raise SystemExit(0)
 
 ARCHIVE_LABEL = "Hermes/Авто-архив"
 # Gmail's own noise tabs. Conservative: only Promotions + Social. Updates

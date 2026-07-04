@@ -2230,6 +2230,14 @@ class TelegramAdapter(BasePlatformAdapter):
 
         # --- Update prompt callbacks ---
         if not data.startswith("update_prompt:"):
+            # Unrecognized/stale callback (e.g. a button from a message sent
+            # before a code update renamed its prefix). Acknowledge it so
+            # Telegram dismisses the loading spinner instead of leaving it stuck
+            # on the tapped button. Guarded — a redundant answer must not raise.
+            try:
+                await query.answer()
+            except Exception:
+                pass
             return
         answer = data.split(":", 1)[1]  # "y" or "n"
         caller_id = str(getattr(query.from_user, "id", ""))
@@ -2560,7 +2568,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 )
             return SendResult(success=True, message_id=str(msg.message_id))
         except Exception as e:
-            print(f"[{self.name}] Failed to send document: {e}")
+            logger.error("[%s] Failed to send Telegram document: %s", self.name, e, exc_info=True)
             return await super().send_document(chat_id, file_path, caption, file_name, reply_to)
 
     async def send_video(
@@ -2591,7 +2599,7 @@ class TelegramAdapter(BasePlatformAdapter):
                 )
             return SendResult(success=True, message_id=str(msg.message_id))
         except Exception as e:
-            print(f"[{self.name}] Failed to send video: {e}")
+            logger.error("[%s] Failed to send Telegram video: %s", self.name, e, exc_info=True)
             return await super().send_video(chat_id, video_path, caption, reply_to)
 
     async def send_image(
@@ -3401,6 +3409,8 @@ class TelegramAdapter(BasePlatformAdapter):
 
             except Exception as e:
                 logger.warning("[Telegram] Failed to cache photo: %s", e, exc_info=True)
+                if not event.text:
+                    event.text = "[Не удалось получить изображение. Извинись и попроси прислать его ещё раз.]"
 
         # Download voice/audio messages to cache for STT transcription
         if msg.voice:
@@ -3413,6 +3423,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 logger.info("[Telegram] Cached user voice at %s", cached_path)
             except Exception as e:
                 logger.warning("[Telegram] Failed to cache voice: %s", e, exc_info=True)
+                if not event.text:
+                    event.text = "[Не удалось получить голосовое сообщение. Извинись и попроси прислать его ещё раз.]"
         elif msg.audio:
             try:
                 file_obj = await msg.audio.get_file()
@@ -3423,6 +3435,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 logger.info("[Telegram] Cached user audio at %s", cached_path)
             except Exception as e:
                 logger.warning("[Telegram] Failed to cache audio: %s", e, exc_info=True)
+                if not event.text:
+                    event.text = "[Не удалось получить аудио. Извинись и попроси прислать его ещё раз.]"
 
         elif msg.video:
             try:
@@ -3440,6 +3454,8 @@ class TelegramAdapter(BasePlatformAdapter):
                 logger.info("[Telegram] Cached user video at %s", cached_path)
             except Exception as e:
                 logger.warning("[Telegram] Failed to cache video: %s", e, exc_info=True)
+                if not event.text:
+                    event.text = "[Не удалось получить видео. Извинись и попроси прислать его ещё раз.]"
 
         # Download document files to cache for agent processing
         elif msg.document:
