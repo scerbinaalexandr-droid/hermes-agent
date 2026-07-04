@@ -2597,15 +2597,18 @@ class AIAgent:
                 logger.debug("status_callback error in _emit_warning", exc_info=True)
 
     def _emit_auxiliary_failure(self, task: str, exc: BaseException) -> None:
-        """Surface a compact warning for failed auxiliary work."""
+        """Log a failed auxiliary side-task (title generation, compression, memory
+        flush). These are INTERNAL — the main turn continues normally and the user
+        is not affected — so they must NOT be surfaced to the user (clean-messages
+        rule): a raw "Auxiliary title generation failed: HTTP 402 ..." in chat is
+        pure noise. Log for ops only.
+        """
         try:
             detail = self._summarize_api_error(exc)
         except Exception:
             detail = str(exc)
         detail = (detail or exc.__class__.__name__).strip()
-        if len(detail) > 220:
-            detail = detail[:217].rstrip() + "..."
-        self._emit_warning(f"⚠ Auxiliary {task} failed: {detail}")
+        logger.warning("%sauxiliary %s failed: %s", self.log_prefix, task, detail[:220])
 
     def _current_main_runtime(self) -> Dict[str, str]:
         """Return the live main runtime for session-scoped auxiliary routing."""

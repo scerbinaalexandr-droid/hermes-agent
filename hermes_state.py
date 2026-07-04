@@ -201,7 +201,7 @@ class SessionDB:
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
 
-        self._init_schema()
+        self._init_schema_with_retry()
 
     # ── Core write helper ──
 
@@ -379,6 +379,33 @@ class SessionDB:
                         logger.debug(
                             "reconcile %s.%s: %s", table_name, col_name, exc,
                         )
+
+    def _init_schema_with_retry(self) -> None:
+        """Run schema init, retrying on a transient WAL write-lock.
+
+        The connection uses a 1s busy timeout, so during a rolling deploy — when
+        the OLD container still holds the WAL write lock — an unretried
+        ``executescript`` in ``_init_schema`` would raise ``database is locked``,
+        abort gateway startup, and force a ~30s restart with dropped in-flight
+        messages. ``_init_schema`` is idempotent (CREATE IF NOT EXISTS + column
+        reconciliation), so retrying the whole call with jitter is safe. Mirrors
+        the ``_execute_write`` retry budget.
+        """
+        last_err: Optional[Exception] = None
+        for attempt in range(self._WRITE_MAX_RETRIES):
+            try:
+                self._init_schema()
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+                    last_err = exc
+                    if attempt < self._WRITE_MAX_RETRIES - 1:
+                        time.sleep(random.uniform(
+                            self._WRITE_RETRY_MIN_S, self._WRITE_RETRY_MAX_S))
+                        continue
+                raise
+        raise last_err or sqlite3.OperationalError(
+            "schema init: database locked after max retries")
 
     def _init_schema(self):
         """Create tables and FTS if they don't exist, reconcile columns.

@@ -6439,14 +6439,17 @@ class GatewayRunner:
                         session_key, _e,
                     )
 
-            # Surface error details when the agent failed silently (final_response=None)
-            if not response and agent_result.get("failed"):
+            # A FAILED turn must deliver a CLEAN message — never the raw provider
+            # error / exception text (clean-messages rule). This is the path that
+            # leaked "API call failed after 3 retries: HTTP 402 ..." to the user.
+            # Fire whenever the agent failed and nothing was already streamed, so a
+            # non-empty raw-error final_response is replaced too. Full detail → logs.
+            if agent_result.get("failed") and not agent_result.get("already_sent"):
                 error_detail = agent_result.get("error", "unknown error")
+                logger.warning("agent turn failed — clean message to user; detail: %s", str(error_detail)[:300])
                 error_str = str(error_detail).lower()
 
-                # Detect context-overflow failures and give specific guidance.
-                # Generic 400 "Error" from Anthropic with large sessions is the
-                # most common cause of this (#1630).
+                # Context-overflow failures get specific, actionable guidance.
                 _is_ctx_fail = any(p in error_str for p in (
                     "context", "token", "too large", "too long",
                     "exceed", "payload",
@@ -6457,14 +6460,13 @@ class GatewayRunner:
 
                 if _is_ctx_fail:
                     response = (
-                        "⚠️ Session too large for the model's context window.\n"
-                        "Use /compact to compress the conversation, or "
-                        "/reset to start fresh."
+                        "⚠️ Диалог стал слишком большим для модели. "
+                        "Сожми его командой /compact или начни заново /reset."
                     )
                 else:
                     response = (
-                        f"The request failed: {str(error_detail)[:300]}\n"
-                        "Try again or use /reset to start a fresh session."
+                        "⚠️ Не удалось обработать запрос — техническая заминка. "
+                        "Попробуй ещё раз через минуту."
                     )
 
             # If the agent's session_id changed during compression, update
@@ -13734,7 +13736,13 @@ class GatewayRunner:
             _resolved_model = getattr(_agent, "model", None) if _agent else None
 
             if not final_response:
-                error_msg = f"⚠️ {result['error']}" if result.get("error") else ""
+                # Clean message only — never surface the raw provider/SDK error
+                # string to the user (clean-messages rule). Detail → logs.
+                if result.get("error"):
+                    logger.warning("agent result error (clean msg to user): %s", str(result["error"])[:300])
+                    error_msg = "⚠️ Не удалось обработать запрос — техническая заминка. Попробуй ещё раз через минуту."
+                else:
+                    error_msg = ""
                 return {
                     "final_response": error_msg,
                     "messages": result.get("messages", []),
@@ -13864,6 +13872,13 @@ class GatewayRunner:
                 "context_length": _context_length,
                 "session_id": effective_session_id,
                 "response_previewed": result.get("response_previewed", False),
+                # Propagate failure state so the caller's clean-message gate fires
+                # even when the agent returned a NON-EMPTY raw-error final_response
+                # (e.g. "API call failed after 3 retries: HTTP 402 ...") — otherwise
+                # that raw provider error is delivered to the user verbatim.
+                "failed": result.get("failed", False),
+                "error": result.get("error"),
+                "completed": result.get("completed", True),
             }
         
         # Start progress message sender if enabled

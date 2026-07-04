@@ -506,19 +506,44 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                 )
 
         if not delivered:
-            # Standalone path: run the async send in a fresh event loop (safe from any thread)
+            # Standalone path: run the async send in a fresh event loop (safe from any
+            # thread). Bound it with a timeout — a stalled socket must NOT hang the whole
+            # tick (the live-adapter path above already caps at 60s; align here). Without
+            # this, one unresponsive send blocks every other job in the tick and holds the
+            # scheduler lock open.
             coro = _send_to_platform(platform, pconfig, chat_id, cleaned_delivery_content, thread_id=thread_id, media_files=media_files)
+            timed = asyncio.wait_for(coro, timeout=60)
             try:
-                result = asyncio.run(coro)
+                result = asyncio.run(timed)
             except RuntimeError:
                 # asyncio.run() checks for a running loop before awaiting the coroutine;
-                # when it raises, the original coro was never started — close it to
-                # prevent "coroutine was never awaited" RuntimeWarning, then retry in a
-                # fresh thread that has no running loop.
-                coro.close()
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    future = pool.submit(asyncio.run, _send_to_platform(platform, pconfig, chat_id, cleaned_delivery_content, thread_id=thread_id, media_files=media_files))
-                    result = future.result(timeout=30)
+                # when it raises, NEITHER the wait_for wrapper nor the inner coro was
+                # started — close BOTH to avoid "coroutine was never awaited" warnings,
+                # then retry in a fresh thread with no running loop. The worker itself
+                # is wrapped in wait_for so a stalled send self-terminates (a plain
+                # asyncio.run there would leave a live worker leaked per hung thread).
+                for _c in (timed, coro):
+                    try:
+                        _c.close()
+                    except Exception:
+                        pass
+                pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                try:
+                    future = pool.submit(
+                        asyncio.run,
+                        asyncio.wait_for(
+                            _send_to_platform(platform, pconfig, chat_id, cleaned_delivery_content, thread_id=thread_id, media_files=media_files),
+                            timeout=60,
+                        ),
+                    )
+                    result = future.result(timeout=75)
+                except Exception as e:
+                    msg = f"delivery to {platform_name}:{chat_id} failed: {e}"
+                    logger.error("Job '%s': %s", job["id"], msg)
+                    delivery_errors.append(msg)
+                    continue
+                finally:
+                    pool.shutdown(wait=False, cancel_futures=True)
             except Exception as e:
                 msg = f"delivery to {platform_name}:{chat_id} failed: {e}"
                 logger.error("Job '%s': %s", job["id"], msg)
@@ -1508,15 +1533,36 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             try:
                 success, output, final_response, error = run_job(job)
 
-                output_file = save_job_output(job["id"], output)
-                if verbose:
-                    logger.info("Output saved to: %s", output_file)
+                # Archiving the output locally must NEVER suppress the user-facing
+                # delivery — a disk error here would otherwise silently drop a good
+                # message that already cost tokens to produce.
+                try:
+                    output_file = save_job_output(job["id"], output)
+                    if verbose:
+                        logger.info("Output saved to: %s", output_file)
+                except Exception as se:
+                    logger.error("Job '%s': failed to save output (delivering anyway): %s", job["id"], se)
 
-                # Deliver the final response to the origin/target chat.
-                # If the agent responded with [SILENT], skip delivery (but
-                # output is already saved above).  Failed jobs always deliver.
-                deliver_content = final_response if success else f"⚠️ Cron job '{job.get('name', job['id'])}' failed:\n{error}"
+                # Downgrade an empty successful response to a failure BEFORE the
+                # delivery decision, so the user gets an alert instead of silence.
+                # (issue #8585)
+                if success and not (final_response or "").strip():
+                    success = False
+                    error = "empty response (model error, timeout, or misconfiguration)"
+
+                # Deliver the final response. Failed jobs deliver a CLEAN human
+                # alert — never the raw exception text / Python class names (that
+                # violates the clean-messages rule); the full error is logged for
+                # ops and recorded via mark_job_run below.
+                if success:
+                    deliver_content = final_response
+                else:
+                    logger.warning("Job '%s' failed: %s", job["id"], error)
+                    deliver_content = "⚠️ Не удалось подготовить это сообщение. Я уже разбираюсь — попробуй позже."
                 should_deliver = bool(deliver_content)
+                # Substring, case-insensitive: the agent may append [SILENT] after
+                # explanation text or add a trailing note — both must still suppress
+                # (intended behaviour, see tests/cron TestSilentDelivery).
                 if should_deliver and success and SILENT_MARKER in deliver_content.strip().upper():
                     logger.info("Job '%s': agent returned %s — skipping delivery", job["id"], SILENT_MARKER)
                     should_deliver = False
@@ -1528,13 +1574,6 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                     except Exception as de:
                         delivery_error = str(de)
                         logger.error("Delivery failed for job %s: %s", job["id"], de)
-
-                # Treat empty final_response as a soft failure so last_status
-                # is not "ok" — the agent ran but produced nothing useful.
-                # (issue #8585)
-                if success and not final_response:
-                    success = False
-                    error = "Agent completed but produced empty response (model error, timeout, or misconfiguration)"
 
                 mark_job_run(job["id"], success, error, delivery_error=delivery_error)
                 return True
