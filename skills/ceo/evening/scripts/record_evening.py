@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import os
 import pathlib
 import re
 import sys
@@ -30,6 +31,22 @@ from skills.ceo._lib.memory import (  # noqa: E402
     today_hhmm,
     today_iso,
 )
+
+
+def _logs_root() -> pathlib.Path:
+    """Resolve the logs dir so evening artifacts persist on the volume + get
+    backed up. Prod: HERMES_CEO_MEMORY_ROOT=/opt/data/memory → /opt/data/logs.
+    Local/tests: $HERMES_HOME/logs, else <repo>/logs. Mirrors diary.py — the
+    bare _REPO/logs path lands in the ephemeral in-image dir and is lost on
+    every redeploy.
+    """
+    mem_root = os.environ.get("HERMES_CEO_MEMORY_ROOT")
+    if mem_root:
+        return pathlib.Path(mem_root).expanduser().resolve().parent / "logs"
+    home = os.environ.get("HERMES_HOME")
+    if home:
+        return pathlib.Path(home).expanduser().resolve() / "logs"
+    return _REPO / "logs"
 
 
 FIELD_ORDER = [
@@ -72,7 +89,7 @@ def gather() -> dict[str, object]:
     today_log_entries = [b for b in log_blocks if b.startswith(date)]
 
     # Per-day log file content (logs/daily/YYYY-MM-DD.md)
-    per_day = _REPO / "logs" / "daily" / f"{date}.md"
+    per_day = _logs_root() / "daily" / f"{date}.md"
     today_per_day = per_day.read_text(encoding="utf-8") if per_day.exists() else ""
 
     return {
@@ -154,7 +171,7 @@ def save(fields: dict[str, str]) -> dict[str, str]:
     date = today_iso()
 
     # Per-day full log
-    per_day = _REPO / "logs" / "daily" / f"{date}.md"
+    per_day = _logs_root() / "daily" / f"{date}.md"
     per_day.parent.mkdir(parents=True, exist_ok=True)
     if not per_day.exists():
         per_day.write_text(f"# Daily Log — {date}\n", encoding="utf-8")

@@ -20,6 +20,7 @@ entrypoint afterwards). Must be invoked with a Python that has pyyaml
 (the app venv: /opt/hermes/.venv/bin/python).
 """
 import os
+import re
 import sys
 
 try:
@@ -32,6 +33,12 @@ except ImportError:
 HOME = os.environ.get("HERMES_HOME", "/opt/data")
 CFG_PATH = os.path.join(HOME, "config.yaml")
 SOUL_PATH = os.path.join(HOME, "SOUL.md")
+# In-image persona to seed SOUL.md from on first boot (before the upstream
+# entrypoint's own copy, which runs after this hook). <repo>/docker/SOUL.md.
+_SOUL_SEED_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "docker", "SOUL.md",
+)
 CEO_DIR = "/opt/hermes/skills/ceo"
 
 # Email/calendar routing rule injected into the system prompt (SOUL.md is loaded
@@ -247,7 +254,19 @@ def _ensure_soul_rule() -> None:
     """
     try:
         if not os.path.exists(SOUL_PATH):
-            return
+            # First boot on a fresh volume: the upstream entrypoint seeds
+            # SOUL.md from docker/SOUL.md only AFTER this hook runs, so without
+            # seeding here the entire first session would run with NO CEO rules
+            # (wrong language, tech-noise leaks, no /tune gate). Seed now from
+            # the in-image docker/SOUL.md so the rules below are appended on the
+            # very first boot.
+            if not os.path.exists(_SOUL_SEED_PATH):
+                return
+            with open(_SOUL_SEED_PATH, encoding="utf-8") as sf:
+                base = sf.read()
+            with open(SOUL_PATH, "w", encoding="utf-8") as df:
+                df.write(base)
+            sys.stderr.write("[ceo-os-init] SOUL.md seeded on first boot from docker/SOUL.md\n")
         with open(SOUL_PATH, encoding="utf-8") as fh:
             content = fh.read()
         appended = 0
@@ -266,6 +285,17 @@ def _ensure_soul_rule() -> None:
             sys.stderr.write(f"[ceo-os-init] SOUL.md rules appended ({appended})\n")
     except Exception as exc:
         sys.stderr.write(f"[ceo-os-init] SOUL.md rule ensure skipped ({exc})\n")
+
+
+def _needs_dated_id(name: str, provider: str) -> bool:
+    """True for a bare Anthropic alias without an 8-digit date suffix
+    (e.g. ``claude-sonnet-4-6``), which the Anthropic API rejects with HTTP 400
+    (incident 2026-05-24). Only Anthropic-provider models need the dated form.
+    """
+    if provider != "anthropic":
+        return False
+    n = (name or "").strip()
+    return n.startswith("claude-") and not re.search(r"\d{8}", n)
 
 
 def main() -> None:
@@ -301,6 +331,15 @@ def main() -> None:
         model = {"default": model.strip(), "provider": PROVIDER_FALLBACK}
     else:
         model = {"default": MODEL_ENV, "provider": PROVIDER_FALLBACK}
+    # Guard against a bare Anthropic alias (claude-sonnet-4-6) arriving via
+    # HERMES_MODEL or a prior `/model --global` — it would 400 on every call and
+    # survive reboots. Replace with the dated fallback and log it visibly.
+    if _needs_dated_id(str(model.get("default") or ""), str(model.get("provider") or "")):
+        sys.stderr.write(
+            f"[ceo-os-init] WARNING: bare Anthropic model alias "
+            f"'{model.get('default')}' → replacing with dated {MODEL_FALLBACK}\n"
+        )
+        model["default"] = MODEL_FALLBACK
     cfg["model"] = model
 
     # STT: switch to Groq whisper-large-v3-turbo when GROQ_API_KEY is present
@@ -357,6 +396,9 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        # Never crash the boot over config-ensure; upstream entrypoint continues.
+        # Signal failure with exit 1 so the entrypoint's WARNING branch fires and
+        # the problem is visible in logs. The boot still continues: the entrypoint
+        # runs this in an `if` test (set -e does not abort), so a non-zero exit is
+        # handled gracefully — config is simply left as-is from the prior boot.
         sys.stderr.write(f"[ceo-os-init] ensure_config failed (non-fatal): {exc}\n")
-        sys.exit(0)
+        sys.exit(1)

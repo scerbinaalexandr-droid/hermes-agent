@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import os
 import pathlib
 import sys
 
@@ -29,6 +30,22 @@ from skills.ceo._lib.memory import (  # noqa: E402
     today_iso,
     update_project_field,
 )
+
+
+def _logs_root() -> pathlib.Path:
+    """Resolve the logs dir so weekly artifacts persist on the volume + get
+    backed up. Prod: HERMES_CEO_MEMORY_ROOT=/opt/data/memory → /opt/data/logs.
+    Local/tests: $HERMES_HOME/logs, else <repo>/logs. Mirrors diary.py — the
+    bare _REPO/logs path lands in the ephemeral in-image dir and is lost on
+    every redeploy.
+    """
+    mem_root = os.environ.get("HERMES_CEO_MEMORY_ROOT")
+    if mem_root:
+        return pathlib.Path(mem_root).expanduser().resolve().parent / "logs"
+    home = os.environ.get("HERMES_HOME")
+    if home:
+        return pathlib.Path(home).expanduser().resolve() / "logs"
+    return _REPO / "logs"
 
 
 FIELD_ORDER = [
@@ -162,7 +179,7 @@ def save(fields: dict[str, object]) -> dict[str, object]:
     block, matched, unmatched = _format_review_block(fields)
 
     # Per-week log
-    per_week = _REPO / "logs" / "weekly" / f"{week}.md"
+    per_week = _logs_root() / "weekly" / f"{week}.md"
     per_week.parent.mkdir(parents=True, exist_ok=True)
     if not per_week.exists():
         per_week.write_text(f"# Weekly Log — {week}\n", encoding="utf-8")

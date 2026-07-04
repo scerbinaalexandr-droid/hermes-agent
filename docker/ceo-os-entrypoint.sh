@@ -51,6 +51,10 @@ mkdir -p "$HERMES_HOME/logs/hooks"
 # in-image backup.py there on every boot (fresh per deploy). The cron JOB is
 # created once via `hermes cron create ... --no-agent` (see backup/SKILL.md) —
 # NOT auto-created here, to keep boot simple and avoid CLI-at-boot fragility.
+# Best-effort from here through memory seeding: staging scripts and seeding
+# templates must NEVER abort the boot (e.g. a disk-full `cp` under `set -e`
+# would crash the container and take the bot fully offline). Re-enabled after.
+set +e
 mkdir -p "$HERMES_HOME/scripts"
 if [ -f /opt/hermes/skills/ceo/backup/scripts/backup.py ]; then
   cp /opt/hermes/skills/ceo/backup/scripts/backup.py "$HERMES_HOME/scripts/backup.py"
@@ -114,6 +118,7 @@ if [ -d "$SEED_MEMORY" ]; then
 else
   echo "[ceo-os-init] WARNING: $SEED_MEMORY missing from image — memory not seeded"
 fi
+set -e  # end best-effort staging/seeding — ownership below stays strict
 
 # ---- 2b. Ensure hermes user can write the CEO data --------------------------
 # Wrapper runs as root (via tini); upstream entrypoint will drop to hermes

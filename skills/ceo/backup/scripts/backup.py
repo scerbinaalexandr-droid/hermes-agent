@@ -49,8 +49,13 @@ def scrub(text: str) -> str:
     return text or ""
 
 
-def run(cmd, cwd=None, check=True):
-    r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+def run(cmd, cwd=None, check=True, timeout=180):
+    # Bound every git call: an unreachable GitHub / slow DNS must not hang the
+    # cron slot forever (which would silently freeze the whole backup job).
+    try:
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(scrub(f"`{' '.join(cmd)}` timed out after {timeout}s (network?)"))
     if check and r.returncode != 0:
         raise RuntimeError(scrub(f"`{' '.join(cmd)}` failed: {r.stderr.strip()}"))
     return r
@@ -106,7 +111,13 @@ def main() -> int:
             staging.mkdir(parents=True, exist_ok=True)
             run(["git", "init"], cwd=staging)
             run(["git", "checkout", "-b", "main"], cwd=staging, check=False)
-            run(["git", "remote", "add", "origin", auth_url()], cwd=staging)
+            # A failed clone can still leave `origin` configured — use set-url
+            # in that case so we don't crash on "remote origin already exists".
+            existing = run(["git", "remote"], cwd=staging, check=False)
+            if "origin" in (existing.stdout or "").split():
+                run(["git", "remote", "set-url", "origin", auth_url()], cwd=staging)
+            else:
+                run(["git", "remote", "add", "origin", auth_url()], cwd=staging)
 
         run(["git", "config", "user.name", GIT_USER], cwd=staging)
         run(["git", "config", "user.email", GIT_EMAIL], cwd=staging)
