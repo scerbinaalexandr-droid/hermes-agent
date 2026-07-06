@@ -96,7 +96,25 @@ def main() -> int:
     ap.add_argument("--max", type=int, default=200, help="Max messages per category.")
     ap.add_argument("--dry-run", action="store_true", help="Report only, change nothing.")
     args = ap.parse_args()
+    try:
+        return _triage(args)
+    except gws.GoogleAuthError:
+        # Google disconnected (token expired/revoked). Don't crash the no_agent
+        # cron with a raw traceback — emit one throttled clean alert (shared
+        # across all Google jobs) or stay silent if already alerted.
+        msg = gws.google_down_alert()
+        if msg:
+            print(msg)
+        return 0
+    except Exception as exc:
+        # no_agent cron must never crash — an auth 401 surfaced at .execute(), a
+        # transient API 5xx or a network blip logs to stderr and stays silent
+        # rather than delivering a generic scheduler error.
+        sys.stderr.write(f"[inbox] triage failed: {type(exc).__name__}: {exc}\n")
+        return 0
 
+
+def _triage(args) -> int:
     svc = _svc()
     label_id = None if args.dry_run else _ensure_label(svc)
 

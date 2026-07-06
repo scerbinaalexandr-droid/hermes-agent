@@ -222,13 +222,38 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=0)
     args = ap.parse_args()
 
-    if args.add:
-        if not (args.name and args.day and args.month):
-            ap.error("--add requires --name, --day, --month")
-        return add(args)
-    if args.migrate:
-        return migrate(args)
-    return check(args)
+    try:
+        if args.add:
+            if not (args.name and args.day and args.month):
+                ap.error("--add requires --name, --day, --month")
+            return add(args)
+        if args.migrate:
+            return migrate(args)
+        return check(args)
+    except gws.GoogleAuthError:
+        # Google disconnected (token expired/revoked). Don't crash the no_agent
+        # cron with a raw traceback — the interactive modes give a clean
+        # actionable line; the recurring --check emits one throttled alert (or
+        # stays silent if already alerted) so the CEO isn't spammed twice a day.
+        if args.add or args.migrate:
+            print("⚠️ Google-календарь отключён — нужна переавторизация. "
+                  "Напиши мне «переподключи Google».")
+            return 0
+        msg = gws.google_down_alert()
+        if msg:
+            print(msg)
+        return 0
+    except Exception as exc:
+        # The recurring --check cron must NEVER crash (a nonzero exit makes the
+        # scheduler deliver a generic error twice a day). Any other failure — an
+        # auth 401 surfaced at .execute(), a transient API 5xx, a network blip —
+        # logs to stderr (→ logs) and stays silent; the reconnect message still
+        # surfaces via GoogleAuthError on the next refresh. Interactive modes
+        # re-raise so the user sees the real error.
+        if args.add or args.migrate:
+            raise
+        sys.stderr.write(f"[birthday] check failed: {type(exc).__name__}: {exc}\n")
+        return 0
 
 
 if __name__ == "__main__":

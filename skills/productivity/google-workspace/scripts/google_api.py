@@ -27,6 +27,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from pathlib import Path
@@ -55,6 +56,52 @@ SCOPES = [
 ]
 
 
+class GoogleAuthError(RuntimeError):
+    """The stored Google OAuth token is expired/revoked/invalid — the connection
+    needs re-authorization. Raised instead of leaking a raw google.auth traceback
+    so callers (especially no_agent crons) can fail clean."""
+
+
+# When a Google-dependent cron hits an auth failure we must not spam the CEO —
+# but must not fail silently either (a stopped digest with zero signal is the
+# exact failure class we're closing). One throttled clean alert, shared across
+# all Google jobs, threads that needle.
+_GOOGLE_DOWN_STATE = HERMES_HOME / "cron" / "google_auth_state.json"
+_GOOGLE_DOWN_THROTTLE_H = 6
+
+
+def google_down_alert():
+    """Return a clean, throttled 'Google disconnected' message the first time
+    (per throttle window) a caller reports an auth failure, else None so the
+    caller stays silent. Best-effort state I/O — any error biases toward
+    emitting the signal."""
+    now = int(time.time())
+    try:
+        st = json.loads(_GOOGLE_DOWN_STATE.read_text())
+        if (now - int(st.get("ts", 0))) < _GOOGLE_DOWN_THROTTLE_H * 3600:
+            return None  # already alerted within the window → stay quiet
+    except Exception:
+        pass
+    try:
+        _GOOGLE_DOWN_STATE.parent.mkdir(parents=True, exist_ok=True)
+        _GOOGLE_DOWN_STATE.write_text(json.dumps({"ts": now}))
+    except OSError:
+        pass
+    return (
+        "🔌 Google отключён — не могу проверять календарь и почту.\n"
+        "Напиши мне «переподключи Google», и я пришлю ссылку для входа."
+    )
+
+
+def _clear_google_down_state() -> None:
+    """Recovery: drop the throttle so the next outage alerts immediately."""
+    try:
+        if _GOOGLE_DOWN_STATE.exists():
+            _GOOGLE_DOWN_STATE.unlink()
+    except OSError:
+        pass
+
+
 def _normalize_authorized_user_payload(payload: dict) -> dict:
     normalized = dict(payload)
     if not normalized.get("type"):
@@ -64,9 +111,13 @@ def _normalize_authorized_user_payload(payload: dict) -> dict:
 
 def _ensure_authenticated():
     if not TOKEN_PATH.exists():
-        print("Not authenticated. Run the setup script first:", file=sys.stderr)
-        print(f"  python {Path(__file__).parent / 'setup.py'}", file=sys.stderr)
-        sys.exit(1)
+        # Raise (not sys.exit) so no_agent crons can fail clean instead of the
+        # scheduler seeing a nonzero exit; the CLI __main__ turns this into a
+        # clean one-liner.
+        raise GoogleAuthError(
+            f"not authenticated — no Google token at {TOKEN_PATH}; "
+            f"run setup: python {Path(__file__).parent / 'setup.py'}"
+        )
 
 
 def _stored_token_scopes() -> list[str]:
@@ -204,14 +255,21 @@ def get_credentials():
 
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google.auth.exceptions import RefreshError, TransportError
 
     creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), _stored_token_scopes())
     if creds.expired and creds.refresh_token:
-        creds.refresh(Request())
+        try:
+            creds.refresh(Request())
+        except (RefreshError, TransportError) as exc:
+            # Token revoked/expired (invalid_grant) or the token endpoint is
+            # unreachable. Raise a clean typed error instead of leaking a
+            # google.auth traceback so no_agent crons can deliver a human line.
+            raise GoogleAuthError(str(exc)) from exc
         _persist_refreshed_token(creds)
     if not creds.valid:
-        print("Token is invalid. Re-run setup.", file=sys.stderr)
-        sys.exit(1)
+        raise GoogleAuthError("Google token invalid — re-authorization required")
+    _clear_google_down_state()  # recovered → next outage alerts at once
     return creds
 
 
@@ -1089,4 +1147,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except GoogleAuthError as exc:
+        # Interactive CLI: a clean one-liner + nonzero exit, not a raw traceback.
+        print(f"Google authorization required — reconnect Google ({exc}).", file=sys.stderr)
+        sys.exit(1)
