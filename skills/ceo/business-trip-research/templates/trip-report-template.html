@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Командировка {DESTINATION} {DATES} | TANDEM Group</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #111111;
+            color: #e2dcd2;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 4px solid #c9a96e;
+        }
+        h1 {
+            color: #c9a96e;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #bdb5ab;
+            font-size: 16px;
+        }
+        .meta {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        section {
+            background: #1a1a1a;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #c9a96e;
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #333;
+        }
+        .card {
+            background: #222;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 3px solid #c9a96e;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #c9a96e;
+            margin-bottom: 10px;
+        }
+        .card-meta {
+            font-size: 14px;
+            color: #bdb5ab;
+            margin-bottom: 10px;
+        }
+        .tag {
+            display: inline-block;
+            background: #c9a96e;
+            color: #111;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .contact-box {
+            background: #2a2a2a;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .contact-box a {
+            color: #c9a96e;
+            text-decoration: none;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #333;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #c9a96e;
+            border: 3px solid #1a1a1a;
+        }
+        .checklist li::before {
+            content: '☐';
+            position: absolute;
+            left: 0;
+            color: #c9a96e;
+            font-size: 18px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+        th {
+            background: #2a2a2a;
+            color: #c9a96e;
+            font-weight: 600;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #333;
+            color: #bdb5ab;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌍 Командировка {DESTINATION}</h1>
+            <div class="subtitle">{PURPOSE}</div>
+            <div class="meta">
+                <div><strong>Даты:</strong> {DATES}</div>
+                <div><strong>Регион:</strong> {REGION}</div>
+            </div>
+        </header>
+
+        <!-- HOTELS SECTION -->
+        <section>
+            <h2>🏨 Отели</h2>
+            <!-- Repeat .card for each hotel -->
+            <div class="card">
+                <div class="card-title">1. {HOTEL_NAME}</div>
+                <div class="card-meta">
+                    <span class="tag">{STARS}</span>
+                    <span class="tag">{CATEGORY}</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>Специфика:</strong> {PROFILE}</p>
+                    <p><strong>Почему важен:</strong> {WHY}</p>
+                </div>
+                <div class="contact-box">
+                    <strong>Контакты:</strong><br>
+                    🌐 <a href="{URL}">{DOMAIN}</a><br>
+                    📧 {EMAIL}<br>
+                    <strong>Кого искать:</strong> {ROLE}<br>
+                    💼 <a href="{LINKEDIN}">LinkedIn</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- AGENCIES SECTION -->
+        <section>
+            <h2>🎨 Дизайн-агентства</h2>
+            <!-- Repeat .card for each agency -->
+        </section>
+
+        <!-- MANUFACTURERS SECTION -->
+        <section>
+            <h2>🏭 Производители</h2>
+            <!-- Repeat .card for each manufacturer -->
+        </section>
+
+        <!-- PLAN SECTION -->
+        <section>
+            <h2>📅 План командировки</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">{DATE}</div>
+                    <div class="timeline-content">
+                        <strong>{TITLE}</strong><br>
+                        {AGENDA}
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHECKLIST SECTION -->
+        <section>
+            <h2>📋 Подготовка</h2>
+            <ul class="checklist">
+                <li>{ACTION_ITEM}</li>
+            </ul>
+        </section>
+
+        <!-- RESULTS TABLE -->
+        <section>
+            <h2>📊 Ожидаемые результаты</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Метрика</th>
+                        <th>Цель</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>{METRIC}</td>
+                        <td>{TARGET}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <div class="footer">
+            <p><strong>TANDEM Group</strong> | Moldova + Romania | <a href="https://tandemcasa.ro">tandemcasa.ro</a></p>
+            <p>Составлено: {DATE} | Hermes Memory Hub</p>
+        </div>
+    </div>
+</body>
+</html>
