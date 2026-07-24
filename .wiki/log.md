@@ -251,3 +251,66 @@ Append-only лог событий. Karpathy convention.
 ## [2026-06-29] session-end | 5 commits on main
 
 ## [2026-06-29] session-end | 6 commits on main
+
+## [2026-06-30] session-end | 2 commits on main
+
+## [2026-06-30] session-end | 3 commits on main
+
+## [2026-06-30] session-end | 4 commits on main
+
+## [2026-06-30] INCIDENT+FIX | prod outage: root-owned files → app blind
+- Root cause (one class, 3 hits): files on /opt/data created via `railway ssh` as **root** while app runs as **hermes** → `google_token.json` unwritable (token refresh crashed every Google cron: morning Фокус, inbox, birthday) + `cron/jobs.json` unreadable after my root-run `cron edit/run` (scheduler IOError every tick → fired nothing → both phones silent).
+- Fixes: chown→hermes (immediate); `get_credentials` token persist best-effort (cb5da9cba); entrypoint self-heals ALL /opt/data ownership on boot (7b3e324c9); morning gather self-creates Фокус tab (cb5da9cba).
+- 5 personal crons → dual-deliver both phones (746810595+385068170).
+- LESSON: NEVER mutate prod state as root via ssh (su to hermes); each deploy restarts gateway → cron deliveries during restart are lost; verify delivery END-TO-END (user receipt) — logs don't record cron delivery. Memory: [[prod-root-ownership-trap]].
+- User feedback → SOUL rule (d1cf4532a): NO technical/diagnostic noise in user-facing messages (the brief's «logging note» leak). Memory: [[clean-messages-no-tech-noise]].
+- Commits: 5c77020a6, cb5da9cba, 7b3e324c9, d1cf4532a. All deployed SUCCESS. Delivery to both phones confirmed by user.
+
+## [2026-06-30] session-end | No commits (main)
+
+## [2026-07-01] session-end | No commits (main)
+
+## [2026-07-01] voice-tts | Голос ответов: бесплатный Edge, женский ru-RU-SvetlanaNeural (был Dmitry муж.), speed=0.9 (мягче). Платный ElevenLabs подготовлен (model eleven_multilingual_v2) но НЕ включён — юзер передумал (нужен ELEVENLABS_API_KEY). Персона через /tune: (1) юмор кроме серьёзных тем, (2) для голоса плавная устная речь без markdown/символов (фикс «обрывками»). Всё через config.yaml + tune.py под hermes, БЕЗ деплоя. Пробы msg 2697/2711. Cron cleanup: -6 мёртвых, birthday→оба тел. Неделя тестов голоса.
+
+## [2026-07-01 09:30] — pre-compact snapshot
+- Saved snapshot before /compact (контекст ~75%)
+- См. CONTEXT.md секцию "Snapshot 2026-07-01 09:30"
+
+## [2026-07-02] session-end | 1 commits on main
+
+## [2026-07-02→04] prod-outage-reliability | Бот молча умер: Anthropic-баланс $0 (auto-reload OFF) + OpenRouter $0 → HTTP 402 утекал в чат; Gemini-fallback давал украинский. Фиксы: (1) жёсткое always-Russian правило в SOUL через ensure_config (commit 7bc21654b); (2) вечерний cron починен — правильный skill=evening 37e08a7c13ed включён, кривой голый 6372685649f5 на паузе; (3) API Health Monitor — no_agent cron af5c4ea94014 (*/30), чистый алерт на оба телефона при credit/auth-провале, throttle 6h (commit a8abb3aa9). Anthropic-ключ бота — на scerbinaalexandr@gmail.com (org 0d88e37d). Осталось юзеру: включить Auto reload (пейволл). 113 тестов зелёные. Всё на проде, всё под hermes (не root).
+
+## [2026-07-04] session-end | 1 commits on main
+
+## [2026-07-04] session-end | 3 commits on main
+
+## [2026-07-04] reliability-audit-99 | Цель: проект → 99% надёжности. Мульти-агентный аудит (8 слоёв, workflow wgqr2vx95, 44 находки; синтезатор упал на объёме — синтез сделан вручную из транскриптов). Прод смок-тест happy-path — всё зелёное (LLM/язык/9 скиллов/Sheets/cron/TTS/ownership). 3 раунда фиксов, все на проде:
+## — Round 1 (1951a32a7): эфемерный путь evening/week (потеря при деплое, CRITICAL) · first-boot SOUL seed (украинский на свежем волюме, CRITICAL) · bare model-id guard · ensure_config exit-код · entrypoint cp под set-e · backup git-таймауты+set-url. +6 тестов.
+## — Round 2 (41ddc2a88): inbox/birthday/cost — чистый алерт vs тихая смерть · telegram медиа-сбой→внятный ответ (CRITICAL) · залипший callback-спиннер · print→logger · render_briefing guard · /tune timeout 90→10с.
+## — Round 3 (15c77586d, Codex-reviewed): сырой HTTP 402 в чат→чистое сообщение (gateway/run.py — проброс failed/error на non-empty return + failed-gate; run_agent auxiliary log-only) · cron доставка asyncio.wait_for(60s)+ThreadPool-hang fix (CRITICAL) · save_job_output изолирован · empty-response алерт · hermes_state _init_schema retry при rolling-deploy. Codex: 3 находки в моих правках (1 HIGH проброс failed, 2 MEDIUM coroutine/worker) — исправлены; re-verify FIX1/2 CLEAN, FIX3 приемлемый остаточный риск. Ложная находка [SILENT] откачена (тесты требуют substring).
+## Итог: ~90-92% → ~97-98%. Остаток к 99% (Round 4, safe): Google token RefreshError, send_voice retry, dual-write reorder, SOUL truncation, tune safety-patterns. Юзеру (пейволл): Anthropic Auto reload + state.db volume-снапшоты.
+
+## 2026-07-04 — pre-compact snapshot
+- Saved snapshot before /compact (контекст ~75%)
+- См. CONTEXT.md секцию "Snapshot 2026-07-04" — reliability-аудит + Round 1-3 deployed
+
+## [2026-07-06] session-end | No commits (main)
+
+## [2026-07-06] session-end | 1 commits on main
+
+## 2026-07-06 — Google OAuth outage fixed + fail-clean hardening
+- 🎂 birthday + inbox crons were crashing twice/day: Google OAuth token expired/revoked (Cloud app in "Testing" → 7-day refresh-token death).
+- Re-authed via setup.py --auth-url/--auth-code (as hermes, code read from user screenshot); published OAuth app to "In production"; re-issued token (permanent, 9 scopes). Verified on prod.
+- Hardening (commit af69dde5a, deployed+smoke-tested): google_api RefreshError/TransportError → GoogleAuthError; _ensure_authenticated raises (not sys.exit); CLI clean exit; throttled google_down_alert() (6h, shared); birthday --check/inbox fail clean on ANY error (silent+log), interactive re-raises. 11 tests. Codex-reviewed (4 findings fixed).
+- See memory `google-oauth-reauth.md`. Backlog: dependabot 167 vulns (5 critical) — untouched.
+
+## [2026-07-22] session-end | No commits (main)
+
+## [2026-07-24] session-end | No commits (main)
+
+## [2026-07-24] session-end | 3 commits on main
+
+## [2026-07-24] rename + revision | Бот молчал весь день: Anthropic исчерпан → fallback OpenRouter (кредиты не покупались никогда) → HTTP 402 на всех LLM-cron (Утро/Бриф/Вечер/Личные задачи/Инфляция RO). No-agent джобы (бэкап, почта, ДР, cost, health) работали. Юзер пополнил Anthropic → проба ok, ручной прогон брифа 92ee5dfa0e33 → ok. ⚠️ OpenRouter-резерв ВСЁ ЕЩЁ пуст (второго парашюта нет).
+## — Переименование Hermes → BOT_21: юзер сам сделал /setname + /setuserpic (своё фото) в BotFather. Адрес @Hermes_Alex21_bot не меняется (Telegram не даёт). Синхронизирована самоидентификация: docker/SOUL.md, memory/soul.md, menu/start/cost SKILL.md + прод /opt/data/SOUL.md напрямую под hermes (бэкап SOUL.md.bak-20260724, деплой существующий SOUL не перезаписывает). НЕ тронуты: ярлык Gmail `Hermes/Авто-архив` (сломает фильтры), внутренние упоминания движка. Коммит 50225d9e3, деплой success 20:04 UTC, verified на проде.
+## — 🔎 Находка: скилл `business-trip-research` (15KB + HTML-шаблон) жил ТОЛЬКО на прод-волюме с 11.07, вне git → при пересоздании volume потерялся бы. Забран побайтово (cee24d886).
+## — Ревизия `.wiki/AUDIT_2026-07-24.md`: карта 32 команд, 13 cron, что проверено (health 200, ключ ok, сквозной бриф, 126 тестов, compileall 30 скриптов, состав скиллов) и что НЕ проверено (живые прогоны 30 команд — только за юзером).

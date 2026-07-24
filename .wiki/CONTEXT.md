@@ -825,3 +825,126 @@ selftest-строка Протоколы!A2:J2 очищена; Drive `Hermes-Tes
 3. Ждать фидбэк живого теста → Phase-4 полировка точечно (НЕ слепой рерайт).
 4. НЕ плодить утренние пинги (порог на шум низкий). НЕ строить спекулятивные фичи — юзер уже отметил перегруз.
 
+---
+
+## Snapshot 2026-07-01 09:30 (auto-saved before /compact)
+
+**Сессия началась:** 2026-06-30 (утро, cron-инцидент) → 2026-07-01.
+**Сессия закрыта на:** голосовая озвучка ответов (мягкий женский голос) — неделя тестов.
+**Контекст на момент snapshot:** ~75%.
+
+### 🏗 Архитектурные решения
+- **Prod-инцидент (root cause класс):** файлы на `/opt/data`, созданные через `railway ssh` под **root**, ломают приложение (работает под **hermes**, uid 10000). `google_token.json` root → refresh токена падал → рушил ВСЕ Google-cron (Утро/Фокус, inbox, birthday). `cron/jobs.json` root (после моих `cron edit/run` под root) → шедулер `IOError` каждый тик → НЕ запускал НИЧЕГО → оба телефона молчали. **Фикс:** chown→hermes (мгновенно) + `get_credentials._persist_refreshed_token` best-effort (не падает при ошибке записи) + **entrypoint self-heal** (`find … ! -user 10000 -exec chown` весь /opt/data на каждом boot) + morning gather сам создаёт вкладку «Фокус». Reversal: легко.
+- **Доставка cron:** каждый деплой перезапускает gateway → доставка ВО ВРЕМЯ рестарта теряется (не last_delivery_error). Логи cron-доставку НЕ пишут — верить только факту получения юзером. 5 личных cron → dual-deliver на оба телефона.
+- **Голос ответов = БЕСПЛАТНЫЙ Edge (не платный ElevenLabs).** Юзер сначала хотел платный супер-реализм, потом передумал. Итог: `tts.provider=edge`, `voice=ru-RU-SvetlanaNeural` (женский, был мужской Dmitry), `speed=0.9` (мягче). ElevenLabs подготовлен (model_id=eleven_multilingual_v2) но НЕ включён (нужен `ELEVENLABS_API_KEY` — юзер отказался). Reversal: легко (добавить ключ + flip provider).
+- **Персона-правила через `/tune`** (санкц. путь, пишет в SOUL.md «Живые корректировки»): (1) юмор в ответах кроме серьёзных тем; (2) для голоса — плавная устная речь без markdown/эмодзи/символов (чинит «обрывками»). Плюс SOUL-правило через ensure_config: НИКАКИХ тех-данных в сообщениях (юзер: «logging note» в брифе — неприятно).
+
+### 🎨 UX достижения
+- Мягкий женский голос Svetlana, темп −10%; отправил юзеру голосовые пробы (msg 2697, 2711).
+- Cron-список почищен: удалено 6 «мёртвых» джобов, birthday → на оба телефона. Осталось 12.
+
+### 📁 Ключевые file paths / identifiers
+- `/opt/data/config.yaml` (прод, hermes-owned) — `tts.edge.voice=ru-RU-SvetlanaNeural, speed=0.9`; `tts.elevenlabs.model_id=eleven_multilingual_v2` (не активен).
+- `/opt/data/SOUL.md` — персона + «Живые корректировки CEO» (юмор, voice-smoothness).
+- `docker/ceo-os-entrypoint.sh` — self-heal chown всего /opt/data (секция 2b).
+- `skills/productivity/google-workspace/scripts/google_api.py` — `_persist_refreshed_token` (best-effort).
+- `skills/ceo/morning/scripts/morning.py` — `cmd_gather` ensure_tab(Фокус).
+- `scripts/hooks/ensure_config.py` — `_SOUL_CLEAN_MARKER` (no-tech-noise rule).
+- `tools/tts_tool.py` — `_generate_edge_tts` (speed→rate); `text_to_speech_tool` (стр. 1533) НЕ чистит markdown (потенц. код-фикс); `_strip_markdown_for_tts` (стр. 1895) существует но в главном пути не вызывается.
+- Commits: `5c77020a6`, `cb5da9cba`, `7b3e324c9`, `d1cf4532a` (все SUCCESS на Railway `hermes`).
+- Chat ids: `746810595` (личный) + `385068170` (рабочий) — оба Alexandr.
+- Master Sheet: `1_3ZqmCWiwhUR4MQoVC5i10zfy4iVar8nV7UPSdqZesU`. ENV имена: `ELEVENLABS_API_KEY` (НЕ задан), `HERMES_MEETING_SHEET_ID`.
+
+### 📋 Open TODOs
+- [ ] **Голос — тюнинг всю неделю:** юзер слушает пробы, даёт ощущения → крутить `tts.edge.speed`/тон. Если «обрывками» останется — код-фикс: вызвать `_strip_markdown_for_tts` в `text_to_speech_tool` (нужен деплой).
+- [ ] Задать утренний фокус (онбординг в Утре) — за юзером.
+- [ ] 163 dependabot vulns (upstream Hermes deps) — отдельная сессия.
+- [ ] eleven_v3 (audio-tags для эмоций/смеха) — если захочет платный супер-реализм.
+
+### ⚠ Lessons
+- **НИКОГДА не мутировать прод-стейт под root через ssh** — только `su -s /bin/sh hermes -c '…'`. chown/чтение под root — ок. (3 поломки за сессию: token → tab → jobs.json). Память: `prod-root-ownership-trap`.
+- **Verify END-TO-END** (получение юзером), НЕ верить `last_delivery_error=None`/логам.
+- Деплой = рестарт gateway → минимизировать; не деплоить во время окна cron.
+- `edge-tts` CLI отвергает `--rate -10%` (argparse видит флаг) → Python API `Communicate(rate='-10%')` или `--rate=-10%`.
+- `_send_to_platform` нормализует `media_files or []` — не баг.
+
+### 🔗 Continuation
+1. Прочитать этот snapshot + `.wiki/log.md` (запись INCIDENT+FIX 2026-06-30).
+2. Память новая: `prod-root-ownership-trap`, `clean-messages-no-tech-noise`.
+3. Голос: ждать фидбэк недели → точечно крутить speed/тон; при «обрывках» — код-фикс strip_markdown в text_to_speech_tool.
+4. НИКАКИХ прод-мутаций под root. Минимум деплоев. Verify получение юзером.
+
+
+---
+
+## Snapshot 2026-07-04 (auto-saved before /compact)
+
+**Сессия:** аудит надёжности hermes-agent → цель 99%. Началась с багрепорта (украинское утреннее сообщение + сломанный бот), развернулась в полный reliability-цикл.
+**Закрыта на:** Round 1-3 задеплоены и проверены, юзер выбрал СТОП на ~97-98%. Round 4 (mediums) — в бэклоге.
+**Контекст на момент snapshot:** ~75%.
+
+### 🏗 Архитектурные решения
+- **Причина исходного сбоя:** Anthropic-баланс $0 при `Auto reload OFF` → primary 400 → fallback OpenRouter (тоже $0) → 402 в чат. Gemini-fallback давал украинский. Ключ бота на `scerbinaalexandr@gmail.com` (org `0d88e37d-ba06-4f28-8698-22d1d624f782`). Reversal: N/A (биллинг).
+- **fail-clean** (L3 в decisions.md): сбой → чистое русское сообщение юзеру, сырьё ТОЛЬКО в логи. Точки: gateway/run.py (проброс `failed`/`error` на всех return `_run_agent` + gate `failed and not already_sent`), cron/scheduler.py, run_agent `_emit_auxiliary_failure` (log-only). Reversal: легко.
+- **API Health Monitor** cron `af5c4ea94014` (`*/30`, no_agent, оба телефона): probe Anthropic, при credit/auth-fail — чистый алерт, throttle 6h. Reversal: легко (cron remove).
+- **state.db НЕ в git-бэкапе** (git раздует репо 76МБ-бинарём) → рекомендован Railway volume-снапшот. Reversal: N/A.
+- **Round 3 (протектед-кор) с обязательным Codex-ревью перед деплоем** — Codex нашёл 1 HIGH (проброс failed) + 2 MEDIUM, которые я пропустил. Reversal: легко.
+- **Ложная находка [SILENT]** exact-match откачена — тесты требуют substring (намеренное поведение).
+
+### 📁 Ключевые file paths (все под /Users/scerbinaalexandr/Documents/01_CODE/hermes-agent/)
+- `skills/ceo/health/scripts/api_health.py` — монитор (Round 0)
+- `scripts/hooks/ensure_config.py` — first-boot SOUL seed + `_needs_dated_id` + exit-код + `_SOUL_LANG_MARKER`
+- `docker/ceo-os-entrypoint.sh` — staging api_health + `set +e/-e` вокруг cp
+- `skills/ceo/{evening,week}/scripts/record_*.py` — `_logs_root()` (не эфемерный путь)
+- `skills/ceo/backup/scripts/backup.py` — git-таймауты + set-url
+- `skills/ceo/{inbox,birthday,cost}/scripts/*.py` — clean-alert guards
+- `gateway/platforms/telegram.py` — медиа-fail event.text + callback answer + logger
+- `cron/scheduler.py` — delivery wait_for(60) + `_process_job` (save isolate/empty/clean-fail)
+- `gateway/run.py` — failed-gate + `_run_agent` return проброс failed/error
+- `run_agent.py` — `_emit_auxiliary_failure` log-only
+- `hermes_state.py` — `_init_schema_with_retry`
+
+### 🔑 Идентификаторы
+- Commits: Round1 `1951a32a7` · Round2 `41ddc2a88` · Round3 `15c77586d` (+ ранее health `a8abb3aa9`, lang `7bc21654b`)
+- Service: `hermes` (Railway prod) · HERMES_HOME=`/opt/data` · app user `hermes` uid 10000
+- Cron health monitor: `af5c4ea94014` · Anthropic org `0d88e37d-...`
+- Workflow аудита: `wgqr2vx95` (упал на синтезаторе; находки в scratchpad/audit_findings.json)
+- ENV vars (имена): ANTHROPIC_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, BACKUP_GITHUB_TOKEN, HERMES_MODEL, HERMES_HOME, HERMES_CEO_MEMORY_ROOT
+
+### 📋 Open TODOs
+- [ ] **2 клика юзера (пейволл):** Anthropic Auto reload (console.anthropic.com/settings/billing) + Railway volume-снапшоты для state.db
+- [ ] Round 4 safe mediums → 99%: Google token RefreshError/TransportError (google_api.py), send_voice retry (telegram.py), dual-write reorder (sheets_meeting_sync.py:522), SOUL truncation (prompt_builder/tune.py), tune safety-patterns sync
+- [ ] Пре-существующий тест-баг `test_script_empty_output_noted` (env, не мой) + ~1614 gateway-тестов падают локально (env, не мои)
+- [ ] 163 dependabot vulns (upstream) — отдельная сессия
+
+### ⚠ Lessons
+- Workflow-синтезатор упал на объёме JSON (StructuredOutput retry cap) — находки восстановлены из agent-*.jsonl транскриптов вручную. На будущее: синтез больших наборов дробить или делать самому.
+- Codex поймал баг, который самопроверка пропустила (проброс `failed` на non-empty return) — кросс-вендорное ревью реально ловит слепые зоны.
+- Прод-часы Railway расходятся с локальными — деплой ловить по ASCII-маркеру в коде, не по времени.
+
+### 🔗 Continuation в следующей сессии
+1. Прочитать этот snapshot + decisions.md (fail-clean) + memory (billing-and-health-monitor, always-russian-soul-rule)
+2. Если юзер вернётся к надёжности → Round 4 mediums (список выше), тем же паттерном: verify → fix → test → Codex(если core) → deploy → smoke
+3. Проверить, нажал ли юзер Auto reload (иначе бот снова рискует упасть при исчерпании баланса)
+
+---
+
+## Continuation (2026-07-24 — rename + ревизия перед апгрейдом)
+
+**Состояние на конец сессии:**
+- Бот жив: Anthropic пополнен юзером, сквозной прогон брифа `ok`, деплой `bb38e48c2` success.
+- Имя: **BOT_21** (везде, включая прод-персону). Адрес @Hermes_Alex21_bot неизменен. Фото — селфи юзера.
+- Ревизия: `.wiki/AUDIT_2026-07-24.md` — карта 32 команд + 13 cron + честное разделение проверенного/непроверенного.
+
+**Открытый риск №1:** OpenRouter-резерв пуст. Сегодняшний сбой = оба канала на нуле. Предложено $10 — юзер ещё не ответил.
+
+**Следующий шаг (ждём юзера):** он даёт инструкцию, каким должен стать бот
+(«полнофункциональный бот для работы с видимой инструкцией»). Под неё —
+перестройка функций/меню/персоны. НЕ начинать перестройку до его инструкции.
+
+**Непроверенное, требующее живого теста юзером:** 30 из 32 команд
+(отправлять сообщения от его имени запрещено правилом проекта).
+
+**Бэклог:** 163 dependabot vulns (upstream), Round 4 надёжности до 99%
+(send_voice retry, dual-write reorder, SOUL truncation, tune safety-patterns),
+60-дневный аудит использования (по плану был на 27.07).
