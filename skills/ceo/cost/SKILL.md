@@ -65,7 +65,7 @@ Hard cap из плана: $200/мес. При тренде >$200/мес — не
 ## Output format
 
 ```
-💰 Hermes Spend Report — 2026-05-29
+💰 BOT_21 Spend Report — 2026-05-29
 
 🟢 Today (UTC): $3.24 (47.2K in / 11.8K out / 0.5K cache)
    → 23 sessions, top: /brief ($1.10), /coach ($0.85), /evening ($0.62)

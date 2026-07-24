@@ -29,7 +29,7 @@ instructions and render the same main-menu output. Можно prepend единс
 строку приветствия для первого `/start`:
 
 ```
-Привет, Александр. Hermes готов.
+Привет, Александр. BOT_21 готов.
 
 [затем — содержимое /menu skill output]
 ```

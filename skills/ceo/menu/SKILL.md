@@ -32,7 +32,7 @@ reference. Показывает все CEO commands со one-line описани
 ## Output (Telegram, ≤ 1500 char, на русском)
 
 ```
-🤖 *Hermes — твой Executive OS*
+🤖 *BOT_21 — твой Executive OS*
 
 *Каждый день:*
 🌅 /morning — личный утренний ритуал: медитация + твой фокус, проговорить вслух (Личное, auto 06:50)
@@ -89,7 +89,7 @@ reference. Показывает все CEO commands со one-line описани
 
 | Случай | Поведение |
 |---|---|
-| Первый раз user пишет `/start` | Покажи menu + добавь приветственную строку «Привет, Александр. Hermes готов.» |
+| Первый раз user пишет `/start` | Покажи menu + добавь приветственную строку «Привет, Александр. BOT_21 готов.» |
 | Telegram payload limit | ≤4096 char — текущий menu helps stay well under |
 | User спрашивает «что нового?» | Покажи menu + «Стейдж 6 cron активен с 2026-05-17» |
 
