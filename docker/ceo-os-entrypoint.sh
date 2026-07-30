@@ -226,6 +226,15 @@ fi
 WEBUI_DIR="$HERMES_HOME/home/hermes-webui"
 WEBUI_LOG="$HERMES_HOME/logs/hermes-webui.log"
 WEBUI_PORT="${HERMES_WEBUI_PORT:-8787}"
+# Password source order: service env, else a 0600 file on the volume. The file
+# lets the app backend be configured without touching the Railway dashboard.
+WEBUI_PW_FILE="$HERMES_HOME/webui-password"
+if [ -z "$HERMES_WEBUI_PASSWORD" ] && [ -f "$WEBUI_PW_FILE" ]; then
+  HERMES_WEBUI_PASSWORD="$(cat "$WEBUI_PW_FILE")"
+  export HERMES_WEBUI_PASSWORD
+  chown "$HERMES_UID:$HERMES_GID" "$WEBUI_PW_FILE" 2>/dev/null || true
+  chmod 600 "$WEBUI_PW_FILE" 2>/dev/null || true
+fi
 if [ -f "$WEBUI_DIR/bootstrap.py" ]; then
   if [ -z "$HERMES_WEBUI_PASSWORD" ]; then
     echo "[ceo-os-init] WARNING: HERMES_WEBUI_PASSWORD unset — web UI would be open to anyone on the tailnet; not starting it"
