@@ -195,5 +195,57 @@ else
   echo "[ceo-os-init] WARNING: docker/reports_server.py missing — public URL disabled"
 fi
 
+# ---- 3d. Start Tailscale + hermes-webui (iPhone app backend) ----------------
+# Both power the Hermex iOS app. Previously they were started by hand over ssh,
+# with binaries in /tmp — so every redeploy silently killed them and the app
+# went dead. Now they live on the volume and start here, like everything else.
+# Failures are non-fatal: Telegram must keep working even if the app backend is
+# down.
+TS_DIR="$HERMES_HOME/tailscale"
+TS_SOCK="$TS_DIR/state/tailscaled.sock"
+TS_LOG="$HERMES_HOME/logs/tailscaled.log"
+if [ -x "$TS_DIR/bin/tailscaled" ]; then
+  chown -R "$HERMES_UID:$HERMES_GID" "$TS_DIR" 2>/dev/null || true
+  nohup gosu "$HERMES_UID:$HERMES_GID" "$TS_DIR/bin/tailscaled" \
+    --tun=userspace-networking \
+    --state="$TS_DIR/state/tailscaled.state" \
+    --socket="$TS_SOCK" >> "$TS_LOG" 2>&1 &
+  echo "[ceo-os-init] Started tailscaled (PID $!), log: $TS_LOG"
+  # Give the daemon a moment to create its socket before bringing the node up.
+  sleep 3
+  # The node is already authorised (state file on the volume), so `up` only
+  # re-attaches it — no auth key needed.
+  gosu "$HERMES_UID:$HERMES_GID" "$TS_DIR/bin/tailscale" --socket="$TS_SOCK" \
+    up --hostname=hermes-webui --accept-dns=false >> "$TS_LOG" 2>&1 \
+    && echo "[ceo-os-init] Tailscale node up" \
+    || echo "[ceo-os-init] WARNING: tailscale up failed — see $TS_LOG"
+else
+  echo "[ceo-os-init] Tailscale not installed at $TS_DIR — skipping"
+fi
+
+WEBUI_DIR="$HERMES_HOME/home/hermes-webui"
+WEBUI_LOG="$HERMES_HOME/logs/hermes-webui.log"
+WEBUI_PORT="${HERMES_WEBUI_PORT:-8787}"
+if [ -f "$WEBUI_DIR/bootstrap.py" ]; then
+  if [ -z "$HERMES_WEBUI_PASSWORD" ]; then
+    echo "[ceo-os-init] WARNING: HERMES_WEBUI_PASSWORD unset — web UI would be open to anyone on the tailnet; not starting it"
+  else
+    # Exported explicitly so the child inherits them regardless of how the
+    # service env is delivered. The LLM keys come from the service env — their
+    # absence is exactly what broke the app before.
+    nohup gosu "$HERMES_UID:$HERMES_GID" env \
+      HERMES_HOME="$HERMES_HOME" \
+      HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}" \
+      HERMES_WEBUI_PORT="$WEBUI_PORT" \
+      HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}" \
+      HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$HERMES_HOME/hermes-agent}" \
+      sh -c "cd '$WEBUI_DIR' && exec python3 bootstrap.py --foreground --no-browser $WEBUI_PORT" \
+      >> "$WEBUI_LOG" 2>&1 &
+    echo "[ceo-os-init] Started hermes-webui on :$WEBUI_PORT (PID $!), log: $WEBUI_LOG"
+  fi
+else
+  echo "[ceo-os-init] hermes-webui not installed at $WEBUI_DIR — skipping"
+fi
+
 # ---- 4. Hand off to upstream entrypoint -------------------------------------
 exec /opt/hermes/docker/entrypoint.sh "$@"
