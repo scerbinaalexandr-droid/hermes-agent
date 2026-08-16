@@ -2,6 +2,8 @@
 
 Two jobs:
 1. GET /reports/<uuid>.html — unguessable report links (see below).
+   Plus GET /edge-health — liveness of this edge itself. NOT /health: that one
+   belongs to the web UI, whose JSON the Hermex app probes when adding a server.
 2. Everything else — reverse-proxied to the local web UI (:8787), so the
    iPhone app reaches it over Railway's HTTPS edge instead of a userspace
    Tailscale tunnel that kept dropping connections on a mobile network.
@@ -36,7 +38,7 @@ import urllib.parse
 _REPORTS_DIR = pathlib.Path(os.environ.get("HERMES_REPORTS_DIR", "/opt/data/reports"))
 _LOG_PATH = pathlib.Path(os.environ.get("HERMES_REPORTS_LOG", "/opt/data/logs/reports_access.log"))
 
-# Everything that is not /health or /reports/<uuid>.html is forwarded to the
+# Everything that is not /edge-health or /reports/<uuid>.html is forwarded to the
 # web UI, so the iPhone app reaches it over Railway's HTTPS edge instead of the
 # userspace Tailscale tunnel — that tunnel dropped connections 19 times in one
 # hour on a phone switching between 5G and Wi-Fi.
@@ -252,8 +254,12 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
 
-        if path == "/health":
-            body = b"Hermes Reports OK\n"
+        # /health belongs to the web UI: the Hermex app probes it when adding a
+        # server and expects Hermes' JSON. Answering it here with plain text made
+        # the app fail with "Не удалось прочитать ответ сервера". Our own edge
+        # liveness check lives on /edge-health instead.
+        if path == "/edge-health":
+            body = b"Hermes edge OK\n"
             self.send_response(200)
             self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
@@ -299,7 +305,7 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
         # Same checks as GET but no body
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
-        if path == "/health":
+        if path == "/edge-health":
             self.send_response(200)
             self.send_header("Content-Length", "0")
             self.end_headers()
