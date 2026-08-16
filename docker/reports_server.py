@@ -139,12 +139,22 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
                 self._send_500("bad request body")
                 return
 
+        # Host is forwarded UNCHANGED on purpose: the web UI's CSRF gate compares
+        # the browser's Origin against Host, so rewriting it to 127.0.0.1 makes
+        # every request look cross-origin ("Cross-origin mismatch - check reverse
+        # proxy headers").
         headers = {
             k: v for k, v in self.headers.items()
-            if k.lower() not in ("host", "connection", "content-length", "transfer-encoding")
+            if k.lower() not in ("connection", "content-length", "transfer-encoding")
         }
         if payload is not None:
             headers["Content-Length"] = str(len(payload))
+        # Standard reverse-proxy provenance. Railway's edge terminates TLS and
+        # sets X-Forwarded-Proto; keep it when present, default to https because
+        # the only way in from outside is the HTTPS domain.
+        headers.setdefault("X-Forwarded-Proto", "https")
+        headers["X-Forwarded-Host"] = self.headers.get("Host", "")
+        headers["X-Forwarded-For"] = self.client_address[0]
 
         conn = None
         try:

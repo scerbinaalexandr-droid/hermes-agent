@@ -261,7 +261,10 @@ if [ -f "$WEBUI_DIR/server.py" ]; then
       HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}" \
       HERMES_WEBUI_PORT="$WEBUI_PORT" \
       HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}" \
-      HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$HERMES_HOME/hermes-agent}" \
+      HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-/opt/hermes}" \
+      HERMES_WEBUI_TRUST_FORWARDED_PROTO=1 \
+      HERMES_WEBUI_SECURE=1 \
+      HERMES_WEBUI_ALLOWED_ORIGINS="${HERMES_WEBUI_ALLOWED_ORIGINS:-https://${HERMES_PUBLIC_HOST:-hermes-production-99b8.up.railway.app}}" \
       sh -c "cd '$WEBUI_DIR' && exec $WEBUI_PY server.py" \
       >> "$WEBUI_LOG" 2>&1 &
     echo "[ceo-os-init] Started hermes-webui on :$WEBUI_PORT (PID $!), log: $WEBUI_LOG"
