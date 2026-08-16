@@ -235,7 +235,16 @@ if [ -z "$HERMES_WEBUI_PASSWORD" ] && [ -f "$WEBUI_PW_FILE" ]; then
   chown "$HERMES_UID:$HERMES_GID" "$WEBUI_PW_FILE" 2>/dev/null || true
   chmod 600 "$WEBUI_PW_FILE" 2>/dev/null || true
 fi
-if [ -f "$WEBUI_DIR/bootstrap.py" ]; then
+# Interpreter: prefer the Hermes venv — it has yaml and the agent packages the
+# web UI imports. The volume's own venv is unreliable: the bootstrap installer
+# overwrote it with a bare symlink to system python, which lacks yaml and made
+# server.py die on import.
+if [ -x /opt/hermes/.venv/bin/python ]; then
+  WEBUI_PY=/opt/hermes/.venv/bin/python
+else
+  WEBUI_PY=python3
+fi
+if [ -f "$WEBUI_DIR/server.py" ]; then
   if [ -z "$HERMES_WEBUI_PASSWORD" ]; then
     echo "[ceo-os-init] WARNING: HERMES_WEBUI_PASSWORD unset — web UI would be open to anyone on the tailnet; not starting it"
   else
@@ -253,7 +262,7 @@ if [ -f "$WEBUI_DIR/bootstrap.py" ]; then
       HERMES_WEBUI_PORT="$WEBUI_PORT" \
       HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}" \
       HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$HERMES_HOME/hermes-agent}" \
-      sh -c "cd '$WEBUI_DIR' && exec python3 server.py" \
+      sh -c "cd '$WEBUI_DIR' && exec $WEBUI_PY server.py" \
       >> "$WEBUI_LOG" 2>&1 &
     echo "[ceo-os-init] Started hermes-webui on :$WEBUI_PORT (PID $!), log: $WEBUI_LOG"
   fi
