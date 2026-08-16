@@ -553,15 +553,30 @@ def _transcribe_groq(file_path: str, model_name: str) -> Dict[str, Any]:
         logger.info("Model %s not available on Groq, using %s", model_name, DEFAULT_GROQ_STT_MODEL)
         model_name = DEFAULT_GROQ_STT_MODEL
 
+    # Language: config.yaml (stt.groq.language, falling back to stt.local.language)
+    # > auto-detect. Without it Whisper guesses per request and drifts to English
+    # on short or noisy Russian audio, which reaches the user as garbled text.
+    stt_cfg = _load_stt_config()
+    forced_lang = (
+        (stt_cfg.get("groq") or {}).get("language")
+        or (stt_cfg.get("local") or {}).get("language")
+        or None
+    )
+
     try:
         from openai import OpenAI, APIError, APIConnectionError, APITimeoutError
         client = OpenAI(api_key=api_key, base_url=GROQ_BASE_URL, timeout=30, max_retries=0)
         try:
+            create_kwargs = {
+                "model": model_name,
+                "response_format": "text",
+            }
+            if forced_lang:
+                create_kwargs["language"] = str(forced_lang)
             with open(file_path, "rb") as audio_file:
                 transcription = client.audio.transcriptions.create(
-                    model=model_name,
                     file=audio_file,
-                    response_format="text",
+                    **create_kwargs,
                 )
 
             transcript_text = str(transcription).strip()

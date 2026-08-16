@@ -350,7 +350,17 @@ def main() -> None:
         stt["provider"] = "groq"
         groq = stt.get("groq") if isinstance(stt.get("groq"), dict) else {}
         groq["model"] = "whisper-large-v3-turbo"
+        # Pin the language: without it Whisper re-detects per request and drifts
+        # to English on short or noisy Russian audio (owner dictates in Russian
+        # only). Mirrors stt.local.language, which was already pinned.
+        groq["language"] = "ru"
         stt["groq"] = groq
+        # Local fallback must stay Russian too — it is what runs whenever the
+        # Groq key is rejected, which is exactly when the garbled text appeared.
+        local = stt.get("local") if isinstance(stt.get("local"), dict) else {}
+        local.setdefault("model", "small")
+        local["language"] = "ru"
+        stt["local"] = local
         cfg["stt"] = stt
 
     # Security hooks + loop guardrails (always set — idempotent).
