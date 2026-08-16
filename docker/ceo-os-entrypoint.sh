@@ -242,13 +242,18 @@ if [ -f "$WEBUI_DIR/bootstrap.py" ]; then
     # Exported explicitly so the child inherits them regardless of how the
     # service env is delivered. The LLM keys come from the service env — their
     # absence is exactly what broke the app before.
+    # Launch server.py directly, NOT bootstrap.py: bootstrap is an installer that
+    # re-provisions Hermes on every run (downloads Node, expects a git checkout)
+    # and aborts with "Directory exists but is not a git repository" — which is
+    # exactly why the app showed "Офлайн" after a redeploy. The runtime is
+    # already provisioned on the volume; we only need the server.
     nohup gosu "$HERMES_UID:$HERMES_GID" env \
       HERMES_HOME="$HERMES_HOME" \
       HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}" \
       HERMES_WEBUI_PORT="$WEBUI_PORT" \
       HERMES_WEBUI_STATE_DIR="${HERMES_WEBUI_STATE_DIR:-$HERMES_HOME/webui}" \
       HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-$HERMES_HOME/hermes-agent}" \
-      sh -c "cd '$WEBUI_DIR' && exec python3 bootstrap.py --foreground --no-browser $WEBUI_PORT" \
+      sh -c "cd '$WEBUI_DIR' && exec python3 server.py" \
       >> "$WEBUI_LOG" 2>&1 &
     echo "[ceo-os-init] Started hermes-webui on :$WEBUI_PORT (PID $!), log: $WEBUI_LOG"
   fi
