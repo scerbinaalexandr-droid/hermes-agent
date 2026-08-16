@@ -355,13 +355,17 @@ def main() -> None:
         # only). Mirrors stt.local.language, which was already pinned.
         groq["language"] = "ru"
         stt["groq"] = groq
-        # Local fallback must stay Russian too — it is what runs whenever the
-        # Groq key is rejected, which is exactly when the garbled text appeared.
-        local = stt.get("local") if isinstance(stt.get("local"), dict) else {}
-        local.setdefault("model", "small")
-        local["language"] = "ru"
-        stt["local"] = local
         cfg["stt"] = stt
+
+    # Local STT stays Russian regardless of the Groq key: it is exactly what runs
+    # when that key is missing or rejected, and that is when the garbled English
+    # text appeared. Pinning it inside the Groq branch left the no-key case unset.
+    stt = cfg.get("stt") if isinstance(cfg.get("stt"), dict) else {}
+    local = stt.get("local") if isinstance(stt.get("local"), dict) else {}
+    local.setdefault("model", "small")
+    local["language"] = "ru"
+    stt["local"] = local
+    cfg["stt"] = stt
 
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK

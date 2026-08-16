@@ -56,16 +56,28 @@ _login_lock = threading.Lock()
 
 
 def _login_rate_limited(client_ip: str) -> bool:
-    """True when this IP exceeded the login attempt budget for the window."""
+    """True when this IP already spent its FAILED-login budget for the window.
+
+    Only failures are recorded (see _record_login_failure): counting successes
+    too let anyone lock the owner out of his own assistant with a dozen requests.
+    """
+    now = time.time()
+    with _login_lock:
+        hits = [t for t in _login_hits.get(client_ip, []) if now - t < _LOGIN_WINDOW_SECONDS]
+        _login_hits[client_ip] = hits
+        return len(hits) >= _LOGIN_MAX_ATTEMPTS
+
+
+def _record_login_failure(client_ip: str) -> None:
     now = time.time()
     with _login_lock:
         hits = [t for t in _login_hits.get(client_ip, []) if now - t < _LOGIN_WINDOW_SECONDS]
         hits.append(now)
         _login_hits[client_ip] = hits
         if len(_login_hits) > 1000:  # bound memory against spoofed sources
-            for ip in [k for k, v in _login_hits.items() if not v or now - v[-1] > _LOGIN_WINDOW_SECONDS]:
+            for ip in [k for k, v in _login_hits.items()
+                       if not v or now - v[-1] > _LOGIN_WINDOW_SECONDS]:
                 _login_hits.pop(ip, None)
-        return len(hits) > _LOGIN_MAX_ATTEMPTS
 
 # Strict pattern: <uuid4>.html where uuid4 is 8-4-4-4-12 hex
 _UUID_FILE_RE = re.compile(r"^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.html$")
@@ -116,11 +128,27 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
     def do_OPTIONS(self):  # noqa: N802
         self._proxy_to_webui()
 
+    def _client_ip(self) -> str:
+        """Real caller address.
+
+        self.client_address is Railway's edge, identical for every visitor —
+        keying the login limiter on it would both fail to stop an attacker and
+        let one lock the owner out. The edge puts the caller first in
+        X-Forwarded-For.
+        """
+        xff = self.headers.get("X-Forwarded-For", "")
+        if xff:
+            first = xff.split(",", 1)[0].strip()
+            if first:
+                return first
+        return self.headers.get("X-Real-IP") or self.client_address[0]
+
     def _proxy_to_webui(self) -> None:
         """Forward the request to the local web UI, streaming the response back."""
         path = urllib.parse.urlparse(self.path).path
-        if path in _LOGIN_PATHS and _login_rate_limited(self.client_address[0]):
-            _append_log(f"RATELIMIT {self.client_address[0]} {path}")
+        client_ip = self._client_ip()
+        if path in _LOGIN_PATHS and _login_rate_limited(client_ip):
+            _append_log(f"RATELIMIT {client_ip} {path}")
             body = b'{"error":"Too many attempts, try later"}'
             self.send_response(429)
             self.send_header("Content-Type", "application/json")
@@ -149,12 +177,13 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
         }
         if payload is not None:
             headers["Content-Length"] = str(len(payload))
-        # Standard reverse-proxy provenance. Railway's edge terminates TLS and
-        # sets X-Forwarded-Proto; keep it when present, default to https because
-        # the only way in from outside is the HTTPS domain.
-        headers.setdefault("X-Forwarded-Proto", "https")
+        # Provenance headers are OVERWRITTEN, never merged: the web UI trusts
+        # X-Forwarded-Proto (HERMES_WEBUI_TRUST_FORWARDED_PROTO=1), so letting a
+        # client-supplied value survive would hand it a downgrade lever. The only
+        # way in from outside is the HTTPS domain.
+        headers["X-Forwarded-Proto"] = "https"
         headers["X-Forwarded-Host"] = self.headers.get("Host", "")
-        headers["X-Forwarded-For"] = self.client_address[0]
+        headers["X-Forwarded-For"] = f"{client_ip}, {self.client_address[0]}"
 
         conn = None
         try:
@@ -162,24 +191,48 @@ class ReportsHandler(http.server.BaseHTTPRequestHandler):
             conn.request(self.command, self.path, body=payload, headers=headers)
             upstream = conn.getresponse()
 
+            # Framing decides whether the client can tell where the body ends.
+            # A fixed-size body MUST keep its Content-Length: iOS URLSession
+            # waits for the declared length and, without it, spins forever on a
+            # response curl would have accepted — that is what left Kanban,
+            # Tasks and session bodies stuck on "loading" in the app.
+            body_len = upstream.getheader("Content-Length")
+            try:
+                body_len = int(body_len) if body_len is not None else None
+            except ValueError:
+                body_len = None
+
             self.send_response(upstream.status)
             for key, value in upstream.getheaders():
-                # Hop-by-hop headers and framing are ours to decide.
-                if key.lower() in ("transfer-encoding", "connection", "content-length", "keep-alive"):
+                # Hop-by-hop headers and framing are ours to decide. Server/Date
+                # are emitted by send_response already — forwarding the upstream
+                # copies too produced duplicate headers in every response.
+                if key.lower() in ("transfer-encoding", "connection", "content-length",
+                                   "keep-alive", "server", "date"):
                     continue
                 self.send_header(key, value)
-            # Close-delimited: works for both fixed-size bodies and open-ended
-            # SSE streams without having to re-chunk them.
-            self.send_header("Connection", "close")
-            self.close_connection = True
+            if body_len is not None:
+                self.send_header("Content-Length", str(body_len))
+            else:
+                # Streamed / unknown length (SSE, chunked) — close marks the end.
+                self.send_header("Connection", "close")
+                self.close_connection = True
             self.end_headers()
 
+            remaining = body_len
             while True:
-                chunk = upstream.read(8192)
+                chunk = upstream.read(8192 if remaining is None else min(8192, remaining))
                 if not chunk:
                     break
                 self.wfile.write(chunk)
                 self.wfile.flush()
+                if remaining is not None:
+                    remaining -= len(chunk)
+                    if remaining <= 0:
+                        break
+
+            if path in _LOGIN_PATHS and upstream.status >= 400:
+                _record_login_failure(client_ip)
         except (BrokenPipeError, ConnectionResetError):
             self.close_connection = True  # client hung up mid-stream — normal
         except Exception as e:  # upstream down or unreachable
