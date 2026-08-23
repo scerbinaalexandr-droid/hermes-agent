@@ -273,5 +273,30 @@ else
   echo "[ceo-os-init] hermes-webui not installed at $WEBUI_DIR — skipping"
 fi
 
+# ---- 3e. Drop a rejected Telegram token before the gateway sees it ----------
+# The gateway aborts startup when every *configured* platform fails to connect
+# (gateway/run.py: enabled_platform_count > 0 and connected_count == 0 → return
+# False), but keeps running for cron when none is configured at all. So a token
+# revoked in BotFather took down the whole service — cron, reports and the
+# iPhone app included — not just Telegram. Probe it here and unset on a hard
+# rejection, so the assistant degrades to "no Telegram" instead of dying.
+# Only 401/404 count: network hiccups must not disable a working bot.
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+  TG_CODE=$(curl -s -o /dev/null -m 15 -w '%{http_code}' \
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe" 2>/dev/null || echo "000")
+  case "$TG_CODE" in
+    401|404)
+      echo "[ceo-os-init] WARNING: Telegram rejected the bot token (HTTP $TG_CODE) — starting without Telegram so cron and the web UI stay up. Issue a new token in @BotFather and set TELEGRAM_BOT_TOKEN."
+      unset TELEGRAM_BOT_TOKEN
+      ;;
+    200)
+      echo "[ceo-os-init] Telegram token OK"
+      ;;
+    *)
+      echo "[ceo-os-init] Telegram token probe inconclusive (HTTP $TG_CODE) — leaving it to the gateway"
+      ;;
+  esac
+fi
+
 # ---- 4. Hand off to upstream entrypoint -------------------------------------
 exec /opt/hermes/docker/entrypoint.sh "$@"
