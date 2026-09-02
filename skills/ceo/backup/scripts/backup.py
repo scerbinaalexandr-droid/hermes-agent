@@ -20,12 +20,14 @@ Env (set in Railway Variables, never in code/config):
 Stdlib only — no external deps (runs under the plain cron python).
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 HERMES_HOME = Path(os.environ.get("HERMES_HOME", "/opt/data"))
 REPO_URL = (os.environ.get("BACKUP_REPO_URL") or "").strip()
@@ -61,8 +63,40 @@ def run(cmd, cwd=None, check=True, timeout=180):
     return r
 
 
+def ssh_key_path() -> Optional[Path]:
+    """Deploy key for the backup repo, if one was provisioned.
+
+    Preferred over BACKUP_GITHUB_TOKEN: a personal access token expires (this
+    one did, silently, and offsite backups stopped for 11 days), while a deploy
+    key does not and is scoped to this single repository.
+    """
+    p = Path(os.environ.get("BACKUP_SSH_KEY") or (HERMES_HOME / ".ssh" / "backup_key"))
+    return p if p.is_file() else None
+
+
+def ssh_url() -> Optional[str]:
+    """Rewrite the configured https remote to its SSH form."""
+    m = re.match(r"^https://github\.com/([^/]+)/(.+?)(?:\.git)?/?$", REPO_URL)
+    return f"git@github.com:{m.group(1)}/{m.group(2)}.git" if m else None
+
+
+def apply_git_env() -> None:
+    """Pin the deploy key for every git call in this process."""
+    key = ssh_key_path()
+    if key:
+        os.environ["GIT_SSH_COMMAND"] = (
+            f"ssh -i {key} -o IdentitiesOnly=yes "
+            "-o StrictHostKeyChecking=accept-new -o BatchMode=yes"
+        )
+    os.environ["GIT_TERMINAL_PROMPT"] = "0"  # never block the cron slot on a prompt
+
+
 def auth_url() -> str:
-    """Inject the token as HTTP basic-auth user (scrubbed from all output)."""
+    """Remote URL to use: SSH deploy key first, token as fallback."""
+    if ssh_key_path():
+        url = ssh_url()
+        if url:
+            return url
     if TOKEN and REPO_URL.startswith("https://"):
         return REPO_URL.replace("https://", f"https://x-access-token:{TOKEN}@", 1)
     return REPO_URL  # local file:// (tests) or already-auth'd
@@ -99,9 +133,12 @@ def copy_includes(staging: Path) -> None:
 
 def main() -> int:
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    if not REPO_URL or not TOKEN:
-        print("[backup] SKIP — BACKUP_REPO_URL / BACKUP_GITHUB_TOKEN not set")
+    # A deploy key alone is enough — the token became optional once the PAT
+    # expired and took the offsite backup down with it.
+    if not REPO_URL or not (TOKEN or ssh_key_path()):
+        print("[backup] SKIP — BACKUP_REPO_URL and no credential (deploy key / token)")
         return 0
+    apply_git_env()
 
     with tempfile.TemporaryDirectory(prefix="hermes-backup-") as tmp:
         staging = Path(tmp) / "repo"
