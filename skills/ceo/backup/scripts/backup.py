@@ -19,13 +19,17 @@ Env (set in Railway Variables, never in code/config):
 
 Stdlib only — no external deps (runs under the plain cron python).
 """
+import gzip
+import io
+import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -36,12 +40,29 @@ GIT_USER = (os.environ.get("BACKUP_GIT_USER_NAME") or "Hermes Backup").strip()
 GIT_EMAIL = (os.environ.get("BACKUP_GIT_USER_EMAIL") or "hermes@noreply.local").strip()
 
 # What to back up (whitelist, relative to HERMES_HOME).
-INCLUDE = ["memory", "logs/daily", "logs/coaching", "logs/hooks", "logs/telemetry", "logs/notes", "logs/diary", "config.yaml"]
+INCLUDE = ["memory", "memories", "SOUL.md", "cron/jobs.json", "kanban/boards",
+           "logs/daily", "logs/coaching", "logs/hooks", "logs/telemetry",
+           "logs/notes", "logs/diary", "logs/trips", "logs/curator", "config.yaml"]
 # Never copy these, even if matched by INCLUDE (defence-in-depth — .env etc.).
+# Live SQLite files are in here too: a byte copy taken while the app is writing
+# is a corrupt database. Every database we keep goes through snapshot_sqlite().
 EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem",
-           "google_token.json", "google_client_secret.json", "google_*.json")
+           "google_token.json", "google_client_secret.json", "google_*.json",
+           "*.db", "*.db-wal", "*.db-shm", "*.sqlite", "*.sqlite3")
 # Retention: keep only the most recent N dated daily logs in the backup.
 LOGS_DAILY_KEEP = 30
+# Chat-history shards younger than this are rewritten on every run (a day is
+# only final once it is past); older shards are written once and never touched.
+CHAT_REWRITE_DAYS = 3
+
+# Credentials must never reach the backup repo, not even inside a chat message
+# the CEO once pasted. Applied to every exported row.
+SECRET_RE = re.compile(
+    r"sk-ant-[A-Za-z0-9_-]{12,}|sk-or-[A-Za-z0-9_-]{12,}|sk-proj-[A-Za-z0-9_-]{12,}"
+    r"|gsk_[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}"
+    r"|AIza[A-Za-z0-9_-]{20,}|[0-9]{9,10}:AA[A-Za-z0-9_-]{30,}"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+)
 
 
 def scrub(text: str) -> str:
@@ -111,6 +132,108 @@ def rotate_daily_logs(staging: Path) -> None:
         old.unlink()
 
 
+def redact(text: str) -> str:
+    return SECRET_RE.sub("***REDACTED***", text)
+
+
+def gzip_writer(path: Path):
+    """Deterministic gzip: no mtime, no embedded filename.
+
+    Both would change the compressed bytes on every run even when the content
+    is identical, which would push an empty "snapshot" commit every night.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fobj = open(path, "wb")
+    return gzip.GzipFile(fileobj=fobj, mode="wb", compresslevel=9, mtime=0)
+
+
+def snapshot_sqlite(src: Path, dst_gz: Path) -> bool:
+    """Consistent read-only snapshot of a live SQLite database, gzipped.
+
+    Read-only matters beyond correctness: this script runs as a cron job, and a
+    read-write connection can create WAL/SHM files owned by the wrong user —
+    exactly what took the container down on 2026-06-30.
+    """
+    tmpdir = Path(tempfile.mkdtemp(prefix="hermes-sqlite-"))
+    try:
+        con = sqlite3.connect(f"file:{src}?mode=ro", uri=True, timeout=30)
+        try:
+            con.execute("VACUUM INTO ?", (str(tmpdir / "snap.db"),))
+        finally:
+            con.close()
+        with open(tmpdir / "snap.db", "rb") as fh, gzip_writer(dst_gz) as out:
+            shutil.copyfileobj(fh, out)
+        return True
+    except Exception as exc:
+        print(f"[backup] sqlite snapshot failed for {src.name}: {exc}")
+        return False
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+
+def backup_kanban(staging: Path) -> int:
+    """Kanban boards carry the CEO's tasks since 2026-08-16 and live only here."""
+    sources = []
+    root_db = HERMES_HOME / "kanban.db"
+    if root_db.is_file():
+        sources.append((root_db, "_root.db.gz"))
+    boards = HERMES_HOME / "kanban" / "boards"
+    if boards.is_dir():
+        for db in sorted(boards.glob("*/kanban.db")):
+            sources.append((db, f"{db.parent.name}.db.gz"))
+    return sum(snapshot_sqlite(src, staging / "state" / "kanban" / name)
+               for src, name in sources)
+
+
+def export_chat_history(staging: Path) -> int:
+    """Chat history as day-sharded JSONL — not the raw 171 MB database file.
+
+    Two reasons for the shape. The full-text search indexes are most of that
+    size and SQLite rebuilds them from the rows, so they are not worth storing.
+    And git keeps every version of every file forever: one growing export
+    rewritten nightly would add its whole size to the repo each night, which no
+    retention policy can undo. A finished day is written once and never changes,
+    so the repo grows by about a day of conversation.
+    """
+    src = HERMES_HOME / "state.db"
+    if not src.is_file():
+        return 0
+    written = 0
+    con = sqlite3.connect(f"file:{src}?mode=ro", uri=True, timeout=30)
+    con.row_factory = sqlite3.Row
+    try:
+        today = datetime.now(timezone.utc).date()
+        recent = {(today - timedelta(days=i)).isoformat() for i in range(CHAT_REWRITE_DAYS)}
+        for table, ts_col in (("messages", "timestamp"), ("sessions", "started_at")):
+            day_dir = staging / "state" / table
+            have = {p.name[:-len(".jsonl.gz")] for p in day_dir.glob("*.jsonl.gz")} \
+                if day_dir.is_dir() else set()
+            days = [r[0] for r in con.execute(
+                f"SELECT DISTINCT date({ts_col}, 'unixepoch') FROM {table} "
+                f"WHERE {ts_col} IS NOT NULL ORDER BY 1")]
+            for day in days:
+                if day in have and day not in recent:
+                    continue
+                rows = con.execute(
+                    f"SELECT * FROM {table} WHERE date({ts_col}, 'unixepoch') = ? "
+                    f"ORDER BY rowid", (day,))
+                with gzip_writer(day_dir / f"{day}.jsonl.gz") as raw, \
+                        io.TextIOWrapper(raw, encoding="utf-8") as fh:
+                    for row in rows:
+                        fh.write(redact(json.dumps(dict(row), ensure_ascii=False,
+                                                   default=str)) + "\n")
+                written += 1
+        # Small enough to rewrite whole; it is per-session billing, not content.
+        with gzip_writer(staging / "state" / "session_model_usage.jsonl.gz") as raw, \
+                io.TextIOWrapper(raw, encoding="utf-8") as fh:
+            for row in con.execute("SELECT * FROM session_model_usage ORDER BY rowid"):
+                fh.write(json.dumps(dict(row), ensure_ascii=False, default=str) + "\n")
+        written += 1
+    finally:
+        con.close()
+    return written
+
+
 def copy_includes(staging: Path) -> None:
     for item in INCLUDE:
         src = HERMES_HOME / item
@@ -162,6 +285,9 @@ def main() -> int:
         # 2. Refresh content + rotate + write README.
         copy_includes(staging)
         rotate_daily_logs(staging)
+        # Live databases: consistent snapshots, never raw file copies.
+        backup_kanban(staging)
+        export_chat_history(staging)
         (staging / "README.md").write_text(
             "# Hermes Memory Backup\n\n"
             f"**Last snapshot:** {ts}\n\n"
