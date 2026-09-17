@@ -2,7 +2,7 @@
 name: projects
 description: |
   Compact Telegram listing of active projects from memory/projects.md for the
-  CEO of TANDEM Group. Auto-invoked when the user types /projects in Telegram
+  Alexandr Scerbina (directions P1–P5). Auto-invoked when the user types /projects in Telegram
   (variants: "show projects", "что в проектах", "проекты"). Returns a
   priority-sorted table: name | status | priority | deadline | next action.
   Filters by optional `<priority>` arg (`/projects high`, `/projects medium`).

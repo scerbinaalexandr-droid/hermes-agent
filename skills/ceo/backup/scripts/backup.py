@@ -292,7 +292,7 @@ def main() -> int:
             "# Hermes Memory Backup\n\n"
             f"**Last snapshot:** {ts}\n\n"
             "**Source:** Railway production (HERMES_HOME=/opt/data)\n\n"
-            "**Privacy:** PRIVATE. Contains TANDEM business data + personal context. "
+            "**Privacy:** PRIVATE. Contains business directions data + personal context. "
             "Do not share, do not make public, do not fork.\n",
             encoding="utf-8",
         )

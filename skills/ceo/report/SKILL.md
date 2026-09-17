@@ -71,7 +71,7 @@ Helper делает:
 3. Аггрегирует: captures by type, decisions, weekly summaries, project status, risks, energy/stress trend (если есть evening reviews)
 4. Рендерит HTML через inline template + Chart.js CDN
 5. Если `--pdf` — рендерит **PDF через headless Chromium** (`/opt/hermes/.playwright/chromium*/chrome-linux/headless_shell --print-to-pdf`). Chart.js charts реально выполняются и появляются в PDF.
-6. Сохраняет `/opt/data/reports/tandem-report-<period>-<YYYY-MM-DD>.html` (+ .pdf если --pdf успешно)
+6. Сохраняет `/opt/data/reports/alex21-report-<period>-<YYYY-MM-DD>.html` (+ .pdf если --pdf успешно)
 7. Returns JSON `{html_path, pdf_path, pdf_status, filled, empty, stats}`
 
 Если `pdf_status.ok == false` (Chromium не найден или timeout) — продолжай только с HTML, не падай. В caption Telegram упомяни: «PDF не сгенерирован: {reason}, HTML работает».

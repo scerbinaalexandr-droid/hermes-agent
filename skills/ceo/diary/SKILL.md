@@ -1,7 +1,7 @@
 ---
 name: diary
 description: |
-  Daily diary + structured meeting-protocol capture for the CEO of TANDEM Group.
+  Daily diary + structured meeting-protocol capture for Alexandr Scerbina.
   Two flows in one skill:
     1. DAILY DIARY (continuous) — CEO dictates throughout the day (voice or text);
        each input becomes a timestamped entry in today's diary file. Builds the
@@ -93,7 +93,7 @@ python skills/ceo/diary/scripts/diary.py --gather
 **Privacy guard (КРИТИЧНО, soul.md §Privacy guard):**
 - Семья → "Супруга" / "Мама" / "Папа" — НИКОГДА реальное имя
 - Незнакомые партнёры → "партнёр X / поставщик Y" (исключение — общеизвестные
-  Tandem-context имена, напр. "Живко")
+  общеизвестные имена)
 - Точные цены договоров → диапазоны ("400-500K MDL", не "470K MDL")
 - Banking / passwords / медицина — НЕ сохраняй, попроси переформулировать
 
@@ -163,14 +163,14 @@ python skills/ceo/diary/scripts/diary.py --save '<JSON>'
 
 JSON shape (entry):
 ```json
-{"kind": "entry", "content": "...", "context": "Tandem Casa", "energy": "7/10", "mood": "..."}
+{"kind": "entry", "content": "...", "context": "П3 Экзоскелет", "energy": "7/10", "mood": "..."}
 ```
 
 JSON shape (protocol):
 ```json
 {
   "kind": "protocol",
-  "topic": "TANDEM Casa — кампания осень 2026",
+  "topic": "П2 — интервью с собственником о выходе из операционки",
   "participants": ["Александр", "партнёр X"],
   "decisions": ["..."],
   "action_items": ["Александр / 03.06 — ..."],

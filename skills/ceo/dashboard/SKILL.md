@@ -40,7 +40,7 @@ metadata:
 **Purpose.** Forward-looking HTML-кокпит для CEO: что на столе **сейчас** и что
 **впереди**. В отличие от `/report` (что произошло за период), `/dashboard`
 смотрит вперёд — открытые приоритеты, надиктованный backlog, план недели,
-прогресс проектов, риски под наблюдением. Тот же premium dark TANDEM-стиль
+прогресс проектов, риски под наблюдением. Тот же premium dark стиль
 (gold `#c4a747`), что у `/report`. Single artefact: bot генерирует HTML →
 отправляет как Telegram document → одинаковый вид на Mac (Chrome) и iPhone.
 
@@ -78,9 +78,9 @@ Helper делает:
    `weekly_review.md`, `logs/daily/*.md` — фильтрует по forward-looking логике.
 2. Собирает 8 секций (top-of-mind, backlog, weekly plan, проекты с прогрессом,
    риски, health trend, решения, quick-capture).
-3. Рендерит self-contained HTML (dark TANDEM theme, Chart.js CDN для тренда).
+3. Рендерит self-contained HTML (dark theme, Chart.js CDN для тренда).
 4. Сохраняет `/opt/data/reports/<uuid>.html` (+ friendly симлинк
-   `tandem-dashboard-<YYYY-MM-DD>.html`).
+   `alex21-dashboard-<YYYY-MM-DD>.html`).
 5. Строит `public_url` из `HERMES_PUBLIC_HOST` (если задан в Railway Variables).
 6. Возвращает JSON: `{html_path, public_url, telegram_caption, stats, filled, empty}`.
 

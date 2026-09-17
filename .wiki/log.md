@@ -314,3 +314,50 @@ Append-only лог событий. Karpathy convention.
 ## — Переименование Hermes → BOT_21: юзер сам сделал /setname + /setuserpic (своё фото) в BotFather. Адрес @Hermes_Alex21_bot не меняется (Telegram не даёт). Синхронизирована самоидентификация: docker/SOUL.md, memory/soul.md, menu/start/cost SKILL.md + прод /opt/data/SOUL.md напрямую под hermes (бэкап SOUL.md.bak-20260724, деплой существующий SOUL не перезаписывает). НЕ тронуты: ярлык Gmail `Hermes/Авто-архив` (сломает фильтры), внутренние упоминания движка. Коммит 50225d9e3, деплой success 20:04 UTC, verified на проде.
 ## — 🔎 Находка: скилл `business-trip-research` (15KB + HTML-шаблон) жил ТОЛЬКО на прод-волюме с 11.07, вне git → при пересоздании volume потерялся бы. Забран побайтово (cee24d886).
 ## — Ревизия `.wiki/AUDIT_2026-07-24.md`: карта 32 команд, 13 cron, что проверено (health 200, ключ ok, сквозной бриф, 126 тестов, compileall 30 скриптов, состав скиллов) и что НЕ проверено (живые прогоны 30 команд — только за юзером).
+
+## [2026-07-24] session-end | 4 commits on main
+
+## [2026-07-25] session-end | No commits (main)
+
+## [2026-07-30] session-end | 1 commits on main
+
+## [2026-07-30] session-end | 2 commits on main
+
+## [2026-08-16] session-end | No commits (main)
+
+## [2026-08-16] session-end | 1 commits on main
+
+## [2026-08-16] session-end | 2 commits on main
+
+## [2026-08-16] session-end | 3 commits on main
+
+## [2026-08-16] session-end | 4 commits on main
+
+## 2026-08-22 — pre-compact snapshot
+- Saved snapshot before /compact (контекст ~80%)
+- См. CONTEXT.md секцию "Snapshot 2026-08-22" — Hermex через публичный HTTPS, задачи на досках, память заполнена реальным контекстом владельца, отчёт Codex
+
+## [2026-08-22] session-end | No commits (main)
+
+## [2026-08-23] session-end | No commits (main)
+
+## [2026-08-23] session-end | 1 commits on main
+
+## [2026-09-02] session-end | 1 commits on main
+
+## 2026-09-03 — pre-compact snapshot
+- Saved snapshot before /compact (контекст ~85%)
+- См. CONTEXT.md секцию "Snapshot 2026-09-03" — перестройка Telegram-шлюза, отключение рабочего номера, deploy key для бэкапа
+
+## [2026-09-03] session-end | No commits (main)
+
+## [2026-09-09] session-end | No commits (main)
+
+## 2026-09-14 — ИКИГАЙ и цели (восстановлено 16.09 из транскрипта; сессия оборвалась без записи)
+- Владелец сформулировал новую ось: ИКИГАЙ (подготовка бизнесов к передаче/продаже), цель 100k€/мес, 5 направлений. Записано в память `new-direction-after-tandem.md`.
+- Диагностика прода: 14 cron на паузе с 10.09 по голосовой команде владельца; API-баланс кончился 07.09.
+- Показан черновик нового `memory/projects.md` — в файл не записан. Два вопроса (бэкап, порядок работ) остались без ответа.
+
+## 2026-09-16 — фиксация + старт переоснастки
+- Восстановлен контекст 14.09 → `CONTEXT.md` секция 2026-09-16. Владелец: «зафиксировать всё, обновить под новую задачу, настроить бесперебойную работу через Hermex и Telegram».
+- Возвращён cron `daily_memory_backup`, запущен ручной снимок памяти перед переписыванием.

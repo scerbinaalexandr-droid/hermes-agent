@@ -1,7 +1,7 @@
 ---
 name: cleanup
 description: |
-  Memory-hygiene PROPOSER for the CEO of TANDEM Group. Scans memory/*.md
+  Memory-hygiene PROPOSER for Alexandr Scerbina. Scans memory/*.md
   (projects, risks, decisions, memory, daily_log) and PROPOSES hygiene actions:
   stale items (no update > N days), overdue reviews, done-but-listed projects,
   closed-but-listed risks, overdue decisions, leftover template placeholders,

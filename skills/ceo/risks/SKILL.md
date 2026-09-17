@@ -2,7 +2,7 @@
 name: risks
 description: |
   Compact Telegram listing of active risks from memory/risks.md for the CEO
-  of TANDEM Group, sorted by severity × probability. Auto-invoked when the
+  Alexandr Scerbina, sorted by severity × probability. Auto-invoked when the
   user types /risks in Telegram (variants: "show risks", "риски", "что
   угрожает"). Optionally filter by minimum severity (`/risks high`).
 version: 0.1.0

@@ -1,7 +1,7 @@
 ---
 name: evening
 description: |
-  Evening executive review for the CEO of TANDEM Group. Auto-invoked when the
+  Evening diary for Alexandr Scerbina (free-form voice recap → structured day entry). Auto-invoked when the
   user types /evening in Telegram (variants: "evening review", "recap",
   "вечерний обзор", "итоги дня"). Reads memory/daily_log.md (today's brief +
   captures), memory/projects.md (priority=high), memory/risks.md. Asks the
@@ -30,7 +30,7 @@ metadata:
       - "recap"
 ---
 
-# Evening Review — CEO of TANDEM Group
+# Evening Review — дневник дня
 
 **Purpose.** Закрытие дня. Снимает mental residue, готовит фокус на завтра.
 Per blueprint §08.

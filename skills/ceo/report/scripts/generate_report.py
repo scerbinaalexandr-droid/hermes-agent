@@ -456,7 +456,7 @@ def _esc(s: str) -> str:
 
 
 def render_html(data: dict) -> str:
-    """Compose dark-theme TANDEM dashboard. Self-contained except Chart.js CDN."""
+    """Compose dark-theme report. Self-contained except Chart.js CDN."""
     period_label = data["period_label"]
     generated_at = data["generated_at"]
     cutoff = data["cutoff"]
@@ -677,7 +677,7 @@ def render_html(data: dict) -> str:
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>TANDEM Group — Executive Report — {_esc(period_label)} — {_esc(generated_at)}</title>
+<title>Alexandr Scerbina — Report — {_esc(period_label)} — {_esc(generated_at)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -731,7 +731,7 @@ def render_html(data: dict) -> str:
 <div class="container">
 
 <header>
-  <h1>TANDEM GROUP</h1>
+  <h1>ALEXANDR SCERBINA</h1>
   <div class="subtitle">Executive Report — {_esc(period_label)}</div>
   <div class="meta">Generated: {_esc(generated_at)} · Period from {_esc(cutoff)} · CEO: Alexandr Scerbina</div>
 </header>
@@ -784,7 +784,7 @@ def render_html(data: dict) -> str:
 </section>
 
 <div class="footer">
-  <p><strong>TANDEM Group</strong> · Executive Operating System (Hermes V1)</p>
+  <p><strong>Портфель направлений П1–П5</strong> · Personal Operating System (Hermes)</p>
   <p>Сгенерировано {_esc(generated_at)} из real CEO memory. NO fabricated stats, NO external market data.</p>
   <p>Открой в Chrome → File → Print → Save as PDF для PDF-версии.</p>
 </div>
@@ -866,7 +866,7 @@ def main() -> int:
     # Also create a friendly symlink for human browsing of local /opt/data/reports/.
     uuid_filename = f"{_uuid.uuid4()}.html"
     file_path = out_dir / uuid_filename
-    friendly_name = f"tandem-report-{args.period}-{today_iso()}.html"
+    friendly_name = f"alex21-report-{args.period}-{today_iso()}.html"
     friendly_path = out_dir / friendly_name
 
     # Build public URL first so we can embed it in the HTML footer
@@ -908,7 +908,7 @@ def main() -> int:
     pdf_status: dict = {"requested": False}
     want_pdf = args.pdf and not args.no_pdf
     if want_pdf:
-        pdf_path_candidate = out_dir / f"tandem-report-{args.period}-{today_iso()}.pdf"
+        pdf_path_candidate = out_dir / f"alex21-report-{args.period}-{today_iso()}.pdf"
         pdf_status = {"requested": True, **html_to_pdf(file_path, pdf_path_candidate)}
         if pdf_status.get("ok"):
             pdf_path = pdf_path_candidate
@@ -917,7 +917,7 @@ def main() -> int:
     gdoc_url = None
     gdoc_status: dict = {"requested": False}
     if args.gdoc:
-        gdoc_title = f"Tandem отчёт — {period_label} {today_iso()}"
+        gdoc_title = f"Отчёт — {period_label} {today_iso()}"
         gdoc_share = args.gdoc_share or os.environ.get("HERMES_CEO_EMAIL")
         gdoc_status = {"requested": True,
                        **create_gdoc_from_html(file_path, gdoc_title, share=gdoc_share)}

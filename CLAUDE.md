@@ -7,11 +7,10 @@
 
 ## Что это за проект
 
-Fork **Nous Research Hermes Agent**, переоснащённый как **Executive Operating System** для **Alexandr Scerbina, CEO TANDEM Group** (мебельный холдинг, Молдова + Румыния; бренды: TANDEM Group, Tandem Casa 360°, Kitchen by Tandem, Arlengo, Lean Kitchen).
+Fork **Nous Research Hermes Agent**, переоснащённый как **личный ассистент и банк контекста** для **Alexandr Scerbina** — владельца портфеля собственных направлений (П1–П5: lean-консалтинг, вывод собственника из операционки, экзоскелет CEO, ресерч-машина, вайбкодинг-проекты). До 21.08.2026 проект был Executive OS для него как CEO TANDEM Group — эта повестка в архиве.
 
-**Источник архитектуры V1:** `~/Downloads/hermes_claude_code_sequential_files_blueprint.md`
-**План реализации:** `~/.claude/plans/hermes-claude-code-sequential-files-blue-partitioned-gizmo.md`
-**Текущая фаза:** V1 MVP-вертикаль — Stage 0-4 до рабочего `/brief` через Telegram.
+**Ось владельца:** `memory/projects.md` (ИКИГАЙ, цель 100 000 €/мес, П1–П5). Контекст сессий: `.wiki/CONTEXT.md`.
+**Текущая фаза:** переоснастка после TANDEM (с 2026-09-17) — память переписана, кроны пересобраны; дальше — приём контекста по направлениям и П4 как отдельный проект.
 
 ---
 
@@ -125,4 +124,4 @@ hermes-agent/
 
 ## Quality threshold
 
-LEAN21 9.6/10 — стандарт. Не передаём брак. End-to-end проверка `/brief` обязательна перед "MVP done".
+LEAN21 9.6/10 — стандарт. Не передаём брак. Любое изменение ритуалов (`/brief`, `/evening`, `/week`) проверяется сквозным прогоном в Telegram.

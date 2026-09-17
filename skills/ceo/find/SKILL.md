@@ -4,7 +4,7 @@ description: |
   Search в CEO memory (memory/*.md + logs/daily/ + logs/weekly/ + Hermes
   session_search). Используй ВСЕГДА когда user спрашивает про past события /
   решения / встречи: "когда мы решили X", "что я говорил про Y", "найди про
-  Tandem Casa Q3", "что было на встрече с Живко", "/find <query>".
+  экзоскелету", "что я говорил про траекторию собственника", "/find <query>".
   Returns 1-5 most relevant matches с датой + контекстом.
 version: 0.1.0
 author: alexandr.scerbina
@@ -41,7 +41,7 @@ tools — используй их.
 ## Step 1 — Determine search scope
 
 Извлеки **главные keywords** из запроса:
-- Имя project (Tandem Casa, Kitchen, Brasov, Pharma RO, etc.)
+- Код направления или имя проекта (П1–П5, Экзоскелет, Brasov, Pharma RO, etc.)
 - Имя partner / supplier (Живко, поставщик X)
 - Тема (cashflow, marketing, IT, monthly review)
 - Дата / период ("на прошлой неделе", "в апреле", "Q3")
@@ -94,7 +94,7 @@ tools — используй их.
 🔍 По «{query}» ничего не нашёл в памяти.
 
 Может быть:
-- Другой формулировкой? («Tandem Casa» вместо «TC»)
+- Другой формулировкой? («Экзоскелет» вместо «П3»)
 - В Obsidian (внешняя память — я туда не лезу)?
 - Запиши сейчас через /capture, если это важно
 ```

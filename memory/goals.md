@@ -1,76 +1,29 @@
-# Long-term Goals
+# Goals — горизонт ~6 месяцев
 
-> Goals = outcome targets by horizon. Не projects (те — отдельные deliverable artefacts).
-> Updated: 2026-05-17.
+> Обновлено: 2026-09-17. Ось — ИКИГАЙ и портфель направлений П1–П5.
 
----
+## Главная
 
-## Horizon: 1 year (2026-Q1 → 2027-Q1)
+- [ ] **100 000 € чистыми в месяц** — целевой доход портфеля направлений
 
-### CEO / Tandem Group
-- <goal 1 — e.g., "Stable monthly cashflow ≥ X, runway ≥ 12 months">
-- <goal 2>
+## Направления
 
-### Tandem Casa 360°
-- <goal 1>
+- [ ] П2 — упаковать «вывод собственника из операционки» и получить первого клиента (первое направление на деньги)
+- [ ] П1 — упаковать lean-консалтинг: позиционирование, описание, сайт
+- [ ] П3 — провести серию интервью по экзоскелету CEO и завайбкодить первый блок (бюджетирование)
+- [ ] П4 — собрать первый датасет по рынку продажи бизнесов (Австрия)
+- [ ] П5 — довести финпанель (OCR выписок) до рабочего состояния
+- [ ] Hermes — ассистент копит контекст по направлениям, дневник и дайджесты работают без сбоев
 
-### Kitchen by Tandem (Lean transformation)
-- <goal 1 — e.g., "Reduce production lead time X→Y days">
+## Личное
 
-### Pharma Romania
-- <goal 1 — e.g., "Go/no-go gate passed by Q3 2026">
+- [ ] Закрыть страховой случай по квартире в Брашове и довести ремонт
+- [ ] Вернуться в устойчивый личный режим: сон, движение, два выходных без рабочих чатов
+- [ ] Довести навык лаконичной коммуникации до автоматизма
 
-### Personal Health
-- <goal 1>
+## Дальний горизонт
 
-### Family
-- <goal 1>
-
-### Knowledge Capitalization
-- <goal 1>
-
----
-
-## Horizon: 3 years (2026-2029)
-
-### Holding
-- Self-running divisions, CEO time focused на strategy + capital allocation
-- <other>
-
-### Brand portfolio
-- <regional leadership target>
-
-### Personal
-- <expertise milestone>
-
----
-
-## Horizon: 10 years (2026-2036)
-
-### Long-term vision
-
-<заполнить через серию вопросов или manual edit>
-
-- TANDEM Group as durable family enterprise
-- Pharma RO operational + profitable division
-- Knowledge capitalization — published asset (book / course / content empire)
-- Biological age < chronological age sustained
-- Family stability + parental legacy
-
----
-
-## Goal review cadence
-
-| Horizon | Review frequency | Where |
-|---|---|---|
-| 1 year | quarterly | weekly_review.md aggregation |
-| 3 years | annually | dedicated review January |
-| 10 years | annually | dedicated review January (вместе с Супругой) |
-
----
-
-## Notes
-
-- Goals НЕ задачи. Если goal требует work — соответствующий project в `projects.md` имеет linkback.
-- Goals меняются медленно. 1-year goals — quarterly review, 3-year — annual, 10-year — almost frozen.
-- При weekly review проверяется: текущая неделя продвигает к 1-year goals? Если 4 недели подряд нет — review приоритеты.
+- Быть первым в нише подготовки бизнесов к передаче и продаже
+- Написать книгу по кейсу TANDEM
+- Развивать экспертный бренд и контент-завод
+- Собственные данные П4 как продаваемый продукт (отчёты)

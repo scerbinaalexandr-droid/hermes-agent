@@ -1,7 +1,7 @@
 ---
 name: week
 description: |
-  Weekly CEO review for the CEO of TANDEM Group. Auto-invoked when the user
+  Weekly review for Alexandr Scerbina across his directions P1–P5. Auto-invoked when the user
   types /week in Telegram (variants: "weekly review", "ceo review",
   "обзор недели", "итоги недели"). Reads memory/projects.md, memory/risks.md,
   memory/daily_log.md (last 7 entries), memory/weekly_review.md (last entry,
@@ -20,7 +20,7 @@ prerequisites:
     - memory/weekly_review.md
 metadata:
   hermes:
-    tags: [CEO, Weekly, Review, Sunday, Telegram]
+    tags: [Weekly, Review, Sunday, Telegram, Directions]
     commands: [/week]
     triggers:
       - "/week"
@@ -30,7 +30,7 @@ metadata:
       - "итоги недели"
 ---
 
-# Weekly CEO Review — TANDEM Group
+# Weekly Review — направления П1–П5
 
 **Purpose.** Sunday consolidation: что двигалось / стагнирует, риски, фокус
 следующей недели. Per blueprint §09.
@@ -76,8 +76,8 @@ Returns JSON with:
 Расскажи неделю голосом (1-3 voice memo, 30-60 сек каждый) или текстом —
 свободно. Я разберу на 14 секций сам:
 
-бизнес / cashflow / продажи / производство / маркетинг / команда /
-проекты (status) / здоровье / семья / recovery / обучение /
+общая картина / деньги / клиенты (П1–П2) / система и данные (П3–П4) / бренд и контент /
+люди и партнёры / проекты (status) / здоровье / семья / recovery / обучение /
 изменения рисков / ключевые решения / фокус следующей недели
 
 (или /skip чтобы пропустить этой неделей)
@@ -89,11 +89,11 @@ User говорит потоком о неделе. Извлеки 14 полей
 
 - **Бизнес** — общая картина бизнеса этой недели (revenue/momentum/feel)
 - **Cashflow** — упоминания денег / runway / concerns
-- **Продажи** — упоминания TC360, sales pipeline, conversion
-- **Производство** — Kitchen by Tandem, lean, OEE, defects
-- **Маркетинг** — TikTok, brand, content
+- **Клиенты (П1–П2)** — переговоры, первые клиенты, упаковка lean-консалтинга и вывода собственника
+- **Система и данные (П3–П4)** — интервью и блоки экзоскелета, датасет по рынку продажи бизнесов
+- **Бренд и контент** — книга, контент-завод, публикации
 - **Команда** — key people movements, hiring, conflicts, mentions of names → roles
-- **Проекты** — extract pairs `<имя проекта>: <новый статус / progress note>`. Если user сказал "Tandem Casa активный +12%" → {name: "Tandem Casa 360°", status: "active", note: "+12%"}
+- **Проекты** — extract pairs `<имя проекта>: <новый статус / progress note>`. Если user сказал "по экзоскелету — первое интервью сделал" → {name: "П3. Экзоскелет CEO", status: "active", note: "первое интервью сделано"}
 - **Здоровье** — спорт sessions, sleep, labs, energy trend
 - **Семья** — touchpoints (БЕЗ имён, redact в "Супруга" / "родители")
 - **Recovery** — пришёл ли с энергией / выгорел
@@ -111,10 +111,10 @@ User говорит потоком о неделе. Извлеки 14 полей
 
 *Бизнес:* {x}
 *Cashflow:* {x}
-*Продажи:* {x}
+*Клиенты (П1–П2):* {x}
 ...
 *Проекты обновлены:*
-  - Tandem Casa 360°: active — pipeline +12%
+  - П3. Экзоскелет CEO: active — первое интервью сделано
   - Brasov Apartment: blocked — contractor delay
 *Семья:* {x — после redaction}
 *Фокус следующей недели:* {x}
@@ -141,12 +141,12 @@ JSON shape:
 {
   "business": "...",
   "cashflow": "...",
-  "sales": "...",
-  "production": "...",
-  "marketing": "...",
+  "clients": "...",
+  "system": "...",
+  "brand": "...",
   "team": "...",
   "projects": [
-    {"name": "Tandem Casa 360°", "status": "active", "note": "pipeline +12%"},
+    {"name": "П3. Экзоскелет CEO", "status": "active", "note": "первое интервью сделано"},
     {"name": "Brasov Apartment Renovation", "status": "blocked", "note": "contractor delay"}
   ],
   "health": "...",

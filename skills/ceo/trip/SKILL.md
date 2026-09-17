@@ -1,7 +1,7 @@
 ---
 name: trip
 description: |
-  Trip / business-travel planning capture for the CEO of TANDEM Group (Moldova
+  Trip / business-travel planning capture for Alexandr Scerbina (Moldova
   ↔ Romania, brand sites). Records a STRUCTURED travel plan — destination,
   dates, purpose, agenda/meetings, tasks — as a per-trip file and mirrors it to
   the master Google Sheet (Поездки tab) so trips accumulate as data for later
@@ -80,7 +80,7 @@ python skills/ceo/trip/scripts/trip.py --gather
 - **agenda** — список пунктов плана/встреч (по дням, если названо).
 - **action_items** — что подготовить ДО поездки (брони, документы, договоры).
 - **area** — одно из 12 направлений (`memory/areas.md`), если очевидно
-  (бизнес-поездка → "CEO / Tandem Group" или "Pharma Project Romania"; отдых →
+  (бизнес-поездка → "Портфель направлений (П1–П5)" или "Pharma Project Romania"; отдых →
   "Travel & Recovery"). Не очевидно — оставь пустым.
 - **notes** — логистика, бюджет-диапазон, прочее.
 - **status** — `planned` (default), `done` если поездка уже состоялась.
@@ -90,7 +90,7 @@ python skills/ceo/trip/scripts/trip.py --gather
 **Privacy guard (КРИТИЧНО, soul.md §Privacy guard):**
 - Семья → "Супруга" / "Мама" / "Папа" — НИКОГДА реальное имя.
 - Незнакомые партнёры → "партнёр X / поставщик Y" (исключение — общеизвестные
-  Tandem-context имена).
+  общеизвестные имена).
 - Точные суммы → диапазоны ("бюджет 1-2K EUR", не "1470 EUR").
 - Banking / passwords / номера паспортов — НЕ сохраняй, попроси переформулировать.
 

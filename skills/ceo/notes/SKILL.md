@@ -2,7 +2,7 @@
 name: notes
 description: |
   Meeting / call / protocol notes (STRUCTURED, with Google Sheet sync) for the
-  CEO of TANDEM Group — also general structured notes / decision logs. Use this
+  Alexandr Scerbina — also general structured notes / decision logs. Use this
   for ANY meeting/call/protocol. Triggered when the user types /notes, sends a
   voice memo with meeting context, photographs a printed protocol, or uses
   semantic variants:
@@ -82,9 +82,9 @@ LLM получает один из:
 
 | Поле | Описание | Пример |
 |---|---|---|
-| `topic` | 4-7 слов суть встречи / заметки | "TANDEM Casa — кампания осень 2026" |
+| `topic` | 4-7 слов суть встречи / заметки | "П2 — интервью с собственником о выходе из операционки" |
 | `meeting_type` | meeting / call / personal-note / observation / decision-log / protocol | "meeting" |
-| `participants` | список людей (применить privacy guard) | ["Александр", "Анна (Tandem Casa CRM)", "партнёр X"] |
+| `participants` | список людей (применить privacy guard) | ["Александр", "собственник Y", "партнёр X"] |
 | `date` | дата события (если не указана — today) | "2026-05-31" |
 | `decisions` | список принятых решений с обоснованием | ["Запускаем кампанию 15 сентября — согласовано с production"] |
 | `action_items` | список action items с owner + deadline | ["Александр / 03.06 — финальный бриф маркетингу"] |
@@ -93,7 +93,7 @@ LLM получает один из:
 
 **Privacy guard (КРИТИЧНО):**
 - Семья (Супруга, Мама, Папа) — НИКОГДА не сохраняй имя
-- Незнакомые партнёры → "партнёр X / поставщик Y" (исключения — общеизвестные имена в Tandem контексте)
+- Незнакомые партнёры и собственники → "партнёр X / собственник Y"
 - Точные цены договоров → диапазоны ("400-500K MDL", не "470K MDL")
 - Banking, passwords, медицина — НЕ сохраняй вообще, попроси переформулировать
 
@@ -166,7 +166,7 @@ python /opt/data/scripts/notes_log.py --save '<JSON>'
 JSON shape:
 ```json
 {
-  "topic": "TANDEM Casa — кампания осень 2026",
+  "topic": "П2 — интервью с собственником о выходе из операционки",
   "meeting_type": "meeting",
   "date": "2026-05-31",
   "participants": ["Александр", "Анна (TC CRM)"],

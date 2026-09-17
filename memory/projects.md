@@ -1,203 +1,177 @@
 # Projects — Active
 
-> Active projects with structured tracking. Блюпринт §05 (10 initial projects).
-> SOP: `SOP/project_management.md`.
-> Updated: 2026-05-17 (init).
+> Обновлено: 2026-09-17. Модель — портфель собственных направлений.
+> Наёмная роль CEO TANDEM Group завершена 21.08.2026 и в активный контекст
+> не возвращается (см. Archived).
+
+**ИКИГАЙ.** Стать супер-экспертом по подготовке бизнесов к передаче и продаже.
+Создать лучшую в мире систему, которая делает любой бизнес легко управляемым
+и легко передаваемым другому человеку. Рынок — стареющие предприниматели,
+которым некому или незачем передавать компанию по наследству. Вход к клиенту —
+через аудит и упаковку бизнеса.
+
+**Финансовая цель: 100 000 € чистыми в месяц.**
+
+Порядок выхода на деньги: П2 первым, затем П1; П3–П5 — накопление контекста
+и разработка параллельно.
 
 ---
 
-## Tandem Group CEO System (Hermes V1)
+## П2. Вывод собственника из операционки
 
-Owner: Alexandr Scerbina
-Goal: рабочая Executive OS на базе Hermes — daily/weekly ритм, memory, project tracking
-Status: active
-Priority: high
-Deadline: 2026-06-30 (V1 complete с cron автоматизацией)
-Next Actions:
-  - [ ] Stage 4 — рабочая команда `/brief` в Telegram (MVP)
-  - [ ] Stage 5 — `/evening`, `/week` команды
-  - [ ] Stage 6 — cron seeding (07:30, 21:30, Sun 17:00, Sun 18:00)
-  - [ ] Stage 7 — GitHub private backup
-Dependencies: Hermes core (already deployed), Telegram bot @Hermes_Alex21_bot
-Risks: overload (project deadlines конфликтуют с operations)
-Documents:
-  - `~/Downloads/hermes_claude_code_sequential_files_blueprint.md`
-  - `~/.claude/plans/hermes-claude-code-sequential-files-blue-partitioned-gizmo.md`
-  - `.wiki/CONTEXT.md`, `.wiki/decisions.md`
-Last Update: 2026-05-17
-Next Review: 2026-05-24
-
----
-
-## Tandem Casa 360°
-
-Owner: Alexandr Scerbina (+ team)
-Goal: <короткое описание целевого состояния — e.g., "Стабильная sales воронка + retail сеть в MD/RO">
+Owner: Александр
+Goal: упаковать и продать услугу «собственник выходит из операционки» — первым
+из направлений выйти на деньги.
 Status: active
 Priority: high
 Deadline: rolling
 Next Actions:
-  - [ ] <action>
-Dependencies: <other projects / people>
-Risks: cashflow, marketing performance
-Documents:
-  - `~/Documents/01_CODE/tandem-casa-crm/` (CRM)
-  - Tandem Casa CRM в Phase 7+
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd>
+  - [ ] Описать продукт: этапы, результат для собственника, цена
+  - [ ] Найти первого клиента из своей сети
+Context: не консультант со стороны, а участник с личным погружением — захожу
+внутрь компании и настраиваю управление через ИТ-системы. Бизнес становится
+управляемым и перестаёт зависеть от человеческого фактора. Траектория
+собственника: раз в неделю → раз в две недели по часу → раз в месяц →
+раз в квартал. В финале остаётся только роль R&D — новые направления и
+усиление бизнеса новым видением. Ориентир на рынке — Белоножко с
+«Пазл-системой»: не копировать, а идти глубже — он показывает как, я захожу
+и настраиваю лично.
+Last Update: 2026-09-17
 
 ---
 
-## Kitchens (Kitchen by Tandem) — Lean Transformation
+## П1. Lean-консалтинг по производству
 
-Owner: Alexandr Scerbina + production manager
-Goal: применить Toyota Production System к производству кухонь, сократить lead time, повысить quality
-Status: active
-Priority: high
-Deadline: rolling (multi-sprint)
-Next Actions:
-  - [ ] Sprint 10 (lean-kitchen project)
-Dependencies: lean-kitchen project (см. ~/Documents/01_CODE/lean-kitchen/), production team buy-in
-Risks: change resistance, production delays during transformation
-Documents:
-  - `~/Documents/01_CODE/lean-kitchen/` (sprint plans, audits)
-  - `toyota21` skill для guidance
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd>
-
----
-
-## TikTok / Marketing
-
-Owner: Alexandr Scerbina + marketing team
-Goal: <e.g., "Стабильный inbound через TikTok presence для Tandem Casa">
-Status: active
-Priority: medium
-Deadline: rolling
-Next Actions:
-  - [ ] <action>
-Dependencies: content team, designer
-Risks: brand consistency, time investment vs ROI
-Documents:
-  - <Notion / Obsidian content plan>
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd>
-
----
-
-## Brasov Apartment Renovation
-
-Owner: Alexandr Scerbina (+ contractor)
-Goal: завершить renovation, готовое жильё в Brasov для work weeks
-Status: active
-Priority: medium
-Deadline: <target date>
-Next Actions:
-  - [ ] <action>
-Dependencies: contractor schedule, materials supply
-Risks: project delays, budget overrun
-Documents:
-  - <photos, contractor agreements — Obsidian>
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd weekly>
-
----
-
-## Health / Longevity
-
-Owner: Alexandr Scerbina
-Goal: biological age < chronological age, sustained energy
-Status: active (continuous, not finishable)
-Priority: high
-Deadline: continuous
-Next Actions:
-  - [ ] Quarterly blood work
-  - [ ] Weekly 3x training
-  - [ ] Sleep tracking review
-Dependencies: HEALTH_VAULT data, doctor follow-ups
-Risks: burnout, neglect under work pressure
-Documents:
-  - `~/Library/Mobile Documents/iCloud~md~obsidian/Documents/HEALTH_VAULT/01 — ALEXANDR/`
-Last Update: 2026-05-17
-Next Review: 2026-06-17 (monthly)
-
----
-
-## Personal Finance
-
-Owner: Alexandr Scerbina
-Goal: clear separation business vs personal finance, passive income foundation
+Owner: Александр (через P&S Lean Solutions)
+Goal: упаковать lean-консалтинг для мебельного и любого другого производства
+как отдельный бизнес — позиционирование, описание, сайт.
 Status: active
 Priority: high
 Deadline: rolling
 Next Actions:
-  - [ ] <action>
-Dependencies: financial advisor, accounting team
-Risks: cashflow personal vs business mix
-Documents:
-  - <encrypted finance docs>
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd monthly>
+  - [ ] Позиционирование и описание услуги
+  - [ ] Сайт направления
+Context: компетенция подтверждена практикой (TPS/кайдзен на производстве кухонь
+и мебели). Второе направление по очерёдности выхода на деньги.
+Last Update: 2026-09-17
 
 ---
 
-## Pharma Production Romania
+## П3. Экзоскелет CEO
 
-Owner: Alexandr Scerbina + RO team
-Goal: operational pharma production plant in Romania
-Status: planning (go/no-go gate Q3 2026)
-Priority: medium (high после gate)
-Deadline: gate Q3 2026, operational Q1 2027
-Next Actions:
-  - [ ] <regulatory milestone>
-  - [ ] <partner agreements>
-Dependencies: RO regulatory, partner, capital
-Risks: regulatory, key people, strategic, cashflow
-Documents:
-  - <project room / SharePoint / Obsidian>
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd monthly>
-
----
-
-## Knowledge Capitalization
-
-Owner: Alexandr Scerbina
-Goal: published assets из CEO experience (book / course / content)
-Status: active (slow burn)
-Priority: medium
-Deadline: rolling (multi-year)
-Next Actions:
-  - [ ] Weekly writing 2+ hours
-  - [ ] Monthly content publish
-Dependencies: protected time blocks в calendar
-Risks: overload (vs operational), perfectionism
-Documents:
-  - <Obsidian content folder>
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd monthly>
-
----
-
-## Learning & Expertise
-
-Owner: Alexandr Scerbina
-Goal: T-shaped expertise (deep operations + lean + furniture industry; broad business/finance/tech)
-Status: active (continuous)
+Owner: Александр
+Goal: виртуальный CEO на базе ИТ-систем, упрощающий управление компаниями;
+собирается из моих компетенций (бюджетирование и далее по списку).
+Status: active
 Priority: high
-Deadline: continuous
+Deadline: rolling
 Next Actions:
-  - [ ] Daily reading 30+ min
-  - [ ] Weekly deep dive 3+ hours
-Dependencies: protected time blocks
-Risks: overload
-Documents:
-  - Obsidian learning vault
-Last Update: 2026-05-17
-Next Review: <yyyy-mm-dd monthly>
+  - [ ] Серия глубоких интервью со мной по блокам управления (первый — бюджетирование)
+  - [ ] По каждому интервью — вайбкодинг отдельного блока скелета
+Context: метод — интервью → блок → сборка общей системы. Система должна
+постоянно обновляться под новые ИТ-инструменты и возможности рынка.
+Продаётся через вход «аудит + упаковка бизнеса». Ядро ИКИГАЙ.
+Last Update: 2026-09-17
+
+---
+
+## П4. Автоматизированные ресерчи и данные
+
+Owner: Александр
+Goal: ежедневный сбор данных из множества публичных источников и через API;
+первый датасет — рынок продажи и перепродажи бизнесов (старт — Австрия).
+Status: active
+Priority: high
+Deadline: rolling
+Next Actions:
+  - [ ] Список публичных баз и API по продажам бизнесов в Австрии
+  - [ ] Определить поля первого датасета
+Context: сроки закрытия сделок, повторные выставления на продажу, приживаемость
+новых собственников, рост или банкротство после смены владельца. Такой
+статистики на рынке нет — перспектива продавать собственные отчёты. Также:
+глубокие анализы по запросу, отчёты, изменения законодательства. Отдельный
+проект разработки — не смешивать с настройкой ассистента.
+Last Update: 2026-09-17
+
+---
+
+## П5. Вайбкодинг-проекты
+
+Owner: Александр
+Goal: довести до рабочего состояния два собственных ИТ-проекта.
+Status: active
+Priority: medium
+Deadline: rolling
+Next Actions:
+  - [ ] Финпанель: OCR банковских выписок → сводная картина по счетам
+  - [ ] Второй проект — сформулировать
+Context: финпанель — проект №1 в списке. Второй пока на уровне идеи.
+Last Update: 2026-09-17
+
+---
+
+## Hermes / BOT_21 — личный ассистент и банк контекста
+
+Owner: Александр
+Goal: ассистент надёжно копит контекст по направлениям П1–П5 (мысли голосом,
+заметки, интервью, ресерчи), ведёт личные задачи, дневник и напоминания.
+Status: active
+Priority: high
+Deadline: rolling
+Next Actions:
+  - [ ] Приём мыслей с раскладкой по направлениям
+  - [ ] Вечерний дневник и утренний дайджест по кронам
+Context: доступ — Telegram + приложение Hermex. Из накопленного контекста потом
+вайбкодятся блоки экзоскелета. CEO-ритуалы TANDEM выключены 2026-09.
+Last Update: 2026-09-17
+
+---
+
+## Книга и экспертный бренд
+
+Owner: Александр
+Goal: написать книгу по кейсу TANDEM; развивать экспертный бренд как опору
+для П1–П3.
+Status: active
+Priority: medium
+Deadline: rolling
+Next Actions:
+  - [ ] Структура книги
+Context: контент-завод (YouTube/Facebook, цель 10–20 тыс. EUR/мес) — часть этой
+же линии, тема пока не выбрана.
+Last Update: 2026-09-17
+
+---
+
+## Квартира Brașov — страховая и ремонт
+
+Owner: Александр
+Goal: закрыть страховой случай с максимальной компенсацией и довести ремонт.
+Status: active
+Priority: high
+Deadline: rolling
+Context: дом 1912, защищённая зона — работы требуют разрешения Минкультуры.
+Летом 2026 залило через крышу при шторме, идёт экспертиза. Участники:
+архитектор, дизайнер, технический подрядчик, специалист по экспертизе и сметам.
+Last Update: 2026-09-17
+
+---
+
+## Фармацевтический greenfield (RO)
+
+Owner: Александр
+Goal: продвинуть модульное фармпроизводство (EU GMP, CMO/CDMO) до стадии
+инвестора или совместного предприятия.
+Status: active
+Priority: low
+Deadline: rolling
+Context: на паузе относительно П1–П5; вернуться при появлении партнёра.
+Last Update: 2026-09-17
 
 ---
 
 ## Archived
 
-<closed projects move here with final status + date — empty at init>
+- **TANDEM Group** (наёмный CEO, окт. 2023 — 21.08.2026): антикризис Румыния,
+  прозрачное ценообразование, кухонное направление, выход из TANDEM — закрыты
+  с уходом. Только чтение: в брифы, напоминания и повестку не попадает.

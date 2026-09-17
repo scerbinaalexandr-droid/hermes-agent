@@ -362,7 +362,7 @@ def collect_recent_decisions(limit: int = 6) -> list[dict]:
 
 
 def render_html(data: dict) -> str:
-    """Compose the dark-theme TANDEM cockpit. Self-contained except Chart.js CDN."""
+    """Compose the dark-theme cockpit. Self-contained except Chart.js CDN."""
     generated_at = data["generated_at"]
     top = data["top_of_mind"]
     backlog = data["backlog"]
@@ -530,7 +530,7 @@ def render_html(data: dict) -> str:
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<title>TANDEM Group — Executive Cockpit — {_esc(generated_at)}</title>
+<title>Alexandr Scerbina — Cockpit — {_esc(generated_at)}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
@@ -587,7 +587,7 @@ def render_html(data: dict) -> str:
 <div class="container">
 
 <header>
-  <h1>TANDEM GROUP</h1>
+  <h1>ALEXANDR SCERBINA</h1>
   <div class="subtitle">Executive Cockpit — взгляд вперёд</div>
   <div class="meta">Generated: {_esc(generated_at)} · CEO: Alexandr Scerbina</div>
 </header>
@@ -652,7 +652,7 @@ def render_html(data: dict) -> str:
 </section>
 
 <div class="footer">
-  <p><strong>TANDEM Group</strong> · Executive Operating System (Hermes V1)</p>
+  <p><strong>Портфель направлений П1–П5</strong> · Personal Operating System (Hermes)</p>
   <p>Сгенерировано {_esc(generated_at)} из real CEO memory. NO fabricated stats, NO external market data.</p>
   <p>Открой в Chrome → File → Print → Save as PDF для PDF-версии.</p>
 </div>
@@ -718,7 +718,7 @@ def main() -> int:
 
     uuid_filename = f"{_uuid.uuid4()}.html"
     file_path = out_dir / uuid_filename
-    friendly_name = f"tandem-dashboard-{today_iso()}.html"
+    friendly_name = f"alex21-dashboard-{today_iso()}.html"
     friendly_path = out_dir / friendly_name
 
     public_url = None if args.no_upload else public_dashboard_url(uuid_filename)

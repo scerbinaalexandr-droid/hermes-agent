@@ -51,9 +51,9 @@ def _logs_root() -> pathlib.Path:
 FIELD_ORDER = [
     "business",
     "cashflow",
-    "sales",
-    "production",
-    "marketing",
+    "clients",
+    "system",
+    "brand",
     "team",
     "projects",  # rendered separately — list of dicts
     "health",
@@ -68,9 +68,9 @@ FIELD_ORDER = [
 FIELD_LABEL = {
     "business": "Business",
     "cashflow": "Cashflow",
-    "sales": "Sales",
-    "production": "Production",
-    "marketing": "Marketing",
+    "clients": "Clients (P1/P2)",
+    "system": "System & Data (P3/P4)",
+    "brand": "Brand & Content",
     "team": "Team",
     "projects": "Projects",
     "health": "Health",

@@ -1,8 +1,8 @@
 # Life Areas — 12 Domains
 
-> Структурное разделение жизни CEO на домены. Не projects (те — отдельные с дедлайнами).
+> Структурное разделение жизни владельца на домены. Не projects (те — отдельные с дедлайнами).
 > Areas — это **continuous responsibility surfaces**. По блюпринту §04.
-> Updated: 2026-05-17.
+> Updated: 2026-09-17 (домен 1 переписан после ухода из TANDEM 21.08.2026; домен 10 понижен).
 
 ---
 
@@ -22,15 +22,15 @@ Long-term Goal: <horizon 5-10 лет>
 
 ---
 
-## 1. CEO / Tandem Group
+## 1. Портфель направлений (П1–П5)
 
-Purpose: общая управление холдингом, стратегия, культура, кадры
-KPIs: revenue growth, EBITDA, ключевые retention metrics, рост бренда
-Recurring Actions: weekly leadership sync, monthly board review, quarterly strategy
+Purpose: собственные бизнес-направления вместо наёмной роли CEO — ИКИГАЙ: подготовка бизнесов к передаче и продаже
+KPIs: чистый доход в месяц (цель 100 000 €), число клиентов П2/П1, накопленный контекст по П3, первый датасет П4
+Recurring Actions: ежедневный сбор мыслей по направлениям, вечерний дневник, воскресный обзор недели по П1–П5
 Review Frequency: weekly
-Risks: cashflow, strategic, key people dependency
-Reminders: Sun 18:00 weekly CEO review
-Long-term Goal: self-running divisions, holding-level focus только на strategy + capital allocation
+Risks: доход после ухода, распыление на пять направлений, перегрузка
+Reminders: Sun 18:00 обзор недели по направлениям
+Long-term Goal: первый в нише «бизнес легко управляем и легко передаваем»; экзоскелет CEO как продукт
 
 ---
 
@@ -58,7 +58,7 @@ Long-term Goal: biological age < chronological age, sustained energy 8-12hr work
 
 ---
 
-## 4. Супруга
+## 4. Wife (Elena)
 
 Purpose: качество брака, время вместе, общие цели, support
 KPIs: weekly date night, monthly trip / experience, weekly deep conversation
@@ -66,7 +66,7 @@ Recurring Actions: daily 30+ min undivided attention, weekly date, monthly trip
 Review Frequency: weekly (в evening review секция "Family Status")
 Risks: family neglect risks
 Reminders: daily Family Touchpoint в briefing
-Long-term Goal: стабильная жизнь, общие проекты (family planning — health-данные в отдельном HEALTH_VAULT), recovery вместе
+Long-term Goal: стабильная жизнь, общие проекты (IVF / family planning — см. HEALTH_VAULT::02 — ELENA), recovery вместе
 
 ---
 
@@ -136,7 +136,7 @@ Status: active project (см. projects.md::Brasov Apartment Renovation)
 Purpose: новое направление — производство в Romania (pharma)
 KPIs: regulatory milestones, partner agreements, go/no-go gate Q3 2026
 Recurring Actions: monthly partner sync, quarterly regulatory review
-Review Frequency: monthly (пока в discovery), потом weekly когда active
+Review Frequency: quarterly (на паузе относительно П1–П5, вернуться при появлении партнёра)
 Risks: regulatory, key people dependency, strategic
 Reminders: monthly partner sync
 Long-term Goal: operational pharma plant in Romania, generating revenue Q1 2027
@@ -149,9 +149,9 @@ Purpose: глубокая экспертиза в furniture / lean / management 
 KPIs: published content, recognized expertise (speaking / consulting offers), applied innovations
 Recurring Actions: monthly thought-piece, quarterly conference attendance, weekly deep work block
 Review Frequency: monthly
-Risks: overload (если consulting takes time from holding)
+Risks: overload (распыление между направлениями)
 Reminders: monthly content review
-Long-term Goal: recognized expert in lean furniture manufacturing (industry level)
+Long-term Goal: признанный эксперт по lean-производству и передаче бизнесов
 
 ---
 

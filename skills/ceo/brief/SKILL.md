@@ -1,7 +1,7 @@
 ---
 name: brief
 description: |
-  Daily executive briefing for the CEO of TANDEM Group. Auto-invoked when the
+  Daily briefing for Alexandr Scerbina across his directions P1–P5. Auto-invoked when the
   user types /brief in Telegram (or any variant: "daily brief", "morning
   briefing", "что у меня сегодня", "план дня"). Reads /memory/*.md and
   produces a Telegram-fit briefing per blueprint §07 (Date, Main Focus,
@@ -21,7 +21,7 @@ prerequisites:
     - memory/risks.md
 metadata:
   hermes:
-    tags: [CEO, Briefing, Daily, Telegram, Memory, Tandem]
+    tags: [Briefing, Daily, Telegram, Memory, Directions]
     commands: [/brief]
     triggers:
       - "/brief"
@@ -31,9 +31,9 @@ metadata:
       - "план дня"
 ---
 
-# Daily Executive Briefing — CEO of TANDEM Group
+# Daily Briefing — направления П1–П5
 
-**Purpose.** Утренний brief для Alexandr Scerbina (CEO TANDEM Group). Сжатый, focused, помещается в одно Telegram-сообщение (≤4096 символов).
+**Purpose.** Утренний brief для Alexandr Scerbina (портфель направлений П1–П5, см. `memory/projects.md`). Сжатый, focused, помещается в одно Telegram-сообщение (≤4096 символов).
 
 **Trigger.** `/brief` в Telegram, любые семантические варианты ("morning brief", "план дня", "что у меня сегодня").
 
@@ -55,7 +55,7 @@ metadata:
 ## Memory loads (порядок чтения)
 
 1. `memory/soul.md` — guardrails + tone (для каждого вывода)
-2. `memory/user.md` — стабильный профиль CEO (geo, brands, priorities)
+2. `memory/user.md` — стабильный профиль владельца (роль, стиль, приоритеты)
 3. `memory/memory.md` — active context (week priorities, current issues, strategic themes)
 4. `memory/areas.md` — 12 life domains (для Health Action / Family Touchpoint)
 5. `memory/projects.md` — active projects (filter priority=high → Top 3 Business)
@@ -196,15 +196,15 @@ cron delivery в любом случае. Кратко упомяни ошибк
 ```
 # Утренний брифинг
 
-Дата: 2026-05-17 (воскресенье)
+Дата: 2026-09-18 (пятница)
 
 Главный фокус:
-Sprint Hermes V1 MVP — закрыть Stage 4 (/brief работает end-to-end).
+П2 — первый клиент: сегодня описать продукт «вывод собственника из операционки».
 
 Топ-3 бизнес-приоритета:
-1. Tandem Group CEO System — verify /brief в Telegram, подготовить Stage 5 план
-2. Tandem Casa 360° — обзор недельного sales pipeline
-3. Kitchen by Tandem — lean-kitchen Sprint 10 kickoff prep
+1. П2. Вывод собственника — описать продукт: этапы, результат, цена
+2. П1. Lean-консалтинг — позиционирование и описание услуги
+3. П3. Экзоскелет CEO — первое интервью по бюджетированию
 
 Топ-3 личных приоритета:
 1. 3x training в неделю — воскресный active recovery 60 мин
