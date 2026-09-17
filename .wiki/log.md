@@ -396,3 +396,4 @@ Append-only лог событий. Karpathy convention.
 - Этап 5 (a015791): Plaud CLI в образе, plaud_pull.py (no_agent cron) → scribe; стенд на макете CLI пройден.
 
 ## [2026-09-18] session-end | 10 commits on main
+- Хотфикс c12add0: Hermex-чат падал на `dynamic_schema_overrides` (форк отстал от upstream) — поле добавлено в ToolEntry; tool_progress off; compression → Sonnet. Plaud: токен и крон на проде, парсер под реальный формат + отсечка «с 18.09» — локально, ждёт деплоя. Стоп в 02:20 по слову владельца.

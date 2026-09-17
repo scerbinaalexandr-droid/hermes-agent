@@ -110,3 +110,5 @@
 - **2026-09-18** (main): be841f155 feat(ceo-os): stage 2 model — side tasks and subagents on Haiku at Anthropic
 - **2026-09-18** (main): cdbf97d29 feat(ceo-os): stage 3 — hands-free menu, Russian voice/reasoning replies, task priority, reactions
 - **2026-09-18** (main): b32092cc6 feat(ceo-os): stage 4 — named worker profiles on the «Поручения» board; persistent menu
+- **2026-09-18** (main): a01579134 feat(ceo-os): stage 5 — Plaud recordings pulled on a cron and handed to the scribe
+- **2026-09-18** (main): c12add0d0 fix(core): ToolEntry.dynamic_schema_overrides (webui compatibility); quiet Telegram; compression on Sonnet

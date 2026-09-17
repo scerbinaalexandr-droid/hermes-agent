@@ -38,6 +38,9 @@ STATE = HOME / "plaud" / "state.json"
 ASSIGN = AGENT_DIR / "skills" / "ceo" / "assign" / "scripts" / "assign.py"
 DAYS = int(os.environ.get("PLAUD_PULL_DAYS", "2"))
 MIN_SECONDS = int(os.environ.get("PLAUD_MIN_SECONDS", "60"))  # skip accidental taps
+# Owner's rule (2026-09-18): only recordings made from this day on. Anything
+# older is the archive — never fetched, never handed to the scribe.
+SINCE = os.environ.get("PLAUD_SINCE", "2026-09-18")
 AUTH_ALERT = "⚠️ Plaud отключился — нужно заново войти в Plaud на Mac и обновить ключ."
 
 
@@ -70,9 +73,14 @@ def save_json(path: Path, data) -> None:
     os.replace(tmp, path)
 
 
+# Real `plaud recent` line (CLI 2026-09):
+#   of_be327e223ccc412ac372afd257feef7f  2026-07-11 00:23:56  2026-07-10  2h07m
+_ROW_RE = re.compile(
+    r"^\s*(of_[0-9a-f]{8,}|[A-Za-z0-9_-]{12,})\s+(\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2}:\d{2})?)"
+    r"(?:\s+(\d{4}-\d{2}-\d{2}))?\s+(\S+)\s*$")
 _ID_RE = re.compile(r"\b(?:id|ID)\W*([A-Za-z0-9_-]{6,})")
 _FIELD_RE = re.compile(r"(id|name|created_at|duration)\s*[:=]\s*(.+?)(?=\s{2,}\w+\s*[:=]|\s*$)")
-_H_RE, _M_RE, _S_RE = (re.compile(rf"(\d+)\s*{u}\b", re.I) for u in ("h", "m(?:in)?", "s(?:ec)?"))
+_HMS_RE = re.compile(r"^(?:(\d+)h)?(?:(\d+)m(?:in)?)?(?:(\d+)s(?:ec)?)?$", re.I)
 
 
 def parse_recent(text: str) -> list[dict]:
@@ -89,6 +97,13 @@ def parse_recent(text: str) -> list[dict]:
             pass
     out, seen = [], set()
     for line in text.splitlines():
+        row = _ROW_RE.match(line)
+        if row:
+            rid, created, _day, dur = row.groups()
+            if rid not in seen:
+                seen.add(rid)
+                out.append({"id": rid, "name": "", "created_at": created, "duration": _to_seconds(dur)})
+            continue
         fields = {k: v.strip() for k, v in _FIELD_RE.findall(line)}
         rid = fields.get("id") or (_ID_RE.search(line).group(1) if _ID_RE.search(line) else None)
         if not rid or rid in seen:
@@ -109,12 +124,11 @@ def _to_seconds(v) -> int:
     if re.fullmatch(r"\d{1,2}:\d{2}(:\d{2})?", v.strip()):  # 1:05:00 or 25:30
         parts = [int(x) for x in v.strip().split(":")]
         return parts[0] * 3600 + parts[1] * 60 + parts[2] if len(parts) == 3 else parts[0] * 60 + parts[1]
-    total = 0
-    for rx, mult in ((_H_RE, 3600), (_M_RE, 60), (_S_RE, 1)):
-        m = rx.search(v)
-        if m:
-            total += int(m.group(1)) * mult
-    return total
+    m = _HMS_RE.match(v.strip().replace(" ", ""))
+    if not m or not any(m.groups()):
+        return 0
+    h, mi, sec = (int(x) if x else 0 for x in m.groups())
+    return h * 3600 + mi * 60 + sec
 
 
 def alert_once(state: dict, key: str, text: str) -> None:
@@ -151,6 +165,9 @@ def main() -> int:
         rid = rec["id"]
         if rid in seen:
             continue
+        if rec.get("created_at") and rec["created_at"][:10] < SINCE:
+            seen[rid] = {"skipped": "archive", "at": int(time.time())}
+            continue
         if rec["duration"] and rec["duration"] < MIN_SECONDS:
             seen[rid] = {"skipped": "too_short", "at": int(time.time())}
             continue
@@ -164,7 +181,7 @@ def main() -> int:
         (raw_dir / "transcript.txt").write_text(tr.stdout, encoding="utf-8")
         if sm.returncode == 0 and sm.stdout.strip():
             (raw_dir / "summary.md").write_text(sm.stdout, encoding="utf-8")
-        title = (rec["name"] or f"Запись {rid}")[:80]
+        title = (rec["name"] or f"Запись от {rec.get('created_at') or rid}")[:80]
         brief = (
             f"Запись Plaud «{title}» ({rec.get('created_at') or 'дата в файле'}).\n"
             f"Транскрипт: {raw_dir / 'transcript.txt'}\n"
