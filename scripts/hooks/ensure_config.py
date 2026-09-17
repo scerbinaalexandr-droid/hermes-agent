@@ -48,6 +48,10 @@ BUNDLED_SKILLS_DIR = "/opt/hermes/skills"
 # disabled: it bloats the prompt and misroutes intents. Recomputed on every
 # boot so skills added by an upstream update are off by default. CEO skills
 # (external dir) are never touched.
+AUX_MODEL = "claude-haiku-4-5-20251001"
+AUX_CHEAP_TASKS = ("title_generation", "compression", "approval", "session_search",
+                   "skills_hub", "mcp", "web_extract", "curator")
+
 SKILLS_KEEP = {
     "google-workspace", "pdf", "docx", "xlsx", "ocr-and-documents",
     "humanizer", "personal-rituals", "maps",
@@ -431,6 +435,27 @@ def main() -> None:
     log_cfg["max_size_mb"] = max(int(log_cfg.get("max_size_mb") or 0), 20)
     log_cfg["backup_count"] = max(int(log_cfg.get("backup_count") or 0), 5)
     cfg["logging"] = log_cfg
+
+    # Stage 2 "model" (owner-approved 2026-09-18): side tasks and subagents on
+    # Haiku at Anthropic. With `provider: auto` the side tasks (compression of
+    # the owner's own dialogues, memory search, web extraction…) go to
+    # OpenRouter FIRST and Anthropic almost last — a different vendor and,
+    # once, a different language. Pinning keeps them with the main provider
+    # and off the expensive model. Vision stays on the main model (it sees).
+    # The main model stays claude-sonnet-4-5: the fork's adapter and pricing
+    # table do not know the Claude 5 ids yet (checked live 2026-09-18).
+    aux = cfg.get("auxiliary") if isinstance(cfg.get("auxiliary"), dict) else {}
+    for task in AUX_CHEAP_TASKS:
+        entry = aux.get(task) if isinstance(aux.get(task), dict) else {}
+        entry["provider"] = "anthropic"
+        entry["model"] = AUX_MODEL
+        aux[task] = entry
+    cfg["auxiliary"] = aux
+    deleg = cfg.get("delegation") if isinstance(cfg.get("delegation"), dict) else {}
+    deleg["provider"] = "anthropic"
+    deleg["model"] = AUX_MODEL
+    deleg["reasoning_effort"] = "low"
+    cfg["delegation"] = deleg
 
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK
