@@ -367,6 +367,14 @@ def main() -> None:
     stt["local"] = local
     cfg["stt"] = stt
 
+    # Cron deliveries go out clean: no "Cronjob Response: <name> (job_id: …)"
+    # header and no "To stop or manage this job…" footer. The owner reads these
+    # in Telegram as ordinary messages; the service wrapper is noise to him.
+    # Always forced — a stale config.yaml must not bring the wrapper back.
+    cron_cfg = cfg.get("cron") if isinstance(cfg.get("cron"), dict) else {}
+    cron_cfg["wrap_response"] = False
+    cfg["cron"] = cron_cfg
+
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK
     tlg = cfg.get("tool_loop_guardrails") if isinstance(cfg.get("tool_loop_guardrails"), dict) else {}

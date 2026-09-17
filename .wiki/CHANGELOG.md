@@ -50,3 +50,55 @@
 - **2026-06-28** (main): 9863e8687 fix(ceo-os): universal 4-button draft actions across ALL skills (persona rule)
 - **2026-06-28** (main): ef65d29f9 fix(ceo-os): collapsible menu keyboard (one_time) — frees screen space
 - **2026-06-28** (main): 588d09002 docs(wiki): pre-compact snapshot 2026-06-28 (Telegram voice-cockpit buildout)
+- **2026-06-29** (main): eaf378138 docs(wiki): sync CHANGELOG with 2026-06-22..28 commit history
+- **2026-06-29** (main): 91e332ea0 chore: cli-config.example default model → dated id (avoid HTTP 400)
+- **2026-06-29** (main): 61dac47a5 fix(ceo-os): daily-brief logs → persistent /opt/data volume (not read-only image)
+- **2026-06-29** (main): 4f04fd4f5 fix(ceo-os): route_capture bullet lands in correct section when section is empty
+- **2026-06-29** (main): 1d62fdede feat(ceo-os): /capture writes to CEO Google Sheets (Задачи/Решения/Идеи) + text=voice
+- **2026-06-29** (main): 90f5d06d0 feat(ceo-os): Telegram menu Работа⇄Личное toggle — per-chat tile switching
+- **2026-06-29** (main): de79be39b feat(ceo-os): /tune — live feedback & self-adjustment channel via Telegram
+- **2026-06-29** (main): ea0d573c1 fix(ceo-os): harden /tune self-tune + preserve task context (adversarial-review fixes)
+- **2026-06-29** (main): 6db7248f3 feat(google-workspace): add `drive trash` + `sheets clear` (cleanup primitives)
+- **2026-06-29** (main): a2b1cea3a docs(wiki): snapshot 2026-06-29 big build day + correct secrets picture
+- **2026-06-29** (main): bca439033 feat(ceo-os): /prep — meeting agenda prep (questions per meeting) + Встречи tab
+- **2026-06-29** (main): 0d5e866da feat(google-workspace): calendar create --recurrence + --reminders
+- **2026-06-29** (main): 75b324d70 docs(wiki): log meeting-prep Фаза A + cron e900bfffe343
+- **2026-06-29** (main): 637c38ca8 docs(wiki): meeting-prep — Фаза B (1h reminders) cancelled per user; morning-only
+- **2026-06-29** (main): 08a0c3505 fix(ceo-os): GoogleApiGW.get — handle bare values list (crashed on non-empty range)
+- **2026-06-29** (main): 0b8d27db0 fix(ceo-os): recurring calendar events need timeZone; sync_note/diary self-create tabs
+- **2026-06-29** (main): 7d02dcca4 fix(ceo-os): harden against Codex adversarial-review findings (8 issues)
+- **2026-06-29** (main): 0f8b4c728 docs(wiki): log QA-hardening — smoke + Codex прожарка, 11 bugs fixed+verified
+- **2026-06-29** (main): ed3daf064 feat(ceo-os): /tasks — open-task follow-up (closes meeting→protocol→tasks→control loop)
+- **2026-06-29** (main): 68c7f4260 docs(wiki): log /tasks loop + cron b85e53e4148d (07:15)
+- **2026-06-29** (main): d4a807102 feat(ceo-os): /morning — personal morning ritual (meditation + focus to affirm)
+- **2026-06-29** (main): 578dd7343 docs(wiki): morning consolidation — only Утро+День auto, /prep+/tasks on-demand
+- **2026-06-29** (main): d227f440d docs(wiki): log /morning ritual + cron 4413758e1c3e (06:50)
+- **2026-06-29** (main): 3b1d8b81f docs(wiki): pre-compact snapshot 2026-06-29 (full CEO loop + QA hardening day)
+- **2026-06-29** (main): 7ed2285d0 docs(wiki): /save-snapshot — 2 L3 decisions + pre-compact marker (2026-06-29)
+- **2026-06-30** (main): cb5da9cba fix(ceo-os): morning gather self-creates Фокус tab so first run never 400s
+- **2026-06-30** (main): 5c77020a6 fix(ceo-os): Google token persist best-effort — root-owned token no longer crashes every cron
+- **2026-06-30** (main): 7b3e324c9 fix(ceo-os): entrypoint self-heals ALL /opt/data ownership on boot
+- **2026-06-30** (main): d1cf4532a feat(ceo-os): SOUL rule — never leak technical/diagnostic data into user messages
+- **2026-07-02** (main): 7bc21654b fix(ceo-os): enforce always-Russian in SOUL so cron agents never drift to Ukrainian
+- **2026-07-04** (main): a8abb3aa9 feat(ceo-os): API health monitor — clean alert before the bot dies silently
+- **2026-07-04** (main): 41ddc2a88 fix(ceo-os): reliability round 2 — no silent cron deaths, no stuck Telegram UI
+- **2026-07-04** (main): 1951a32a7 fix(ceo-os): reliability round 1 — data persistence + boot hardening
+- **2026-07-04** (main): 15c77586d fix(core): reliability round 3 — no raw errors to user, no hung cron ticks (Codex-reviewed)
+- **2026-07-06** (main): af69dde5a fix(ceo-os): fail-clean Google auth failures in birthday/inbox crons
+- **2026-07-24** (main): bb38e48c2 docs(ceo-os): ревизия бота 24.07.2026 — карта 32 команд, инцидент с балансами, что проверено и что нет
+- **2026-07-24** (main): cee24d886 feat(ceo-os): спасён скилл business-trip-research с прода в git
+- **2026-07-24** (main): 50225d9e3 feat(ceo-os): переименование персоны Hermes → BOT_21
+- **2026-07-24** (main): cfb953ada docs(ceo-os): журнал и контекст — переименование BOT_21 + ревизия 24.07
+- **2026-07-30** (main): d21f47df6 fix(ceo-os): автозапуск Tailscale и hermes-webui в entrypoint
+- **2026-07-30** (main): e9b9575e6 fix(ceo-os): пароль webui читается с волюма, если не задан в окружении
+- **2026-08-16** (main): ef1335d68 fix(core): принудительный русский язык для распознавания речи через Groq
+- **2026-08-16** (main): 7b4f52d99 fix(ceo-os): запускать hermes-webui через server.py, а не bootstrap.py
+- **2026-08-16** (main): bcc70eddd fix(ceo-os): webui запускать интерпретатором Hermes venv
+- **2026-08-16** (main): 2fc3282e6 feat(ceo-os): публичный HTTPS-вход для приложения вместо Tailscale-туннеля
+- **2026-08-16** (main): 67af344de fix(ceo-os): заголовки обратного прокси + верный путь к агенту для webui
+- **2026-08-16** (main): 1e5a273b1 feat(ceo-os): задачи на канбан-досках вместо Google-таблицы
+- **2026-08-16** (main): 5fa2659a5 fix(ceo-os): приложение зависало на загрузке — не пробрасывалась длина ответа
+- **2026-08-16** (main): 3812978d4 fix(ceo-os): не перехватывать /health — его пробует приложение Hermex
+- **2026-08-23** (main): c703e8ff3 fix(ceo-os): отозванный токен Telegram больше не роняет весь сервис
+- **2026-09-02** (main): 43a94ecfc fix(ceo-os): бэкап через deploy key вместо истекающего токена
+- **2026-09-17** (main): 9a414dc86 feat(ceo-os): переоснастка под портфель направлений после TANDEM

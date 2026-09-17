@@ -72,6 +72,32 @@ def scrub(text: str) -> str:
     return text or ""
 
 
+FAIL_MSG = "⚠️ Копия памяти сегодня не сохранилась — нужна проверка."
+FAIL_LOG = HERMES_HOME / "logs" / "backup.log"
+
+
+def log_detail(detail: str) -> None:
+    """Diagnostics go to a file on the volume, never to stdout (= the chat)."""
+    try:
+        FAIL_LOG.parent.mkdir(parents=True, exist_ok=True)
+        with FAIL_LOG.open("a", encoding="utf-8") as fh:
+            fh.write(f"{datetime.now(timezone.utc).isoformat()} {scrub(detail)}\n")
+    except OSError:
+        pass  # best-effort; the owner-facing alert does not depend on it
+
+
+def fail(detail: str) -> int:
+    """Alert the owner cleanly; keep the reason in the log file.
+
+    Exits 0 on purpose: a non-zero exit makes the cron scheduler wrap stdout in
+    a technical "Cron watchdog … script failed / exited with code 1" envelope,
+    which is exactly the service noise the owner must not see.
+    """
+    log_detail(detail)
+    print(FAIL_MSG)
+    return 0
+
+
 def run(cmd, cwd=None, check=True, timeout=180):
     # Bound every git call: an unreachable GitHub / slow DNS must not hang the
     # cron slot forever (which would silently freeze the whole backup job).
@@ -165,7 +191,7 @@ def snapshot_sqlite(src: Path, dst_gz: Path) -> bool:
             shutil.copyfileobj(fh, out)
         return True
     except Exception as exc:
-        print(f"[backup] sqlite snapshot failed for {src.name}: {exc}")
+        log_detail(f"sqlite snapshot failed for {src.name}: {exc}")
         return False
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)
@@ -259,8 +285,7 @@ def main() -> int:
     # A deploy key alone is enough — the token became optional once the PAT
     # expired and took the offsite backup down with it.
     if not REPO_URL or not (TOKEN or ssh_key_path()):
-        print("[backup] SKIP — BACKUP_REPO_URL and no credential (deploy key / token)")
-        return 0
+        return fail("BACKUP_REPO_URL unset or no credential (deploy key / token)")
     apply_git_env()
 
     with tempfile.TemporaryDirectory(prefix="hermes-backup-") as tmp:
@@ -301,16 +326,15 @@ def main() -> int:
         run(["git", "add", "-A"], cwd=staging)
         status = run(["git", "status", "--porcelain"], cwd=staging, check=False)
         if not status.stdout.strip():
-            print(f"[backup] {ts} — no changes, nothing to push")
+            # Nothing changed — stay silent, the owner gets no service noise.
             return 0
 
         run(["git", "commit", "-m", f"snapshot: {ts}"], cwd=staging)
         push = run(["git", "push", "origin", "HEAD:main"], cwd=staging, check=False)
         if push.returncode != 0:
-            print(scrub(f"[backup] {ts} — PUSH FAILED: {push.stderr.strip()}"))
-            return 1
+            return fail(f"push failed: {push.stderr.strip()}")
 
-    print(f"[backup] {ts} — snapshot pushed ✅")
+    # Success is silent by design: a daily "ok" is noise. Failures speak up.
     return 0
 
 
@@ -318,5 +342,4 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except Exception as exc:  # never leak token in a traceback
-        print(scrub(f"[backup] ERROR: {exc}"))
-        sys.exit(1)
+        sys.exit(fail(f"{type(exc).__name__}: {exc}"))
