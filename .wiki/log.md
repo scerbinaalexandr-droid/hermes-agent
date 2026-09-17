@@ -391,3 +391,8 @@ Append-only лог событий. Karpathy convention.
 ## [2026-09-18] session-end | 8 commits on main
 
 ## [2026-09-18] session-end | 9 commits on main
+- Этап 3 (cdbf97d): клавиатура Дорога/Текст, Глубже/Обычно (постоянная — b32092c); русские ответы /voice, /reasoning; /tasks priority; реакции.
+- Этап 4 (b32092c): 4 профиля-работника + доска «Поручения» + /assign; симлинк hermes в PATH для диспетчера.
+- Этап 5 (a015791): Plaud CLI в образе, plaud_pull.py (no_agent cron) → scribe; стенд на макете CLI пройден.
+
+## [2026-09-18] session-end | 10 commits on main

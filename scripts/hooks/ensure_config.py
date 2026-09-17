@@ -49,8 +49,12 @@ BUNDLED_SKILLS_DIR = "/opt/hermes/skills"
 # boot so skills added by an upstream update are off by default. CEO skills
 # (external dir) are never touched.
 AUX_MODEL = "claude-haiku-4-5-20251001"
-AUX_CHEAP_TASKS = ("title_generation", "compression", "approval", "session_search",
+AUX_CHEAP_TASKS = ("title_generation", "approval", "session_search",
                    "skills_hub", "mcp", "web_extract", "curator")
+# Compression summarises the live dialogue: its model must hold at least the
+# main model's context (Sonnet 4.5 = 1M > Haiku 200k — the gateway warned).
+AUX_LARGE_CONTEXT = ("compression",)
+MAIN_MODEL = "claude-sonnet-4-5-20250929"
 
 SKILLS_KEEP = {
     "google-workspace", "pdf", "docx", "xlsx", "ocr-and-documents",
@@ -418,6 +422,15 @@ def main() -> None:
     disp["busy_input_mode"] = "queue"
     disp["busy_notice"] = False
     disp["lifecycle_notices"] = False
+    # Owner (17.09, to the bot): never show tool calls / thinking bubbles in
+    # Telegram — the typing indicator is enough. Reasoning display off too.
+    disp["tool_progress"] = "off"
+    disp["show_reasoning"] = False
+    plats = disp.get("platforms") if isinstance(disp.get("platforms"), dict) else {}
+    tg_disp = plats.get("telegram") if isinstance(plats.get("telegram"), dict) else {}
+    tg_disp["tool_progress"] = "off"
+    plats["telegram"] = tg_disp
+    disp["platforms"] = plats
     cfg["display"] = disp
 
     # Telegram reactions (👀 got it / ✅ done / ❌ failed) — visual acknowledgement
@@ -457,6 +470,11 @@ def main() -> None:
         entry = aux.get(task) if isinstance(aux.get(task), dict) else {}
         entry["provider"] = "anthropic"
         entry["model"] = AUX_MODEL
+        aux[task] = entry
+    for task in AUX_LARGE_CONTEXT:
+        entry = aux.get(task) if isinstance(aux.get(task), dict) else {}
+        entry["provider"] = "anthropic"
+        entry["model"] = MAIN_MODEL
         aux[task] = entry
     cfg["auxiliary"] = aux
     deleg = cfg.get("delegation") if isinstance(cfg.get("delegation"), dict) else {}
