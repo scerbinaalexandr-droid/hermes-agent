@@ -1207,11 +1207,16 @@ class TelegramAdapter(BasePlatformAdapter):
     # Two modes (Работа ⇄ Личное). The top row is a mode toggle whose "command"
     # is a `__mode:<work|personal>` sentinel handled in _handle_text_message
     # (flips per-chat state + re-renders the keyboard), NOT routed to a skill.
+    # Layout after the 2026-09 refit (owner = portfolio of directions, voice-
+    # first, often driving): capture/tasks/meetings on top, then two hands-free
+    # toggles — «Дорога» (voice replies to everything) / «Текст», and
+    # «Глубже» (reasoning high for the session) / «Обычно».
     _CEO_MENU_WORK = [
         [("👤 Личное →", "__mode:personal")],
         [("🎙 Заметка", "/capture"), ("📋 Встреча", "/notes")],
-        [("✈️ Поездка", "/trip"), ("📄 Отчёт", "/report")],
-        [("📊 День", "/brief"), ("🌙 Вечер", "/evening")],
+        [("✅ Задачи", "/tasks"), ("📊 День", "/brief")],
+        [("🚗 Дорога", "/voice tts"), ("💬 Текст", "/voice off")],
+        [("🧠 Глубже", "/reasoning high"), ("⚡ Обычно", "/reasoning reset")],
         [("🛠 Настройка", "/tune"), ("⚙️ Ещё", "/menu")],
     ]
     _CEO_MENU_PERSONAL = [
@@ -1219,6 +1224,7 @@ class TelegramAdapter(BasePlatformAdapter):
         [("🌅 Утро", "/morning"), ("🌙 Вечер", "/evening")],
         [("📔 Дневник", "/diary"), ("🧭 Коуч", "/coach")],
         [("🎙 Заметка", "/capture"), ("🎂 ДР", "/birthday")],
+        [("🚗 Дорога", "/voice tts"), ("💬 Текст", "/voice off")],
         [("🛠 Настройка", "/tune"), ("⚙️ Ещё", "/menu")],
     ]
 

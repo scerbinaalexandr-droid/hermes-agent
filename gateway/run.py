@@ -8343,26 +8343,19 @@ class GatewayRunner:
             self._save_voice_modes()
             if adapter:
                 self._set_adapter_auto_tts_enabled(adapter, chat_id, enabled=True)
-            return (
-                "Voice mode enabled.\n"
-                "I'll reply with voice when you send voice messages.\n"
-                "Use /voice tts to get voice replies for all messages."
-            )
+            return "🎙 Голосом отвечаю на голосовые. Хочешь голосом на всё — «Режим дороги»."
         elif args in ("off", "disable"):
             self._voice_mode[voice_key] = "off"
             self._save_voice_modes()
             if adapter:
                 self._set_adapter_auto_tts_disabled(adapter, chat_id, disabled=True)
-            return "Voice mode disabled. Text-only replies."
+            return "💬 Отвечаю текстом."
         elif args == "tts":
             self._voice_mode[voice_key] = "all"
             self._save_voice_modes()
             if adapter:
                 self._set_adapter_auto_tts_enabled(adapter, chat_id, enabled=True)
-            return (
-                "Auto-TTS enabled.\n"
-                "All replies will include a voice message."
-            )
+            return "🚗 Режим дороги: каждый ответ — голосом."
         elif args in ("channel", "join"):
             return await self._handle_voice_channel_join(event)
         elif args == "leave":
@@ -8398,13 +8391,13 @@ class GatewayRunner:
                 self._save_voice_modes()
                 if adapter:
                     self._set_adapter_auto_tts_enabled(adapter, chat_id, enabled=True)
-                return "Voice mode enabled."
+                return "🎙 Голосом отвечаю на голосовые."
             else:
                 self._voice_mode[voice_key] = "off"
                 self._save_voice_modes()
                 if adapter:
                     self._set_adapter_auto_tts_disabled(adapter, chat_id, disabled=True)
-                return "Voice mode disabled."
+                return "💬 Отвечаю текстом."
 
     async def _handle_voice_channel_join(self, event: MessageEvent) -> str:
         """Join the user's current Discord voice channel."""
@@ -9132,7 +9125,7 @@ class GatewayRunner:
             self._set_session_reasoning_override(session_key, None)
             self._reasoning_config = self._load_reasoning_config()
             self._evict_cached_agent(session_key)
-            return "🧠 ✓ Session reasoning override cleared; falling back to global config."
+            return "⚡ Обычный режим мышления."
         if effort == "none":
             parsed = {"enabled": False}
         elif effort in ("minimal", "low", "medium", "high", "xhigh"):
@@ -9157,7 +9150,9 @@ class GatewayRunner:
 
         self._set_session_reasoning_override(session_key, parsed)
         self._evict_cached_agent(session_key)
-        return f"🧠 ✓ Reasoning effort set to `{effort}` (session only — add `--global` to persist)\n_(takes effect on next message)_"
+        return ("🧠 Думаю глубже — со следующего сообщения." if effort in ("high", "xhigh", "max")
+                else "⚡ Обычный режим мышления — со следующего сообщения." if effort == "medium"
+                else f"🧠 Уровень мышления: {effort} — со следующего сообщения.")
 
     async def _handle_fast_command(self, event: MessageEvent) -> str:
         """Handle /fast — mirror the CLI Priority Processing toggle in gateway chats."""

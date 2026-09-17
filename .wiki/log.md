@@ -378,3 +378,12 @@ Append-only лог событий. Karpathy convention.
 - (поздний вечер) По 37 скриншотам Hermex: сессия приложения 365 дней (1eafd64), 90 чужих навыков off + очередь + тишина (a6b45bd), заметки бота и доски канбана переписаны на волюме скриптом владельца, OpenRouter пополнен. Записана программа глубокой настройки Hermex (память).
 
 ## [2026-09-18] session-end | 5 commits on main
+
+## [2026-09-18] session-end | 6 commits on main
+
+## 2026-09-18 — мастер-план, этапы 1–2
+- 4 исследователя по докам (модель, стабильность/безопасность, персонализация, Hermex) → презентация владельцу (artifact MUtppSCCTJkBhYUro3VXpw), 6-этапный план утверждён (+ субагенты, + Plaud).
+- Этап 1 (328dd0d): снят permanent allowlist из 5 опасных паттернов, redact_secrets, pre_update_backup, логи 20×5; brief без `python -c`. Проверено на проде.
+- Этап 2 (be841f1): побочные задачи и delegation → Haiku у Anthropic; Claude 5 проверена живым запросом — принимается API, форк не знает → main остаётся Sonnet 4.5.
+
+## [2026-09-18] session-end | 7 commits on main

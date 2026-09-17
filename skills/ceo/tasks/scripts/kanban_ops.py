@@ -10,6 +10,7 @@
 
 Команды:
   --boards                     список досок с числом открытых задач
+  --priority N                 при --add: 0 обычная, 1 важная, 2 горит (бейдж P0/P1/P2 в Hermex)
   --add --board <slug> --title "..." [--assignee ...] [--due ...] [--note ...]
   --list [--board <slug>] [--days N]   открытые задачи, разложенные по срокам
   --done <task_id> [--board <slug>]    закрыть задачу
@@ -87,6 +88,7 @@ def _open_tasks(board: str) -> list[dict]:
             "assignee": getattr(t, "assignee", "") or "",
             "status": status,
             "due": m.group(1) if m else "",
+            "priority": int(getattr(t, "priority", 0) or 0),
             "board": board,
         })
     return result
@@ -129,6 +131,7 @@ def cmd_add(args) -> dict:
             title=args.title.strip(),
             body=body,
             assignee=(args.assignee or None),
+            priority=max(0, min(int(args.priority or 0), 2)),
             created_by=(args.created_by or "Александр"),
         )
     finally:
@@ -137,7 +140,8 @@ def cmd_add(args) -> dict:
         task_id = getattr(task_id, "id", str(task_id))
     return {"ok": True, "id": task_id, "board": args.board,
             "title": args.title.strip(),
-            "assignee": args.assignee or "", "due": args.due or ""}
+            "assignee": args.assignee or "", "due": args.due or "",
+            "priority": max(0, min(int(args.priority or 0), 2))}
 
 
 def cmd_list(args) -> dict:
@@ -169,9 +173,10 @@ def cmd_list(args) -> dict:
             else:
                 later.append(t)
 
-    overdue.sort(key=lambda x: x["due"])
-    soon.sort(key=lambda x: x["due"])
-    later.sort(key=lambda x: x["due"])
+    # Within a bucket: earlier due first, then higher priority (P2 → P0).
+    for bucket in (overdue, soon, later):
+        bucket.sort(key=lambda x: (x["due"], -x.get("priority", 0)))
+    no_due.sort(key=lambda x: -x.get("priority", 0))
     return {"today": today.isoformat(),
             "total_open": len(overdue) + len(soon) + len(later) + len(no_due),
             "overdue": overdue, "soon": soon, "later": later, "no_due": no_due}
@@ -211,6 +216,7 @@ def main() -> int:
     p.add_argument("--title")
     p.add_argument("--assignee")
     p.add_argument("--due", help="ГГГГ-ММ-ДД")
+    p.add_argument("--priority", type=int, default=0, help="0 обычная, 1 важная, 2 горит")
     p.add_argument("--note")
     p.add_argument("--created-by", dest="created_by")
     p.add_argument("--days", type=int, default=7)

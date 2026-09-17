@@ -142,7 +142,7 @@ class TestReasoningCommand:
         assert saved["agent"]["reasoning_effort"] == "medium"
         assert runner._session_reasoning_overrides[session_key] == {"enabled": True, "effort": "high"}
         assert runner._reasoning_config == {"enabled": True, "effort": "high"}
-        assert "session only" in result
+        assert "Думаю глубже" in result
 
     @pytest.mark.asyncio
     async def test_reasoning_global_clears_existing_session_override(self, tmp_path, monkeypatch):
@@ -184,7 +184,7 @@ class TestReasoningCommand:
         saved = yaml.safe_load(config_path.read_text(encoding="utf-8"))
         assert saved["agent"]["reasoning_effort"] == "medium"
         assert session_key not in runner._session_reasoning_overrides
-        assert "cleared" in result
+        assert "Обычный режим" in result
 
     def test_resolve_session_reasoning_prefers_session_override(self, tmp_path, monkeypatch):
         hermes_home = tmp_path / "hermes"

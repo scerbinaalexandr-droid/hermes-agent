@@ -418,6 +418,12 @@ def main() -> None:
     disp["lifecycle_notices"] = False
     cfg["display"] = disp
 
+    # Telegram reactions (👀 got it / ✅ done / ❌ failed) — visual acknowledgement
+    # readable without opening the message, e.g. while driving.
+    tg = cfg.get("telegram") if isinstance(cfg.get("telegram"), dict) else {}
+    tg["reactions"] = True
+    cfg["telegram"] = tg
+
     # Stage 1 "locks" (owner-approved 2026-09-18, decisions.md):
     # - no permanent allowlist: a past "always" answer had exempted recursive
     #   delete, find -delete, delete-in-root, world-writable chmod and

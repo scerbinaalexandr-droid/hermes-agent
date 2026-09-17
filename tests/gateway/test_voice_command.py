@@ -98,7 +98,7 @@ class TestHandleVoiceCommand:
     async def test_voice_on(self, runner):
         event = _make_event("/voice on")
         result = await runner._handle_voice_command(event)
-        assert "enabled" in result.lower()
+        assert "Голосом" in result
         assert runner._voice_mode["telegram:123"] == "voice_only"
 
     @pytest.mark.asyncio
@@ -106,14 +106,14 @@ class TestHandleVoiceCommand:
         runner._voice_mode["telegram:123"] = "voice_only"
         event = _make_event("/voice off")
         result = await runner._handle_voice_command(event)
-        assert "disabled" in result.lower()
+        assert "текстом" in result
         assert runner._voice_mode["telegram:123"] == "off"
 
     @pytest.mark.asyncio
     async def test_voice_tts(self, runner):
         event = _make_event("/voice tts")
         result = await runner._handle_voice_command(event)
-        assert "tts" in result.lower()
+        assert "Режим дороги" in result
         assert runner._voice_mode["telegram:123"] == "all"
 
     @pytest.mark.asyncio
@@ -133,7 +133,7 @@ class TestHandleVoiceCommand:
     async def test_toggle_off_to_on(self, runner):
         event = _make_event("/voice")
         result = await runner._handle_voice_command(event)
-        assert "enabled" in result.lower()
+        assert "Голосом" in result
         assert runner._voice_mode["telegram:123"] == "voice_only"
 
     @pytest.mark.asyncio
@@ -141,7 +141,7 @@ class TestHandleVoiceCommand:
         runner._voice_mode["telegram:123"] = "voice_only"
         event = _make_event("/voice")
         result = await runner._handle_voice_command(event)
-        assert "disabled" in result.lower()
+        assert "текстом" in result
         assert runner._voice_mode["telegram:123"] == "off"
 
     @pytest.mark.asyncio

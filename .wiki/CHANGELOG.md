@@ -106,3 +106,5 @@
 - **2026-09-17** (main): e1b25f93a fix(ceo-os): no service vocabulary in owner-facing messages
 - **2026-09-17** (main): 1eafd64a3 fix(ceo-os): Hermex stays signed in for a year
 - **2026-09-17** (main): a6b45bddc feat(ceo-os): quiet, stable chat — keep-list skills, queue mode, no service lines
+- **2026-09-18** (main): 328dd0d05 fix(ceo-os): stage 1 locks — no permanent allowlist, secrets redacted, backup before update
+- **2026-09-18** (main): be841f155 feat(ceo-os): stage 2 model — side tasks and subagents on Haiku at Anthropic
