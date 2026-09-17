@@ -256,6 +256,9 @@ if [ -f "$WEBUI_DIR/server.py" ]; then
     # and aborts with "Directory exists but is not a git repository" — which is
     # exactly why the app showed "Офлайн" after a redeploy. The runtime is
     # already provisioned on the volume; we only need the server.
+    # Session TTL: 365 days (owner's decision 2026-09-17). The webui default
+    # of 30 days logged the owner out of the phone app mid-month without
+    # warning; single-user app behind a long password.
     nohup gosu "$HERMES_UID:$HERMES_GID" env \
       HERMES_HOME="$HERMES_HOME" \
       HERMES_WEBUI_HOST="${HERMES_WEBUI_HOST:-0.0.0.0}" \
@@ -264,6 +267,7 @@ if [ -f "$WEBUI_DIR/server.py" ]; then
       HERMES_WEBUI_AGENT_DIR="${HERMES_WEBUI_AGENT_DIR:-/opt/hermes}" \
       HERMES_WEBUI_TRUST_FORWARDED_PROTO=1 \
       HERMES_WEBUI_SECURE=1 \
+      HERMES_WEBUI_SESSION_TTL="${HERMES_WEBUI_SESSION_TTL:-31536000}" \
       HERMES_WEBUI_ALLOWED_ORIGINS="${HERMES_WEBUI_ALLOWED_ORIGINS:-https://${HERMES_PUBLIC_HOST:-hermes-production-99b8.up.railway.app}}" \
       sh -c "cd '$WEBUI_DIR' && exec $WEBUI_PY server.py" \
       >> "$WEBUI_LOG" 2>&1 &
