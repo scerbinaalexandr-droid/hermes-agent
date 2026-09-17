@@ -1348,8 +1348,10 @@ class TelegramAdapter(BasePlatformAdapter):
                 # one_time_keyboard: the menu collapses after use so it doesn't
                 # hog the screen; the user re-summons it via the input-field
                 # keyboard icon, or by sending /menu again.
+                # Persistent (owner's choice 2026-09-18): the tiles stay under
+                # the input field instead of collapsing after every tap.
                 first_chunk_markup = ReplyKeyboardMarkup(
-                    _rows, resize_keyboard=True, one_time_keyboard=True)
+                    _rows, resize_keyboard=True, one_time_keyboard=False)
 
             try:
                 from telegram.error import NetworkError as _NetErr

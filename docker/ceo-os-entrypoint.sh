@@ -61,6 +61,19 @@ if [ -f /opt/hermes/skills/ceo/backup/scripts/backup.py ]; then
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/backup.py" 2>/dev/null || true
   echo "[ceo-os-init] Staged backup.py → $HERMES_HOME/scripts/backup.py"
 fi
+# ---- 1d. Worker profiles for the «Поручения» board (skills/ceo/assign) -----
+# Templates in the repo are the source of truth; memories/sessions persist.
+if [ -f /opt/hermes/skills/ceo/assign/scripts/provision_profiles.py ]; then
+  # The kanban dispatcher spawns workers as a bare `hermes -p <profile> …`;
+  # /opt/data/.local/bin is on PATH (Dockerfile), the venv is not.
+  mkdir -p "$HERMES_HOME/.local/bin"
+  ln -sfn /opt/hermes/.venv/bin/hermes "$HERMES_HOME/.local/bin/hermes"
+  mkdir -p "$HERMES_HOME/profiles"
+  chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/profiles" 2>/dev/null || true
+  gosu "${HERMES_UID:-10000}:${HERMES_GID:-10000}" env HERMES_HOME="$HERMES_HOME" \
+    /opt/hermes/.venv/bin/python /opt/hermes/skills/ceo/assign/scripts/provision_profiles.py \
+    || echo "[ceo-os-init] WARNING: worker profiles not provisioned"
+fi
 if [ -f /opt/hermes/skills/ceo/cost/scripts/cost_monitor.py ]; then
   cp /opt/hermes/skills/ceo/cost/scripts/cost_monitor.py "$HERMES_HOME/scripts/cost_monitor.py"
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/cost_monitor.py" 2>/dev/null || true

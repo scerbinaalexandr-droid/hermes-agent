@@ -55,6 +55,8 @@ AUX_CHEAP_TASKS = ("title_generation", "compression", "approval", "session_searc
 SKILLS_KEEP = {
     "google-workspace", "pdf", "docx", "xlsx", "ocr-and-documents",
     "humanizer", "personal-rituals", "maps",
+    # worker profiles on the «Поручения» board (skills/ceo/assign)
+    "kanban-worker", "kanban-orchestrator",
 }
 
 

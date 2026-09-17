@@ -387,3 +387,5 @@ Append-only лог событий. Karpathy convention.
 - Этап 2 (be841f1): побочные задачи и delegation → Haiku у Anthropic; Claude 5 проверена живым запросом — принимается API, форк не знает → main остаётся Sonnet 4.5.
 
 ## [2026-09-18] session-end | 7 commits on main
+
+## [2026-09-18] session-end | 8 commits on main
