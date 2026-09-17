@@ -22,6 +22,7 @@ entrypoint afterwards). Must be invoked with a Python that has pyyaml
 import os
 import re
 import sys
+from pathlib import Path
 
 try:
     import yaml
@@ -40,6 +41,31 @@ _SOUL_SEED_PATH = os.path.join(
     "docker", "SOUL.md",
 )
 CEO_DIR = "/opt/hermes/skills/ceo"
+BUNDLED_SKILLS_DIR = "/opt/hermes/skills"
+
+# Bundled (upstream) skills the owner actually uses. Everything else that ships
+# with Hermes — games, jailbreaks, ML training, social media, smart home… — is
+# disabled: it bloats the prompt and misroutes intents. Recomputed on every
+# boot so skills added by an upstream update are off by default. CEO skills
+# (external dir) are never touched.
+SKILLS_KEEP = {
+    "google-workspace", "pdf", "docx", "xlsx", "ocr-and-documents",
+    "humanizer", "personal-rituals", "maps",
+}
+
+
+def _bundled_skill_names() -> set[str]:
+    """Skill dir names (basename of the dir holding SKILL.md) outside ceo/."""
+    names: set[str] = set()
+    for root in (Path(HOME) / "skills", Path(BUNDLED_SKILLS_DIR)):
+        if not root.is_dir():
+            continue
+        for skill_md in root.rglob("SKILL.md"):
+            rel = skill_md.relative_to(root)
+            if not rel.parts or rel.parts[0] in ("ceo", ".archive"):
+                continue
+            names.add(skill_md.parent.name)
+    return names
 
 # Email/calendar routing rule injected into the system prompt (SOUL.md is loaded
 # fresh each message by agent/prompt_builder.py). Without it the LLM reaches for
@@ -308,14 +334,10 @@ def main() -> None:
     if CEO_DIR not in ext:
         ext.append(CEO_DIR)
     skills["external_dirs"] = ext
-    # Disable himalaya — the CEO uses Gmail via the google-workspace OAuth path
-    # (/mail, /calendar skills). himalaya (IMAP CLI) isn't installed and only
-    # causes email-intent misroutes. Idempotent; preserves other disabled names.
-    disabled = skills.get("disabled")
-    disabled = list(disabled) if isinstance(disabled, list) else []
-    if "himalaya" not in disabled:
-        disabled.append("himalaya")
-    skills["disabled"] = disabled
+    # skills.disabled = every bundled skill not in SKILLS_KEEP (see above).
+    # himalaya (IMAP CLI) stays off with the rest: Gmail goes through the
+    # google-workspace OAuth path (/mail, /calendar).
+    skills["disabled"] = sorted(_bundled_skill_names() - SKILLS_KEEP)
     cfg["skills"] = skills
 
     # model.default + provider — preserve non-empty existing values, else seed.
@@ -380,6 +402,17 @@ def main() -> None:
     gw_cfg = cfg.get("gateway") if isinstance(cfg.get("gateway"), dict) else {}
     gw_cfg["shutdown_notice_home_channel"] = False
     cfg["gateway"] = gw_cfg
+
+    # Chat hygiene + stability while the bot is busy (owner decisions 2026-09-17):
+    # - queue: a message that arrives mid-task waits its turn instead of
+    #   interrupting the running task (36 photos in a row used to make the
+    #   bot interrupt itself 36 times);
+    # - no service lines for queueing, retries or model fallbacks.
+    disp = cfg.get("display") if isinstance(cfg.get("display"), dict) else {}
+    disp["busy_input_mode"] = "queue"
+    disp["busy_notice"] = False
+    disp["lifecycle_notices"] = False
+    cfg["display"] = disp
 
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK

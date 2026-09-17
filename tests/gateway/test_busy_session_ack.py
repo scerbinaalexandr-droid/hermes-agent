@@ -187,6 +187,33 @@ class TestBusySessionAck:
         assert "Interrupting" not in content
 
     @pytest.mark.asyncio
+    async def test_queue_mode_busy_notice_disabled_queues_silently(self, monkeypatch):
+        """display.busy_notice: false — the message is still queued (no
+        interrupt), but no service line reaches the chat."""
+        import gateway.run as _gr
+        monkeypatch.setattr(
+            _gr, "_load_gateway_config", lambda: {"display": {"busy_notice": False}}
+        )
+        runner, sentinel = _make_runner()
+        runner._busy_input_mode = "queue"
+        adapter = _make_adapter()
+
+        event = _make_event(text="Add this to queue")
+        sk = build_session_key(event.source)
+        runner.adapters[event.source.platform] = adapter
+
+        agent = MagicMock()
+        runner._running_agents[sk] = agent
+
+        with patch("gateway.run.merge_pending_message_event") as merge:
+            result = await runner._handle_active_session_busy_message(event, sk)
+
+        assert result is True
+        merge.assert_called_once()
+        agent.interrupt.assert_not_called()
+        adapter._send_with_retry.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_steer_mode_calls_agent_steer_no_interrupt_no_queue(self):
         """busy_input_mode='steer' injects via agent.steer() and skips queueing."""
         runner, sentinel = _make_runner()

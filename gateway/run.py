@@ -2298,6 +2298,13 @@ class GatewayRunner:
         except Exception as _onb_err:
             logger.debug("Failed to apply busy-input onboarding hint: %s", _onb_err)
 
+        # `display.busy_notice: false` — the message is still queued/steered/
+        # interrupting exactly as before, the chat just does not get the
+        # service line about it (fork setting; the platform's typing indicator
+        # already tells the owner the bot is at work).
+        if cfg_get(_load_gateway_config(), "display", "busy_notice", default=True) is False:
+            return True
+
         thread_meta = {"thread_id": event.source.thread_id} if event.source.thread_id else None
         try:
             await adapter._send_with_retry(
@@ -13131,8 +13138,18 @@ class GatewayRunner:
         _status_chat_id = source.chat_id
         _status_thread_metadata = {"thread_id": _progress_thread_id} if _progress_thread_id else None
 
+        # `display.lifecycle_notices: false` keeps retry/fallback/rate-limit
+        # lines ("Primary model failed — switching to fallback…") out of the
+        # chat; they are still logged (fork setting, default = upstream).
+        _lifecycle_notices = cfg_get(
+            _load_gateway_config(), "display", "lifecycle_notices", default=True
+        )
+
         def _status_callback_sync(event_type: str, message: str) -> None:
             if not _status_adapter or not _run_still_current():
+                return
+            if event_type == "lifecycle" and _lifecycle_notices is False:
+                logger.info("lifecycle notice suppressed (chat %s): %s", _status_chat_id, message)
                 return
             try:
                 asyncio.run_coroutine_threadsafe(
