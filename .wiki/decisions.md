@@ -666,3 +666,13 @@ entrypoint снимает токен при 401/404, система деград
 **Ловушка.** Диспетчер запускает `hermes -p <profile>`, а `hermes` не на PATH процесса шлюза → entrypoint кладёт симлинк в `/opt/data/.local/bin`. Лимит «не больше 2 работников одновременно» — правило навыка, ядром не enforced.
 
 **Reversal cost.** Низкая: удалить блок 1d entrypoint и `skills/ceo/assign`; профили на волюме можно оставить или удалить папкой.
+
+## 2026-09-18 — Этап 5: Plaud → протоколист
+
+**Decision.** Опрос Plaud — `skills/ceo/plaud/scripts/plaud_pull.py`, no_agent cron каждые 30 мин (без LLM): `plaud recent --days 2` → ledger `plaud/seen.json` → транскрипт+summary в `plaud/raw/<id>/` → поручение работнику `scribe` через `assign.py` (итог владельцу через подписку Telegram) → ledger после создания карточки. CLI `@plaud-ai/cli` ставится в образ (Dockerfile). Токен — `/opt/data/.plaud/tokens.json`, переносится владельцем, исключён из бэкапа; `plaud/` (сырьё) — в бэкапе.
+
+**Why.** Спека `20-plaud-to-hermes-ingest.md` адаптирована под новую архитектуру: вместо Google-таблиц — протоколист + канбан; парсер вывода CLI — по полям (JSON не документирован), с fallback.
+
+**Не проверено вживую.** Реальный формат `plaud recent` — парсер проверен на макете; первая живая запись после `plaud login` покажет, нужна ли правка. Записи < 60 с пропускаются.
+
+**Reversal cost.** Низкая: удалить крон `plaud_pull`, папку `plaud/`, строку в Dockerfile.

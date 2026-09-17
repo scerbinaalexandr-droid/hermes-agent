@@ -40,13 +40,13 @@ GIT_USER = (os.environ.get("BACKUP_GIT_USER_NAME") or "Hermes Backup").strip()
 GIT_EMAIL = (os.environ.get("BACKUP_GIT_USER_EMAIL") or "hermes@noreply.local").strip()
 
 # What to back up (whitelist, relative to HERMES_HOME).
-INCLUDE = ["memory", "memories", "SOUL.md", "cron/jobs.json", "kanban/boards",
+INCLUDE = ["memory", "memories", "SOUL.md", "cron/jobs.json", "kanban/boards", "plaud",
            "logs/daily", "logs/coaching", "logs/hooks", "logs/telemetry",
            "logs/notes", "logs/diary", "logs/trips", "logs/curator", "config.yaml"]
 # Never copy these, even if matched by INCLUDE (defence-in-depth — .env etc.).
 # Live SQLite files are in here too: a byte copy taken while the app is writing
 # is a corrupt database. Every database we keep goes through snapshot_sqlite().
-EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem",
+EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem", ".plaud", "tokens.json",
            "google_token.json", "google_client_secret.json", "google_*.json",
            "*.db", "*.db-wal", "*.db-shm", "*.sqlite", "*.sqlite3")
 # Retention: keep only the most recent N dated daily logs in the backup.

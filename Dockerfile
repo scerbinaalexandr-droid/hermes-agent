@@ -55,6 +55,11 @@ RUN npm install --prefer-offline --no-audit && \
     (cd ui-tui && npm install --prefer-offline --no-audit) && \
     npm cache clean --force
 
+# Plaud recorder CLI (skills/ceo/plaud): pulls meeting transcripts on a
+# no_agent cron. Global install keeps it off the volume; the token lives on
+# the volume (HOME=/opt/data → /opt/data/.plaud/tokens.json), never in git.
+RUN npm install -g @plaud-ai/cli --no-audit && npm cache clean --force
+
 # ---------- Source code ----------
 # .dockerignore excludes node_modules, so the installs above survive.
 COPY --chown=hermes:hermes . .

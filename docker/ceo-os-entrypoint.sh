@@ -74,6 +74,10 @@ if [ -f /opt/hermes/skills/ceo/assign/scripts/provision_profiles.py ]; then
     /opt/hermes/.venv/bin/python /opt/hermes/skills/ceo/assign/scripts/provision_profiles.py \
     || echo "[ceo-os-init] WARNING: worker profiles not provisioned"
 fi
+if [ -f /opt/hermes/skills/ceo/plaud/scripts/plaud_pull.py ]; then
+  cp /opt/hermes/skills/ceo/plaud/scripts/plaud_pull.py "$HERMES_HOME/scripts/plaud_pull.py"
+  chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/plaud_pull.py" 2>/dev/null || true
+fi
 if [ -f /opt/hermes/skills/ceo/cost/scripts/cost_monitor.py ]; then
   cp /opt/hermes/skills/ceo/cost/scripts/cost_monitor.py "$HERMES_HOME/scripts/cost_monitor.py"
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/cost_monitor.py" 2>/dev/null || true

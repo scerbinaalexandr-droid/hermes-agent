@@ -109,3 +109,4 @@
 - **2026-09-18** (main): 328dd0d05 fix(ceo-os): stage 1 locks — no permanent allowlist, secrets redacted, backup before update
 - **2026-09-18** (main): be841f155 feat(ceo-os): stage 2 model — side tasks and subagents on Haiku at Anthropic
 - **2026-09-18** (main): cdbf97d29 feat(ceo-os): stage 3 — hands-free menu, Russian voice/reasoning replies, task priority, reactions
+- **2026-09-18** (main): b32092cc6 feat(ceo-os): stage 4 — named worker profiles on the «Поручения» board; persistent menu
