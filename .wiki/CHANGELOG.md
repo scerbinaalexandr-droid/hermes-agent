@@ -102,3 +102,7 @@
 - **2026-08-23** (main): c703e8ff3 fix(ceo-os): отозванный токен Telegram больше не роняет весь сервис
 - **2026-09-02** (main): 43a94ecfc fix(ceo-os): бэкап через deploy key вместо истекающего токена
 - **2026-09-17** (main): 9a414dc86 feat(ceo-os): переоснастка под портфель направлений после TANDEM
+- **2026-09-17** (main): 2ff5e07b9 fix(ceo-os): cron deliveries and backup without service noise
+- **2026-09-17** (main): e1b25f93a fix(ceo-os): no service vocabulary in owner-facing messages
+- **2026-09-17** (main): 1eafd64a3 fix(ceo-os): Hermex stays signed in for a year
+- **2026-09-17** (main): a6b45bddc feat(ceo-os): quiet, stable chat — keep-list skills, queue mode, no service lines

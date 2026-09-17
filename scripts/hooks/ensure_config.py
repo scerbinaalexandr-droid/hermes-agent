@@ -414,6 +414,24 @@ def main() -> None:
     disp["lifecycle_notices"] = False
     cfg["display"] = disp
 
+    # Stage 1 "locks" (owner-approved 2026-09-18, decisions.md):
+    # - no permanent allowlist: a past "always" answer had exempted recursive
+    #   delete, find -delete, delete-in-root, world-writable chmod and
+    #   -c/-e script execution from approval for good. Approval asks again.
+    # - secrets scrubbed from tool output before it can reach the chat/log.
+    # - backup before every `hermes update`; bigger log window for incidents.
+    cfg["command_allowlist"] = []
+    sec_cfg = cfg.get("security") if isinstance(cfg.get("security"), dict) else {}
+    sec_cfg["redact_secrets"] = True
+    cfg["security"] = sec_cfg
+    upd = cfg.get("updates") if isinstance(cfg.get("updates"), dict) else {}
+    upd["pre_update_backup"] = True
+    cfg["updates"] = upd
+    log_cfg = cfg.get("logging") if isinstance(cfg.get("logging"), dict) else {}
+    log_cfg["max_size_mb"] = max(int(log_cfg.get("max_size_mb") or 0), 20)
+    log_cfg["backup_count"] = max(int(log_cfg.get("backup_count") or 0), 5)
+    cfg["logging"] = log_cfg
+
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK
     tlg = cfg.get("tool_loop_guardrails") if isinstance(cfg.get("tool_loop_guardrails"), dict) else {}

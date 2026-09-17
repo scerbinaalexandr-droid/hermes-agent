@@ -363,3 +363,18 @@ Append-only лог событий. Karpathy convention.
 - Возвращён cron `daily_memory_backup`, запущен ручной снимок памяти перед переписыванием.
 
 ## [2026-09-17] session-end | 1 commits on main
+
+## [2026-09-17] session-end | 2 commits on main
+
+## [2026-09-17] session-end | 3 commits on main
+
+## 2026-09-17 (вечер) — сообщения без техшума + аватарка
+- Два коммита (2ff5e07, e1b25f9), оба на проде: обёртка cron, бэкап, `/cost`, `/evening`, `/week`, уведомление о рестарте — по-русски, без служебных слов. Тесты 70/70.
+- Аватарка Minotti-стиль в `~/Downloads/hermes_avatar_minotti.png`; загрузка через @BotFather — за владельцем.
+
+## [2026-09-17] session-end | 4 commits on main
+
+## [2026-09-17] session-end | 5 commits on main
+- (поздний вечер) По 37 скриншотам Hermex: сессия приложения 365 дней (1eafd64), 90 чужих навыков off + очередь + тишина (a6b45bd), заметки бота и доски канбана переписаны на волюме скриптом владельца, OpenRouter пополнен. Записана программа глубокой настройки Hermex (память).
+
+## [2026-09-18] session-end | 5 commits on main
