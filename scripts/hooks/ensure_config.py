@@ -375,6 +375,12 @@ def main() -> None:
     cron_cfg["wrap_response"] = False
     cfg["cron"] = cron_cfg
 
+    # Every deploy restarts the gateway; the owner must not get a "restarting"
+    # notice each time. Chats with a task actually in flight are still told.
+    gw_cfg = cfg.get("gateway") if isinstance(cfg.get("gateway"), dict) else {}
+    gw_cfg["shutdown_notice_home_channel"] = False
+    cfg["gateway"] = gw_cfg
+
     # Security hooks + loop guardrails (always set — idempotent).
     cfg["hooks"] = HOOKS_BLOCK
     tlg = cfg.get("tool_loop_guardrails") if isinstance(cfg.get("tool_loop_guardrails"), dict) else {}

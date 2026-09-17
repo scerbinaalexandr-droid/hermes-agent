@@ -2360,14 +2360,14 @@ class GatewayRunner:
         """
         active = self._snapshot_running_agents()
 
-        action = "restarting" if self._restart_requested else "shutting down"
-        hint = (
-            "Your current task will be interrupted. "
-            "Send any message after restart and I'll try to resume where you left off."
+        # Owner-facing text: plain Russian, no service vocabulary (fork rule —
+        # nothing technical reaches the chat).
+        msg = (
+            "⚠️ Перезапускаюсь — текущая задача прервётся. "
+            "Напиши мне через минуту, продолжу с того места."
             if self._restart_requested
-            else "Your current task will be interrupted."
+            else "⚠️ Ухожу на перезагрузку — текущая задача прервётся."
         )
-        msg = f"⚠️ Gateway {action} — {hint}"
 
         notified: set[tuple[str, str, Optional[str]]] = set()
         for session_key in active:
@@ -2436,7 +2436,15 @@ class GatewayRunner:
                     platform_str, chat_id, e,
                 )
 
+        # The home channel is told about every restart, active task or not.
+        # `gateway.shutdown_notice_home_channel: false` keeps that to chats
+        # whose task is actually being interrupted (deploys stay silent).
+        notify_home = cfg_get(
+            _load_gateway_config(), "gateway", "shutdown_notice_home_channel", default=True
+        )
         for platform, adapter in self.adapters.items():
+            if notify_home is False:
+                break
             home = self.config.get_home_channel(platform)
             if not home or not home.chat_id:
                 continue

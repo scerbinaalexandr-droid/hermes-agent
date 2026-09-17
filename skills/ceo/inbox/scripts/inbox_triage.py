@@ -151,7 +151,7 @@ def _triage(args) -> int:
         body.append(f"📥 {'Будет заархивировано' if args.dry_run else 'Заархивировано'} *{total_archived}* (шум — промо/соцсети, обратимо, ярлык «{ARCHIVE_LABEL}»):")
         body += lines
         body.append("")
-    body.append(f"⭐️ В Primary непрочитанных: *{primary_unread}*"
+    body.append(f"⭐️ Непрочитанных в «Основных»: *{primary_unread}*"
                 + ("" if primary_unread else " — инбокс чист 🎉"))
     print("\n".join(body))
     return 0

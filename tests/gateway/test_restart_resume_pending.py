@@ -928,8 +928,8 @@ async def test_restart_banner_uses_try_to_resume_wording():
 
     assert len(adapter.sent) == 1
     msg = adapter.sent[0]
-    assert "restarting" in msg
-    assert "try to resume" in msg
+    assert "Перезапускаюсь" in msg
+    assert "продолжу" in msg
 
 
 @pytest.mark.asyncio
@@ -945,9 +945,33 @@ async def test_restart_notifies_home_channel_even_without_active_sessions():
     await runner._notify_active_sessions_of_shutdown()
 
     assert adapter.sent == [
-        "⚠️ Gateway restarting — Your current task will be interrupted. "
-        "Send any message after restart and I'll try to resume where you left off."
+        "⚠️ Перезапускаюсь — текущая задача прервётся. "
+        "Напиши мне через минуту, продолжу с того места."
     ]
+
+
+@pytest.mark.asyncio
+async def test_restart_home_channel_notice_can_be_disabled(monkeypatch):
+    """gateway.shutdown_notice_home_channel: false — the home channel stays
+    quiet on restart; a chat with a task in flight is still told."""
+    monkeypatch.setattr(
+        "gateway.run._load_gateway_config",
+        lambda: {"gateway": {"shutdown_notice_home_channel": False}},
+    )
+    runner, adapter = make_restart_runner()
+    runner._restart_requested = True
+    runner.config.platforms[Platform.TELEGRAM].home_channel = HomeChannel(
+        platform=Platform.TELEGRAM,
+        chat_id="home-42",
+        name="Ops Home",
+    )
+
+    await runner._notify_active_sessions_of_shutdown()
+    assert adapter.sent == []
+
+    runner._running_agents["agent:main:telegram:dm:999"] = MagicMock()
+    await runner._notify_active_sessions_of_shutdown()
+    assert len(adapter.sent) == 1
 
 
 @pytest.mark.asyncio

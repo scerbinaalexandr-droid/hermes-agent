@@ -77,14 +77,6 @@ def _connect() -> sqlite3.Connection:
     return sqlite3.connect(f"file:{STATE_DB}?mode=ro", uri=True)
 
 
-def _bar(value: float, max_value: float, width: int = 10) -> str:
-    if max_value <= 0:
-        return "▁" * width
-    ratio = max(0.0, min(1.0, value / max_value))
-    filled = int(ratio * width + 0.5)
-    return "█" * filled + "▁" * (width - filled)
-
-
 def today_cost(conn: sqlite3.Connection) -> tuple[float, dict]:
     """Return (total_cost, details dict)."""
     start = _today_utc_start()
@@ -159,27 +151,32 @@ def mtd_total(conn: sqlite3.Connection) -> float:
     return sum(_coalesce_cost(row) for row in cur)
 
 
-def trend_label(seven_days: list[tuple[str, float]]) -> str:
-    """First 3 days vs last 3 days."""
+_MONTHS_GEN = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+               "августа", "сентября", "октября", "ноября", "декабря"]
+_MONTHS_NOM = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль",
+               "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+
+
+def trend_note(seven_days: list[tuple[str, float]]) -> str:
+    """First 3 days vs last 3 full days (today is partial and excluded)."""
     if len(seven_days) < 6:
-        return "—"
+        return ""
     first = sum(c for _, c in seven_days[:3]) / 3
-    last = sum(c for _, c in seven_days[3:6]) / 3  # exclude today (partial)
-    if first == 0 and last == 0:
-        return "no spend"
-    if last > first * 1.3:
-        return f"⬆ rising ({first:.2f} → {last:.2f})"
-    if last < first * 0.7:
-        return f"⬇ falling ({first:.2f} → {last:.2f})"
-    return "stable"
+    last = sum(c for _, c in seven_days[3:6]) / 3
+    if last > first * 1.3 and last > 0.5:
+        return "Расход растёт по сравнению с началом недели."
+    if last < first * 0.7 and first > 0.5:
+        return "Расход снижается по сравнению с началом недели."
+    return ""
 
 
-def status_emoji(today: float) -> tuple[str, str]:
+def status(today: float) -> tuple[str, str]:
+    """(emoji for the today line, warning line or empty)."""
     if today >= CRIT:
-        return "🔴", f"Critical (≥${CRIT:.0f}). Рассмотри manual `/stop` до конца дня."
+        return "🔴", "Расход за сегодня критический — лучше остановить бота до конца дня."
     if today >= WARN:
-        return "🟡", f"Warning (≥${WARN:.0f}). Осмотри какой скилл съел — `/cost` детально."
-    return "🟢", "OK"
+        return "🟡", "Расход за сегодня выше обычного — стоит взглянуть, что так много работало."
+    return "🟢", ""
 
 
 def days_in_current_month() -> int:
@@ -188,55 +185,34 @@ def days_in_current_month() -> int:
 
 
 def render(conn: sqlite3.Connection) -> str:
-    today, details = today_cost(conn)
+    """Owner-facing summary: money only, in Russian, no tokens/sessions/bars."""
+    today, _details = today_cost(conn)
     week = daily_totals(conn, 7)
     mtd = mtd_total(conn)
-    status, note = status_emoji(today)
-    trend = trend_label(week)
     dim = days_in_current_month()
     pct = (mtd / BUDGET * 100) if BUDGET else 0.0
-    proj_eom = (mtd / max(datetime.now(timezone.utc).day, 1)) * dim
+    now_utc = datetime.now(timezone.utc)
+    proj_eom = (mtd / max(now_utc.day, 1)) * dim
 
-    # Header date in EEST
-    today_eest = (datetime.now(timezone.utc) + _DISPLAY_TZ_OFFSET).date().isoformat()
-    month_label = datetime.now(timezone.utc).strftime("%B %Y")
-
-    lines = []
-    lines.append(f"💰 *Hermes Spend Report — {today_eest}*")
-    lines.append("")
-    lines.append(
-        f"{status} *Today (UTC):* ${today:.2f} "
-        f"({details['input_tokens']/1000:.1f}K in / "
-        f"{details['output_tokens']/1000:.1f}K out / "
-        f"{details['cache_read']/1000:.1f}K cache_r)"
-    )
-    lines.append(f"   → {details['sessions']} sessions")
-    if details["top_titles"]:
-        top_str = ", ".join(f"{t} (${c:.2f})" for t, c in details["top_titles"])
-        lines.append(f"   → top: {top_str}")
-    lines.append(f"   → {note}")
-    lines.append("")
-
-    max_day = max(c for _, c in week) if week else 0.0
-    lines.append("📊 *Last 7 days (UTC):*")
-    for i, (label, cost) in enumerate(week):
-        suffix = "  ← today (partial)" if i == len(week) - 1 else ""
-        lines.append(f"   {label} → ${cost:5.2f}  {_bar(cost, max_day)}{suffix}")
+    local = (now_utc + _DISPLAY_TZ_OFFSET).date()
     total_7 = sum(c for _, c in week)
-    avg_7 = total_7 / 7
-    lines.append("")
-    lines.append(f"   7d total: ${total_7:.2f} · daily avg: ${avg_7:.2f} · trend: {trend}")
-    lines.append("")
 
-    lines.append(
-        f"📈 *Month-to-date ({month_label}):* ${mtd:.2f} / "
-        f"cap ${BUDGET:.0f} ({pct:.1f}%)"
-    )
+    emoji, warning = status(today)
+    lines = [
+        f"💰 *Расходы на ассистента — {local.day} {_MONTHS_GEN[local.month - 1]}*",
+        "",
+        f"Сегодня: ${today:.2f} {emoji}",
+        f"За 7 дней: ${total_7:.2f} (в среднем ${total_7 / 7:.2f} в день)",
+        f"{_MONTHS_NOM[now_utc.month - 1]}: ${mtd:.2f} из ${BUDGET:.0f} ({pct:.0f}%)",
+    ]
     if mtd > 0:
-        lines.append(f"   Projection EOM at current pace: ${proj_eom:.2f}")
+        lines.append(f"При таком темпе к концу месяца: около ${proj_eom:.2f}")
         if proj_eom > BUDGET:
-            lines.append(f"   ⚠ Projection exceeds cap by ${proj_eom - BUDGET:.2f}")
-
+            lines.append(f"⚠️ Это больше лимита на ${proj_eom - BUDGET:.2f}.")
+    trend = trend_note(week)
+    if warning or trend:
+        lines.append("")
+        lines += [ln for ln in (warning, trend) if ln]
     return "\n".join(lines)
 
 
