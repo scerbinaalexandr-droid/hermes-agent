@@ -23,13 +23,17 @@ if _p not in sys.path and pathlib.Path(_p).exists():
 BOARDS = {
     "assignments": ("Поручения", "📨", "#b69668"),
     "plaud": ("Диктофон", "🎙", "#8f7550"),   # one card per Plaud recording
+    "mirror": ("Зеркало", "🪞", "#6b5b7b"),   # psychoanalytic readings — closed board
 }
 ROLES = {
     "researcher": "🔎 Ресерчер — изучить, найти, сравнить, собрать источники",
     "analyst":    "📊 Аналитик — таблицы, расчёты, выгрузки, Excel",
     "scribe":     "📝 Протоколист — транскрипт → резюме, решения, задачи",
     "writer":     "✍️ Редактор — тексты, КП, описания, черновики писем",
+    "mirror":     "🪞 Зеркало — психоаналитический разбор человека или ситуации; разговор — в приложении",
 }
+# A role whose cards never go to the shared «Поручения» board.
+ROLE_BOARD = {"mirror": "mirror"}
 OWNER_CHAT = os.environ.get("HERMES_OWNER_CHAT_ID", "385068170")
 
 
@@ -41,7 +45,7 @@ def main() -> int:
     ap.add_argument("--brief", default="")
     ap.add_argument("--priority", type=int, default=0)
     ap.add_argument("--chat-id", default=OWNER_CHAT)
-    ap.add_argument("--board", default="assignments", choices=sorted(BOARDS))
+    ap.add_argument("--board", default=None, choices=sorted(BOARDS))
     ap.add_argument("--block", default=None, help="метка блока PRJ-1…PRJ-7 (tenant)")
     args = ap.parse_args()
 
@@ -53,6 +57,9 @@ def main() -> int:
                           "message": "Нужны роль и название поручения.",
                           "roles": list(ROLES)}, ensure_ascii=False))
         return 0
+
+    if args.board is None:
+        args.board = ROLE_BOARD.get(args.role, "assignments")
 
     import hermes_cli.kanban_db as k
     name, icon, color = BOARDS[args.board]

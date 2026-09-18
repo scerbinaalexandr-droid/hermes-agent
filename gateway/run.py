@@ -3402,8 +3402,13 @@ class GatewayRunner:
                         # as a ticket-system event.
                         _ru_names = {"researcher": "Ресерчер", "analyst": "Аналитик",
                                      "scribe": "Протоколист", "writer": "Редактор",
-                                     "mailer": "Секретарь почты"}
+                                     "mailer": "Секретарь почты", "mirror": "Зеркало"}
                         ru_who = _ru_names.get(who or "")
+                        # «Зеркало» is the owner's psychoanalytic worker: its
+                        # board is closed, so the chat gets the title only —
+                        # never a line of the reading itself.
+                        _closed = who == "mirror"
+                        _board_ru = "Зеркало" if _closed else "Поручения"
                         if kind == "completed":
                             # Prefer the run's summary (the worker's
                             # intentional human-facing handoff, carried
@@ -3414,14 +3419,16 @@ class GatewayRunner:
                             payload_summary = None
                             if ev.payload and ev.payload.get("summary"):
                                 payload_summary = str(ev.payload["summary"])
-                            if payload_summary:
+                            if _closed:
+                                pass
+                            elif payload_summary:
                                 h = payload_summary.strip().splitlines()[0][:200]
                                 handoff = f"\n{h}"
                             elif task and task.result:
                                 r = task.result.strip().splitlines()[0][:160]
                                 handoff = f"\n{r}"
                             if ru_who:
-                                msg = f"✅ {ru_who} закончил: {title}{handoff}\nПолный отчёт — в карточке «Поручения»."
+                                msg = f"✅ {ru_who} закончил: {title}{handoff}\nПолный отчёт — в карточке «{_board_ru}»."
                             else:
                                 msg = (
                                     f"✔ {tag}Kanban {sub['task_id']} done"
@@ -3429,9 +3436,11 @@ class GatewayRunner:
                                 )
                         elif kind == "blocked":
                             reason = ""
-                            if ev.payload and ev.payload.get("reason"):
+                            if ev.payload and ev.payload.get("reason") and not _closed:
                                 reason = f": {str(ev.payload['reason'])[:160]}"
-                            if ru_who:
+                            if _closed:
+                                msg = f"⏸ Зеркало ждёт ответа по «{title}» — вопрос в карточке «Зеркало»."
+                            elif ru_who:
                                 msg = f"⏸ {ru_who} ждёт ответа по «{title}»{reason}\nОтветь мне — передам."
                             else:
                                 msg = f"⏸ {tag}Kanban {sub['task_id']} blocked{reason}"

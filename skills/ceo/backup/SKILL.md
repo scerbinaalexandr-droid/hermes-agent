@@ -35,7 +35,14 @@ copies it to `/opt/data/scripts/backup.py` (the only dir Hermes cron allows for
 
 ## What is backed up (whitelist)
 
-`memory/` · `logs/daily/` (last 30 days) · `logs/hooks/` · `config.yaml`
+`memory/` · `memories/` · `kanban/boards` (snapshots) · `plaud/` · chat history ·
+`logs/daily/` (last 30 days) · `logs/hooks/` · `config.yaml`
+
+**«Зеркало»** (profile `mirror`: its memory, chat history, board) is stored only as
+`state/mirror.tar.enc` — AES-256, passphrase `BACKUP_MIRROR_KEY`. Without the
+key the owner gets one line each night: «🪞 Зеркало не попало в копию…». The
+key lives only in Railway Variables and the owner's password manager: lose it
+and the archive is unreadable — that is the point.
 
 ## Never backed up
 
@@ -45,7 +52,8 @@ GitHub token is scrubbed from every line of output.
 ## Required env (Railway Variables — never in code)
 
 `BACKUP_GITHUB_TOKEN` (fine-grained PAT, Contents:write on the backup repo
-only) · `BACKUP_REPO_URL` · `BACKUP_GIT_USER_NAME` · `BACKUP_GIT_USER_EMAIL`
+only) · `BACKUP_REPO_URL` · `BACKUP_GIT_USER_NAME` · `BACKUP_GIT_USER_EMAIL` ·
+`BACKUP_MIRROR_KEY` (passphrase for the «Зеркало» archive)
 
 ## One-time cron setup (after env vars are live)
 

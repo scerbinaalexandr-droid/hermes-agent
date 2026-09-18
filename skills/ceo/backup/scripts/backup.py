@@ -15,11 +15,13 @@ Env (set in Railway Variables, never in code/config):
     BACKUP_REPO_URL        https://github.com/<owner>/hermes-memory-backup.git
     BACKUP_GIT_USER_NAME   commit author name
     BACKUP_GIT_USER_EMAIL  commit author email
+    BACKUP_MIRROR_KEY      passphrase for the «Зеркало» archive (see backup_mirror)
     HERMES_HOME            /opt/data (default)
 
 Stdlib only — no external deps (runs under the plain cron python).
 """
 import gzip
+import hashlib
 import io
 import json
 import os
@@ -28,6 +30,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tarfile
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -38,6 +41,7 @@ REPO_URL = (os.environ.get("BACKUP_REPO_URL") or "").strip()
 TOKEN = (os.environ.get("BACKUP_GITHUB_TOKEN") or "").strip()
 GIT_USER = (os.environ.get("BACKUP_GIT_USER_NAME") or "Hermes Backup").strip()
 GIT_EMAIL = (os.environ.get("BACKUP_GIT_USER_EMAIL") or "hermes@noreply.local").strip()
+MIRROR_KEY = (os.environ.get("BACKUP_MIRROR_KEY") or "").strip()
 
 # What to back up (whitelist, relative to HERMES_HOME).
 INCLUDE = ["memory", "memories", "SOUL.md", "cron/jobs.json", "kanban/boards", "plaud",
@@ -49,6 +53,13 @@ INCLUDE = ["memory", "memories", "SOUL.md", "cron/jobs.json", "kanban/boards", "
 EXCLUDE = (".env", "*.pyc", "__pycache__", "sessions", "*.tmp", "*.key", "*.pem", ".plaud", "tokens.json",
            "google_token.json", "google_client_secret.json", "google_*.json",
            "*.db", "*.db-wal", "*.db-shm", "*.sqlite", "*.sqlite3")
+# «Зеркало» (the owner's psychoanalytic worker) is the most sensitive data on
+# the volume. Its board never goes into the plain part of the repo; memory,
+# chat history and board travel together in one archive encrypted with
+# BACKUP_MIRROR_KEY (backup_mirror).
+MIRROR_PROFILE = HERMES_HOME / "profiles" / "mirror"
+CLOSED_BOARDS = {"mirror"}
+MIRROR_KDF_ITER = "200000"
 # Retention: keep only the most recent N dated daily logs in the backup.
 LOGS_DAILY_KEEP = 30
 # Chat-history shards younger than this are rewritten on every run (a day is
@@ -206,9 +217,67 @@ def backup_kanban(staging: Path) -> int:
     boards = HERMES_HOME / "kanban" / "boards"
     if boards.is_dir():
         for db in sorted(boards.glob("*/kanban.db")):
+            if db.parent.name in CLOSED_BOARDS:
+                continue  # encrypted, see backup_mirror
             sources.append((db, f"{db.parent.name}.db.gz"))
     return sum(snapshot_sqlite(src, staging / "state" / "kanban" / name)
                for src, name in sources)
+
+
+def backup_mirror(staging: Path) -> Optional[str]:
+    """One encrypted archive for «Зеркало»: profile memory, chat history, board.
+
+    Returns a one-line owner notice when the archive could not be made, else
+    None. Ciphertext is salted (different bytes every run), so the plaintext
+    digest is kept next to it and the archive is rewritten only on change —
+    otherwise every night would push a "snapshot" of identical content.
+
+    Restore:  openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+                -pass env:BACKUP_MIRROR_KEY -in state/mirror.tar.enc | tar x
+    """
+    board_db = HERMES_HOME / "kanban" / "boards" / "mirror" / "kanban.db"
+    if not MIRROR_PROFILE.is_dir() and not board_db.is_file():
+        return None
+    if not MIRROR_KEY:
+        log_detail("mirror skipped: BACKUP_MIRROR_KEY unset")
+        return "🪞 Зеркало не попало в копию: не задан ключ шифрования."
+    tmp = Path(tempfile.mkdtemp(prefix="hermes-mirror-"))
+    try:
+        bundle = tmp / "bundle"
+        memories = MIRROR_PROFILE / "memories"
+        if memories.is_dir():
+            shutil.copytree(memories, bundle / "memories",
+                            ignore=shutil.ignore_patterns(*EXCLUDE))
+        for src, name in ((MIRROR_PROFILE / "state.db", "state.db.gz"),
+                          (board_db, "kanban.db.gz")):
+            if src.is_file():
+                snapshot_sqlite(src, bundle / name)
+        if not bundle.is_dir():
+            return None
+        tar_path = tmp / "mirror.tar"
+        with tarfile.open(tar_path, "w") as tar:
+            for f in sorted(p for p in bundle.rglob("*") if p.is_file()):
+                info = tar.gettarinfo(str(f), arcname=str(f.relative_to(bundle)))
+                info.mtime = 0
+                info.uid = info.gid = 0
+                info.uname = info.gname = ""
+                with open(f, "rb") as fh:
+                    tar.addfile(info, fh)
+        digest = hashlib.sha256(tar_path.read_bytes()).hexdigest()
+        out = staging / "state" / "mirror.tar.enc"
+        stamp = staging / "state" / "mirror.tar.enc.sha256"
+        if out.is_file() and stamp.is_file() and stamp.read_text().strip() == digest:
+            return None
+        out.parent.mkdir(parents=True, exist_ok=True)
+        run(["openssl", "enc", "-aes-256-cbc", "-pbkdf2", "-iter", MIRROR_KDF_ITER, "-salt",
+             "-pass", "env:BACKUP_MIRROR_KEY", "-in", str(tar_path), "-out", str(out)])
+        stamp.write_text(digest + "\n", encoding="utf-8")
+    except Exception as exc:
+        log_detail(f"mirror archive failed: {exc}")
+        return "🪞 Копия Зеркала сегодня не сохранилась — нужна проверка."
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    return None
 
 
 def export_chat_history(staging: Path) -> int:
@@ -273,6 +342,9 @@ def copy_includes(staging: Path) -> None:
             dst.unlink()
         if src.is_dir():
             shutil.copytree(src, dst, ignore=shutil.ignore_patterns(*EXCLUDE))
+            if item == "kanban/boards":
+                for closed in CLOSED_BOARDS:
+                    shutil.rmtree(dst / closed, ignore_errors=True)
         else:
             if any(src.match(p) or p in src.name for p in EXCLUDE):
                 continue
@@ -313,12 +385,17 @@ def main() -> int:
         # Live databases: consistent snapshots, never raw file copies.
         backup_kanban(staging)
         export_chat_history(staging)
+        mirror_notice = backup_mirror(staging)
         (staging / "README.md").write_text(
             "# Hermes Memory Backup\n\n"
             f"**Last snapshot:** {ts}\n\n"
             "**Source:** Railway production (HERMES_HOME=/opt/data)\n\n"
             "**Privacy:** PRIVATE. Contains business directions data + personal context. "
-            "Do not share, do not make public, do not fork.\n",
+            "Do not share, do not make public, do not fork.\n\n"
+            "**state/mirror.tar.enc:** the «Зеркало» profile (memory, chat history, board), "
+            "AES-256-CBC with PBKDF2. Restore with the BACKUP_MIRROR_KEY passphrase:\n"
+            "`openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:BACKUP_MIRROR_KEY "
+            "-in state/mirror.tar.enc | tar x`\n",
             encoding="utf-8",
         )
 
@@ -327,6 +404,8 @@ def main() -> int:
         status = run(["git", "status", "--porcelain"], cwd=staging, check=False)
         if not status.stdout.strip():
             # Nothing changed — stay silent, the owner gets no service noise.
+            if mirror_notice:
+                print(mirror_notice)
             return 0
 
         run(["git", "commit", "-m", f"snapshot: {ts}"], cwd=staging)
@@ -335,6 +414,8 @@ def main() -> int:
             return fail(f"push failed: {push.stderr.strip()}")
 
     # Success is silent by design: a daily "ok" is noise. Failures speak up.
+    if mirror_notice:
+        print(mirror_notice)
     return 0
 
 

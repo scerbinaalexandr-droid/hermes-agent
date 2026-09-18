@@ -30,6 +30,16 @@ ROLES = {
     "analyst":    (["terminal", "file", "skills", "todo", "memory"], {"kanban-worker", "xlsx", "pdf", "ocr-and-documents"}),
     "scribe":     (["file", "skills", "todo", "memory"], {"kanban-worker", "pdf", "ocr-and-documents"}),
     "writer":     (["file", "skills", "todo", "memory"], {"kanban-worker", "humanizer", "docx"}),
+    # «Зеркало»: no web, no terminal — nothing it hears can leave the profile.
+    "mirror":     (["file", "skills", "memory"], {"kanban-worker"}),
+}
+# The therapist keeps a long-term picture of the owner (its own, closed memory);
+# other workers only keep notes about their craft.
+MEMORY = {
+    "default": {"memory_enabled": True, "user_profile_enabled": False,
+                "memory_char_limit": 2200, "user_char_limit": 1375},
+    "mirror":  {"memory_enabled": True, "user_profile_enabled": True,
+                "memory_char_limit": 4400, "user_char_limit": 2750},
 }
 # Never available to a worker, whatever the toolset list says.
 HARD_OFF = ["delegation", "messaging", "cronjob", "browser", "code_execution",
@@ -63,8 +73,7 @@ def profile_config(role: str) -> dict:
         "terminal": {"backend": "local", "cwd": "."},
         "security": {"redact_secrets": True, "allow_private_urls": False},
         "skills": {"disabled": sorted(bundled_skill_names() - keep)},
-        "memory": {"memory_enabled": True, "user_profile_enabled": False,
-                   "memory_char_limit": 2200, "user_char_limit": 1375},
+        "memory": dict(MEMORY.get(role, MEMORY["default"])),
         "compression": {"enabled": True},
         "display": {"lifecycle_notices": False},
         "auxiliary": {
