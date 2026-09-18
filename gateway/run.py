@@ -3397,6 +3397,13 @@ class GatewayRunner:
                         # chat subscribes to many tasks) legible at a glance.
                         who = (task.assignee if task and task.assignee else None)
                         tag = f"@{who} " if who else ""
+                        # Fork: the owner's workers have Russian display names;
+                        # the notice must read as a colleague's message, not
+                        # as a ticket-system event.
+                        _ru_names = {"researcher": "Ресерчер", "analyst": "Аналитик",
+                                     "scribe": "Протоколист", "writer": "Редактор",
+                                     "mailer": "Секретарь почты"}
+                        ru_who = _ru_names.get(who or "")
                         if kind == "completed":
                             # Prefer the run's summary (the worker's
                             # intentional human-facing handoff, carried
@@ -3413,36 +3420,51 @@ class GatewayRunner:
                             elif task and task.result:
                                 r = task.result.strip().splitlines()[0][:160]
                                 handoff = f"\n{r}"
-                            msg = (
-                                f"✔ {tag}Kanban {sub['task_id']} done"
-                                f" — {title}{handoff}"
-                            )
+                            if ru_who:
+                                msg = f"✅ {ru_who} закончил: {title}{handoff}\nПолный отчёт — в карточке «Поручения»."
+                            else:
+                                msg = (
+                                    f"✔ {tag}Kanban {sub['task_id']} done"
+                                    f" — {title}{handoff}"
+                                )
                         elif kind == "blocked":
                             reason = ""
                             if ev.payload and ev.payload.get("reason"):
                                 reason = f": {str(ev.payload['reason'])[:160]}"
-                            msg = f"⏸ {tag}Kanban {sub['task_id']} blocked{reason}"
+                            if ru_who:
+                                msg = f"⏸ {ru_who} ждёт ответа по «{title}»{reason}\nОтветь мне — передам."
+                            else:
+                                msg = f"⏸ {tag}Kanban {sub['task_id']} blocked{reason}"
                         elif kind == "gave_up":
                             err = ""
                             if ev.payload and ev.payload.get("error"):
                                 err = f"\n{str(ev.payload['error'])[:200]}"
-                            msg = (
-                                f"✖ {tag}Kanban {sub['task_id']} gave up "
-                                f"after repeated spawn failures{err}"
-                            )
+                            if ru_who:
+                                msg = f"⚠️ {ru_who} не смог взять «{title}» — нужна проверка."
+                            else:
+                                msg = (
+                                    f"✖ {tag}Kanban {sub['task_id']} gave up "
+                                    f"after repeated spawn failures{err}"
+                                )
                         elif kind == "crashed":
-                            msg = (
-                                f"✖ {tag}Kanban {sub['task_id']} worker crashed "
-                                f"(pid gone); dispatcher will retry"
-                            )
+                            if ru_who:
+                                msg = f"⚠️ {ru_who} прервался на «{title}» — попробует ещё раз."
+                            else:
+                                msg = (
+                                    f"✖ {tag}Kanban {sub['task_id']} worker crashed "
+                                    f"(pid gone); dispatcher will retry"
+                                )
                         elif kind == "timed_out":
                             limit = 0
                             if ev.payload and ev.payload.get("limit_seconds"):
                                 limit = int(ev.payload["limit_seconds"])
-                            msg = (
-                                f"⏱ {tag}Kanban {sub['task_id']} timed out "
-                                f"(max_runtime={limit}s); will retry"
-                            )
+                            if ru_who:
+                                msg = f"⏱ {ru_who} не уложился в срок по «{title}» — попробует ещё раз."
+                            else:
+                                msg = (
+                                    f"⏱ {tag}Kanban {sub['task_id']} timed out "
+                                    f"(max_runtime={limit}s); will retry"
+                                )
                         else:
                             continue
                         metadata: dict[str, Any] = {}
@@ -3455,6 +3477,10 @@ class GatewayRunner:
                         try:
                             await adapter.send(
                                 sub["chat_id"], msg, metadata=metadata,
+                            )
+                            logger.info(
+                                "kanban notifier: delivered %s for %s to %s:%s",
+                                kind, sub["task_id"], platform_str, sub["chat_id"],
                             )
                             # Reset the failure counter on success.
                             sub_fail_counts.pop(sub_key, None)
