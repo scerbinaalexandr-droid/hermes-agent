@@ -163,14 +163,14 @@ python skills/ceo/diary/scripts/diary.py --save '<JSON>'
 
 JSON shape (entry):
 ```json
-{"kind": "entry", "content": "...", "context": "П3 Экзоскелет", "energy": "7/10", "mood": "..."}
+{"kind": "entry", "content": "...", "context": "PRJ-3 Экзоскелет", "energy": "7/10", "mood": "..."}
 ```
 
 JSON shape (protocol):
 ```json
 {
   "kind": "protocol",
-  "topic": "П2 — интервью с собственником о выходе из операционки",
+  "topic": "PRJ-2 — интервью с собственником о выходе из операционки",
   "participants": ["Александр", "партнёр X"],
   "decisions": ["..."],
   "action_items": ["Александр / 03.06 — ..."],

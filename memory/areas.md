@@ -22,11 +22,11 @@ Long-term Goal: <horizon 5-10 лет>
 
 ---
 
-## 1. Портфель направлений (П1–П5)
+## 1. Портфель направлений (PRJ-1–PRJ-5)
 
 Purpose: собственные бизнес-направления вместо наёмной роли CEO — ИКИГАЙ: подготовка бизнесов к передаче и продаже
-KPIs: чистый доход в месяц (цель 100 000 €), число клиентов П2/П1, накопленный контекст по П3, первый датасет П4
-Recurring Actions: ежедневный сбор мыслей по направлениям, вечерний дневник, воскресный обзор недели по П1–П5
+KPIs: чистый доход в месяц (цель 100 000 €), число клиентов PRJ-2/PRJ-1, накопленный контекст по PRJ-3, первый датасет PRJ-4
+Recurring Actions: ежедневный сбор мыслей по направлениям, вечерний дневник, воскресный обзор недели по PRJ-1–PRJ-5
 Review Frequency: weekly
 Risks: доход после ухода, распыление на пять направлений, перегрузка
 Reminders: Sun 18:00 обзор недели по направлениям
@@ -136,7 +136,7 @@ Status: active project (см. projects.md::Brasov Apartment Renovation)
 Purpose: новое направление — производство в Romania (pharma)
 KPIs: regulatory milestones, partner agreements, go/no-go gate Q3 2026
 Recurring Actions: monthly partner sync, quarterly regulatory review
-Review Frequency: quarterly (на паузе относительно П1–П5, вернуться при появлении партнёра)
+Review Frequency: quarterly (на паузе относительно PRJ-1–PRJ-5, вернуться при появлении партнёра)
 Risks: regulatory, key people dependency, strategic
 Reminders: monthly partner sync
 Long-term Goal: operational pharma plant in Romania, generating revenue Q1 2027

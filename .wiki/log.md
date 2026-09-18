@@ -397,3 +397,10 @@ Append-only лог событий. Karpathy convention.
 
 ## [2026-09-18] session-end | 10 commits on main
 - Хотфикс c12add0: Hermex-чат падал на `dynamic_schema_overrides` (форк отстал от upstream) — поле добавлено в ToolEntry; tool_progress off; compression → Sonnet. Plaud: токен и крон на проде, парсер под реальный формат + отсечка «с 18.09» — локально, ждёт деплоя. Стоп в 02:20 по слову владельца.
+
+## [2026-09-18] session-end | 1 commits on main
+
+## 2026-09-18 — утро: разбор инцидентов
+- Ресерч в Hermex погиб из-за деплоя 02:26 (stream pending при shutdown webui); диктовка в крон-сессии → 404. Правило деплоя записано в память. Plaud end-to-end работает; уведомления работников переведены на русский + лог доставки (1d385a1).
+
+## [2026-09-18] session-end | 2 commits on main

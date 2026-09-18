@@ -186,12 +186,12 @@ def main() -> int:
             f"Запись Plaud «{title}» ({rec.get('created_at') or 'дата в файле'}).\n"
             f"Транскрипт: {raw_dir / 'transcript.txt'}\n"
             f"Черновое резюме Plaud (если есть): {raw_dir / 'summary.md'}\n\n"
-            "Сделай протокол по своим правилам: резюме, решения, задачи (что/кто/срок), "
-            "открытые вопросы, договорённости и цифры дословно. Задачи перечисли списком "
-            "— владелец подтвердит постановку сам."
+            "Определи тип записи: встреча/диктовка → протокол (резюме, решения, задачи, вопросы, "
+            "цифры дословно); рассказ родных о семье → режим «летопись». Задачи перечисли списком — "
+            "владелец подтвердит сам. В конце предложи метку блока PRJ-1…PRJ-7."
         )
-        a = subprocess.run([sys.executable, str(ASSIGN), "--role", "scribe",
-                            "--title", f"Протокол: {title}", "--brief", brief],
+        a = subprocess.run([sys.executable, str(ASSIGN), "--role", "scribe", "--board", "plaud",
+                            "--title", title, "--brief", brief],
                            capture_output=True, text=True, timeout=60)
         try:
             res = json.loads(a.stdout.strip().splitlines()[-1])

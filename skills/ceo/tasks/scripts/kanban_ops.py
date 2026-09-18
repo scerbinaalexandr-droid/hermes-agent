@@ -10,6 +10,7 @@
 
 Команды:
   --boards                     список досок с числом открытых задач
+  --label ID --block PRJ-7     метка блока на карточке (tenant); видна в Hermex как тег
   --priority N                 при --add: 0 обычная, 1 важная, 2 горит (бейдж P0/P1/P2 в Hermex)
   --add --board <slug> --title "..." [--assignee ...] [--due ...] [--note ...]
   --list [--board <slug>] [--days N]   открытые задачи, разложенные по срокам
@@ -89,6 +90,7 @@ def _open_tasks(board: str) -> list[dict]:
             "status": status,
             "due": m.group(1) if m else "",
             "priority": int(getattr(t, "priority", 0) or 0),
+            "block": getattr(t, "tenant", "") or "",
             "board": board,
         })
     return result
@@ -182,6 +184,43 @@ def cmd_list(args) -> dict:
             "overdue": overdue, "soon": soon, "later": later, "no_due": no_due}
 
 
+def cmd_unlabeled(args) -> dict:
+    """Cards without a block label (any status but archived) — the owner's
+    classification queue, mainly for the «Диктофон» board."""
+    k = _kdb()
+    boards = [args.board] if args.board else [b["slug"] for b in _boards()]
+    out = []
+    for slug in boards:
+        conn = k.connect(board=slug)
+        try:
+            rows = conn.execute(
+                "SELECT id, title, status, created_at FROM tasks "
+                "WHERE (tenant IS NULL OR tenant = '') AND status != 'archived' "
+                "ORDER BY created_at DESC LIMIT 30").fetchall()
+        finally:
+            conn.close()
+        out += [{"id": r[0], "title": r[1], "status": r[2], "board": slug} for r in rows]
+    return {"unlabeled": out, "count": len(out)}
+
+
+def cmd_label(args) -> dict:
+    """Set the block label (PRJ-1…PRJ-7 or «личное») on a task — stored as tenant."""
+    k = _kdb()
+    boards = [args.board] if args.board else [b["slug"] for b in _boards()]
+    for slug in boards:
+        conn = k.connect(board=slug)
+        try:
+            row = conn.execute("SELECT id FROM tasks WHERE id = ?", (args.label,)).fetchone()
+            if not row:
+                continue
+            with k.write_txn(conn):
+                conn.execute("UPDATE tasks SET tenant = ? WHERE id = ?", (args.block or None, args.label))
+            return {"ok": True, "id": args.label, "board": slug, "block": args.block or ""}
+        finally:
+            conn.close()
+    return {"ok": False, "error": "not_found", "message": "Такой карточки нет."}
+
+
 def cmd_done(args) -> dict:
     k = _kdb()
     boards = [args.board] if args.board else [b["slug"] for b in _boards()]
@@ -212,6 +251,9 @@ def main() -> int:
     p.add_argument("--add", action="store_true")
     p.add_argument("--list", action="store_true")
     p.add_argument("--done", metavar="TASK_ID")
+    p.add_argument("--label", metavar="TASK_ID", help="поставить метку блока: --label <id> --block PRJ-7")
+    p.add_argument("--unlabeled", action="store_true", help="карточки без метки блока (очередь на классификацию)")
+    p.add_argument("--block", help="PRJ-1…PRJ-7 или «личное»")
     p.add_argument("--board")
     p.add_argument("--title")
     p.add_argument("--assignee")
@@ -233,6 +275,10 @@ def main() -> int:
                 out = cmd_add(args)
         elif args.done:
             out = cmd_done(args)
+        elif args.label:
+            out = cmd_label(args)
+        elif args.unlabeled:
+            out = cmd_unlabeled(args)
         elif args.list:
             out = cmd_list(args)
         else:

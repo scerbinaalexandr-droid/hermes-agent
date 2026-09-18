@@ -20,8 +20,10 @@ _p = os.environ.get("HERMES_AGENT_DIR", "/opt/hermes")
 if _p not in sys.path and pathlib.Path(_p).exists():
     sys.path.insert(0, _p)
 
-BOARD = "assignments"
-BOARD_NAME = "Поручения"
+BOARDS = {
+    "assignments": ("Поручения", "📨", "#b69668"),
+    "plaud": ("Диктофон", "🎙", "#8f7550"),   # one card per Plaud recording
+}
 ROLES = {
     "researcher": "🔎 Ресерчер — изучить, найти, сравнить, собрать источники",
     "analyst":    "📊 Аналитик — таблицы, расчёты, выгрузки, Excel",
@@ -39,6 +41,8 @@ def main() -> int:
     ap.add_argument("--brief", default="")
     ap.add_argument("--priority", type=int, default=0)
     ap.add_argument("--chat-id", default=OWNER_CHAT)
+    ap.add_argument("--board", default="assignments", choices=sorted(BOARDS))
+    ap.add_argument("--block", default=None, help="метка блока PRJ-1…PRJ-7 (tenant)")
     args = ap.parse_args()
 
     if args.roles:
@@ -51,8 +55,9 @@ def main() -> int:
         return 0
 
     import hermes_cli.kanban_db as k
-    k.create_board(BOARD, name=BOARD_NAME, icon="📨", color="#b69668")
-    conn = k.connect(board=BOARD)
+    name, icon, color = BOARDS[args.board]
+    k.create_board(args.board, name=name, icon=icon, color=color)
+    conn = k.connect(board=args.board)
     try:
         task_id = k.create_task(
             conn,
@@ -61,6 +66,7 @@ def main() -> int:
             assignee=args.role,
             created_by="Александр",
             priority=max(0, min(args.priority, 2)),
+            tenant=(args.block or None),
             max_runtime_seconds=1800,  # a worker never runs longer than 30 min
         )
         if not isinstance(task_id, str):
@@ -68,7 +74,7 @@ def main() -> int:
         k.add_notify_sub(conn, task_id=task_id, platform="telegram", chat_id=str(args.chat_id))
     finally:
         conn.close()
-    print(json.dumps({"ok": True, "id": task_id, "board": BOARD, "role": args.role,
+    print(json.dumps({"ok": True, "id": task_id, "board": args.board, "role": args.role,
                       "title": args.title.strip()}, ensure_ascii=False))
     return 0
 
