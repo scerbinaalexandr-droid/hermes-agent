@@ -150,6 +150,49 @@ class ImapBox:
                 return parse_headers(text)
         return {}
 
+    def quota(self) -> tuple[int, int] | None:
+        """(used_kb, limit_kb) when the server reports a quota, else None."""
+        try:
+            code, data = self.conn.getquotaroot("INBOX")
+        except Exception:
+            return None
+        if code != "OK":
+            return None
+        for row in data or []:
+            for item in (row if isinstance(row, list) else [row]):
+                text = item.decode(errors="replace") if isinstance(item, bytes) else str(item)
+                m = re.search(r"STORAGE\s+(\d+)\s+(\d+)", text)
+                if m:
+                    return int(m.group(1)), int(m.group(2))
+        return None
+
+    def select_folder(self, folder: str) -> int:
+        code, data = self.conn.select(f'"{self.native(folder)}"')
+        if code != "OK":
+            return 0
+        try:
+            return int(data[0])
+        except Exception:
+            return 0
+
+    def uids_in(self, folder: str, older_than_days: int = 0) -> list[bytes]:
+        if self.select_folder(folder) == 0:
+            return []
+        criteria = "ALL" if older_than_days <= 0 else f"(BEFORE {_since(older_than_days)})"
+        code, data = self.conn.uid("SEARCH", None, criteria)
+        if code != "OK" or not data or not data[0]:
+            return []
+        return data[0].split()
+
+    def trash_folder(self) -> str:
+        """The server's own trash folder — never invent one."""
+        for name in ("Trash", "Корзина", "INBOX/Trash", "[Gmail]/Корзина",
+                     "[Gmail]/Trash", "Deleted Items"):
+            native = self.native(name)
+            if native in self._folders:
+                return name
+        return ""
+
     def move(self, uid: bytes, folder: str) -> None:
         """MOVE when the server supports it, else copy + mark deleted."""
         target = f'"{self.native(folder)}"'
@@ -209,6 +252,37 @@ def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[
     return counts, samples
 
 
+def bulk_report(client: ImapBox, folder: str, cap: int) -> list[tuple[str, int, bool]]:
+    """Who floods this folder: (sender, count, offers unsubscribe), busiest first."""
+    counts: dict[str, int] = {}
+    unsub: dict[str, bool] = {}
+    for uid in client.uids_in(folder)[:cap]:
+        headers = client.headers(uid)
+        if not headers:
+            continue
+        sender = _decode(headers.get("from", "")).strip()
+        m = re.search(r"<([^>]+)>", sender)
+        addr = (m.group(1) if m else sender).lower()
+        counts[addr] = counts.get(addr, 0) + 1
+        if headers.get("list-unsubscribe"):
+            unsub[addr] = True
+    return sorted(((a, n, unsub.get(a, False)) for a, n in counts.items()),
+                  key=lambda x: -x[1])
+
+
+def purge_folder(client: ImapBox, folder: str, older_than_days: int,
+                 cap: int, dry_run: bool) -> tuple[int, str]:
+    """Move old mail from `folder` to the server's trash. Reversible ~30 days."""
+    trash = client.trash_folder()
+    if not trash:
+        return 0, ""
+    uids = client.uids_in(folder, older_than_days)[:cap]
+    if not dry_run:
+        for uid in uids:
+            client.move(uid, trash)
+    return len(uids), trash
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Sort IMAP mailboxes into folders.")
     ap.add_argument("--days", type=int, default=90,
@@ -218,6 +292,12 @@ def main() -> int:
     ap.add_argument("--max", type=int, default=500, help="Max messages per box.")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--boxes", action="store_true", help="List configured boxes.")
+    ap.add_argument("--report", metavar="FOLDER", nargs="?", const=QUARANTINE,
+                    help="Who floods a folder (default «Карантин») — for unsubscribing.")
+    ap.add_argument("--purge", metavar="FOLDER", nargs="?", const=QUARANTINE,
+                    help="Move that folder's old mail to the trash (default «Карантин»).")
+    ap.add_argument("--older-than", type=int, default=30,
+                    help="With --purge: only mail older than N days (default 30).")
     args = ap.parse_args()
 
     if args.all:
@@ -231,6 +311,11 @@ def main() -> int:
         return 0
     if not boxes:
         return 0  # nothing configured yet: the cron stays silent
+
+    if args.report:
+        return run_report(boxes, args)
+    if args.purge:
+        return run_purge(boxes, args)
 
     out: list[str] = []
     total = 0
@@ -269,6 +354,60 @@ def main() -> int:
     if quarantined:
         body += ["", f"🚦 В «{QUARANTINE}»: *{quarantined}* — письма целы, лежат в папке."]
     print("\n".join(body))
+    return 0
+
+
+def _connect(box: Box) -> ImapBox | None:
+    try:
+        return ImapBox(box)
+    except Exception as exc:
+        sys.stderr.write(f"[mail_sort_imap] {box.name}: {type(exc).__name__}\n")
+        print(f"  • {box.name}: не удалось войти — проверь пароль приложения.")
+        return None
+
+
+def run_report(boxes: list[Box], args) -> int:
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        try:
+            rows = bulk_report(client, args.report, args.max)
+            quota = client.quota()
+        finally:
+            client.close()
+        print(f"📊 *{box.name}* — папка «{args.report}»")
+        if quota:
+            used, limit = quota
+            pct = round(used * 100 / limit) if limit else 0
+            print(f"Занято: {used // 1024} МБ из {limit // 1024} МБ ({pct}%)")
+        if not rows:
+            print("  пусто\n")
+            continue
+        print(f"Кто пишет чаще всего (всего разных адресов: {len(rows)}):")
+        for addr, n, unsub in rows[:25]:
+            mark = " — можно отписаться" if unsub else ""
+            print(f"  {n:4}  {addr}{mark}")
+        print()
+    return 0
+
+
+def run_purge(boxes: list[Box], args) -> int:
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        try:
+            moved, trash = purge_folder(client, args.purge, args.older_than,
+                                        args.max, args.dry_run)
+        finally:
+            client.close()
+        if not trash:
+            print(f"⚠️ {box.name}: не нашёл корзину — чистку не делаю.")
+            continue
+        verb = "уехало бы" if args.dry_run else "переехало"
+        print(f"🧺 *{box.name}*: из «{args.purge}» в корзину {verb} *{moved}* "
+              f"(старше {args.older_than} дн.). Из корзины письма восстановимы ~30 дней.")
     return 0
 
 

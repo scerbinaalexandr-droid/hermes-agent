@@ -137,3 +137,50 @@ def test_password_never_reaches_stdout(monkeypatch, capsys):
 ])
 def test_mail_provider_domain_is_not_a_subscription(sender, expected):
     assert mod.pick_folder({"from": sender, "subject": "Привет"}) == expected
+
+
+class FakeFolderClient(FakeClient):
+    """Adds the folder-level operations the report and the purge need."""
+
+    def __init__(self, messages, folders=("Trash",), quota=None):
+        super().__init__(messages)
+        self.folders = set(folders)
+        self._quota = quota
+
+    def uids_in(self, folder, older_than_days=0):
+        # every fake message is "old" so the purge test is deterministic
+        return list(self.messages)
+
+    def trash_folder(self):
+        return "Trash" if "Trash" in self.folders else ""
+
+    def quota(self):
+        return self._quota
+
+
+def test_bulk_report_counts_senders_and_flags_unsubscribe():
+    client = FakeFolderClient({
+        b"1": {"from": "Shop <news@shop.io>", "list-unsubscribe": "<mailto:u@shop.io>"},
+        b"2": {"from": "Shop <news@shop.io>", "list-unsubscribe": "<mailto:u@shop.io>"},
+        b"3": {"from": "Разное <info@other.ru>"},
+    })
+    rows = mod.bulk_report(client, "Карантин", 100)
+    assert rows[0] == ("news@shop.io", 2, True)
+    assert ("info@other.ru", 1, False) in rows
+
+
+def test_purge_moves_to_trash_and_dry_run_does_not():
+    msgs = {b"1": {"from": "a@b.c"}, b"2": {"from": "d@e.f"}}
+    client = FakeFolderClient(dict(msgs))
+    moved, trash = mod.purge_folder(client, "Карантин", 30, 100, dry_run=True)
+    assert (moved, trash) == (2, "Trash") and client.moved == []
+
+    client = FakeFolderClient(dict(msgs))
+    moved, trash = mod.purge_folder(client, "Карантин", 30, 100, dry_run=False)
+    assert moved == 2 and {f for _u, f in client.moved} == {"Trash"}
+
+
+def test_purge_refuses_when_there_is_no_trash():
+    client = FakeFolderClient({b"1": {"from": "a@b.c"}}, folders=())
+    assert mod.purge_folder(client, "Карантин", 30, 100, dry_run=False) == (0, "")
+    assert client.moved == []
