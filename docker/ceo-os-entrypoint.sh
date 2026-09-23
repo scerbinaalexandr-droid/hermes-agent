@@ -93,7 +93,7 @@ if [ -f /opt/hermes/skills/ceo/inbox/scripts/inbox_triage.py ]; then
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/inbox_triage.py" 2>/dev/null || true
   echo "[ceo-os-init] Staged inbox_triage.py → $HERMES_HOME/scripts/inbox_triage.py"
 fi
-for mail_script in mail_rules.py mail_sort.py mail_sort_imap.py; do
+for mail_script in mail_rules.py mail_sort.py mail_sort_imap.py mail_unsubscribe.py; do
   if [ -f "/opt/hermes/skills/ceo/mail/scripts/$mail_script" ]; then
     cp "/opt/hermes/skills/ceo/mail/scripts/$mail_script" "$HERMES_HOME/scripts/$mail_script"
     chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/$mail_script" 2>/dev/null || true

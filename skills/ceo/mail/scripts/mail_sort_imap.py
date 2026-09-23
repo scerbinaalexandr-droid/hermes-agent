@@ -21,6 +21,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import email.header
 import imaplib
 import os
@@ -33,6 +34,9 @@ import mail_rules  # noqa: E402
 from mail_rules import MANAGED_TOP, QUARANTINE, RULES  # noqa: E402
 
 MAX_BOXES = 10
+ARCHIVE = "Архив"
+# Folders whose mail is never archived and never purged: money, access, papers.
+PROTECTED_TOPS = {"Банки", "Безопасность", "Документы"}
 FETCH_HEADERS = "(FROM SUBJECT LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)"
 FAIL_MSG = "⚠️ Раскладка почты сегодня не прошла — нужна проверка."
 
@@ -60,6 +64,60 @@ def boxes_from_env() -> list[Box]:
             port=int(os.environ.get(f"MAIL_IMAP_{i}_PORT", "993") or 993),
         ))
     return out
+
+
+def mutf7_encode(name: str) -> str:
+    """Folder name → modified UTF-7 (RFC 3501 §5.1.3).
+
+    IMAP folder names travel as ASCII, so «Карантин» must be encoded or the
+    server never sees the folder it is asked to create.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(name):
+        ch = name[i]
+        if ch == "&":
+            out.append("&-")
+            i += 1
+        elif 0x20 <= ord(ch) <= 0x7E:
+            out.append(ch)
+            i += 1
+        else:
+            j = i
+            while j < len(name) and not (0x20 <= ord(name[j]) <= 0x7E):
+                j += 1
+            chunk = name[i:j].encode("utf-16-be")
+            b64 = base64.b64encode(chunk).decode("ascii").rstrip("=").replace("/", ",")
+            out.append(f"&{b64}-")
+            i = j
+    return "".join(out)
+
+
+def mutf7_decode(name: str) -> str:
+    """Modified UTF-7 → text, for showing server folder names to the owner."""
+    out: list[str] = []
+    i = 0
+    while i < len(name):
+        if name[i] != "&":
+            out.append(name[i])
+            i += 1
+            continue
+        end = name.find("-", i)
+        if end == -1:
+            out.append(name[i:])
+            break
+        token = name[i + 1:end]
+        if not token:
+            out.append("&")
+        else:
+            b64 = token.replace(",", "/")
+            b64 += "=" * (-len(b64) % 4)
+            try:
+                out.append(base64.b64decode(b64).decode("utf-16-be"))
+            except Exception:
+                out.append(name[i:end + 1])
+        i = end + 1
+    return "".join(out)
 
 
 def _decode(raw: str) -> str:
@@ -118,7 +176,8 @@ class ImapBox:
             self._folders.add(m.group(2))
 
     def native(self, folder: str) -> str:
-        return folder.replace("/", self.delimiter)
+        """Our folder name as this server wants it: its delimiter + modified UTF-7."""
+        return mutf7_encode(folder.replace("/", self.delimiter))
 
     def ensure_folder(self, folder: str) -> None:
         parts = folder.split("/")
@@ -270,9 +329,36 @@ def bulk_report(client: ImapBox, folder: str, cap: int) -> list[tuple[str, int, 
                   key=lambda x: -x[1])
 
 
+def archive_old(client: ImapBox, days: int, cap: int,
+                dry_run: bool) -> tuple[int, list[str]]:
+    """Old personal mail from the inbox into one flat «Архив» folder.
+
+    Only mail no rule claims: bank/security/document mail keeps its own folder,
+    and bulk mail is the sorter's business («Карантин»), not the archive's.
+    """
+    moved = 0
+    samples: list[str] = []
+    for uid in client.uids_in("INBOX", days)[:cap]:
+        headers = client.headers(uid)
+        if not headers:
+            continue
+        folder = pick_folder(headers)
+        if folder is not None:
+            continue
+        if not dry_run:
+            client.ensure_folder(ARCHIVE)
+            client.move(uid, ARCHIVE)
+        moved += 1
+        if len(samples) < 3:
+            samples.append(f"      — {_decode(headers.get('from', '?'))[:30]}")
+    return moved, samples
+
+
 def purge_folder(client: ImapBox, folder: str, older_than_days: int,
                  cap: int, dry_run: bool) -> tuple[int, str]:
     """Move old mail from `folder` to the server's trash. Reversible ~30 days."""
+    if folder.split("/")[0] in PROTECTED_TOPS:
+        raise ValueError(f"папка «{folder}» защищена от чистки")
     trash = client.trash_folder()
     if not trash:
         return 0, ""
@@ -296,6 +382,8 @@ def main() -> int:
                     help="Who floods a folder (default «Карантин») — for unsubscribing.")
     ap.add_argument("--purge", metavar="FOLDER", nargs="?", const=QUARANTINE,
                     help="Move that folder's old mail to the trash (default «Карантин»).")
+    ap.add_argument("--archive-older", type=int, metavar="DAYS",
+                    help="Move inbox mail older than DAYS that no rule claims into «Архив».")
     ap.add_argument("--older-than", type=int, default=30,
                     help="With --purge: only mail older than N days (default 30).")
     args = ap.parse_args()
@@ -316,6 +404,8 @@ def main() -> int:
         return run_report(boxes, args)
     if args.purge:
         return run_purge(boxes, args)
+    if args.archive_older is not None:
+        return run_archive(boxes, args)
 
     out: list[str] = []
     total = 0
@@ -392,22 +482,57 @@ def run_report(boxes: list[Box], args) -> int:
     return 0
 
 
-def run_purge(boxes: list[Box], args) -> int:
+def run_archive(boxes: list[Box], args) -> int:
     for box in boxes:
         client = _connect(box)
         if not client:
             continue
         try:
+            moved, samples = archive_old(client, args.archive_older, args.max, args.dry_run)
+        finally:
+            client.close()
+        if not moved:
+            print(f"📦 {box.name}: архивировать нечего.")
+            continue
+        verb = "уехало бы" if args.dry_run else "убрано"
+        print(f"📦 *{box.name}*: в «{ARCHIVE}» {verb} *{moved}* писем "
+              f"старше {args.archive_older} дн.")
+        print("\n".join(samples))
+    return 0
+
+
+def _mb(kb: int) -> int:
+    return kb // 1024
+
+
+def run_purge(boxes: list[Box], args) -> int:
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        before = client.quota()
+        try:
             moved, trash = purge_folder(client, args.purge, args.older_than,
                                         args.max, args.dry_run)
+            after = client.quota()
+        except ValueError as exc:
+            print(f"🛡 {box.name}: {exc} — не трогаю.")
+            continue
         finally:
             client.close()
         if not trash:
             print(f"⚠️ {box.name}: не нашёл корзину — чистку не делаю.")
             continue
+        age = "все" if args.older_than <= 0 else f"старше {args.older_than} дн."
         verb = "уехало бы" if args.dry_run else "переехало"
-        print(f"🧺 *{box.name}*: из «{args.purge}» в корзину {verb} *{moved}* "
-              f"(старше {args.older_than} дн.). Из корзины письма восстановимы ~30 дней.")
+        line = (f"🧺 *{box.name}*: из «{args.purge}» в корзину {verb} *{moved}* ({age}). "
+                f"Из корзины письма восстановимы ~30 дней.")
+        if before and after and before[0] != after[0]:
+            line += f"\nМесто: было {_mb(before[0])} МБ → стало {_mb(after[0])} МБ."
+        elif before:
+            line += (f"\nЗанято: {_mb(before[0])} МБ из {_mb(before[1])} МБ — "
+                     "место освободится, когда очистишь корзину.")
+        print(line)
     return 0
 
 

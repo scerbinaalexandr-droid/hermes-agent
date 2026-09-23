@@ -184,3 +184,21 @@ def test_purge_refuses_when_there_is_no_trash():
     client = FakeFolderClient({b"1": {"from": "a@b.c"}}, folders=())
     assert mod.purge_folder(client, "Карантин", 30, 100, dry_run=False) == (0, "")
     assert client.moved == []
+
+
+@pytest.mark.parametrize("name, encoded", [
+    ("Карантин", "&BBoEMARABDAEPQRCBDgEPQ-"),
+    ("Банки", "&BBEEMAQ9BDoEOA-"),
+    ("Корзина", "&BBoEPgRABDcEOAQ9BDA-"),
+    ("Documents", "Documents"),
+    ("R&D", "R&-D"),
+])
+def test_mutf7_encode_known_values(name, encoded):
+    # A wrong encoding here means the server silently never creates the folder.
+    assert mod.mutf7_encode(name) == encoded
+    assert mod.mutf7_decode(encoded) == name
+
+
+def test_mutf7_roundtrip_with_nested_path():
+    name = "Банки/Прочие"
+    assert mod.mutf7_decode(mod.mutf7_encode(name)) == name
