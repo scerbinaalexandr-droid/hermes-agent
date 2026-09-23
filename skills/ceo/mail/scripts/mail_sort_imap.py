@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""Sort any IMAP mailbox (mail.ru, corporate boxes) into the owner's folders.
+
+Same folder tree and same order as Gmail — the rules live in `mail_rules.py`.
+Difference: IMAP has folders, not labels, so filing MOVES the message out of
+the inbox into its folder. Nothing is deleted, and a move back is one drag in
+any mail client.
+
+Boxes are configured through Railway Variables, numbered from 1:
+
+    MAIL_IMAP_1_HOST=imap.mail.ru        # SMTP is not needed here
+    MAIL_IMAP_1_USER=<адрес>
+    MAIL_IMAP_1_PASS=<пароль приложения> # never printed, never logged
+    MAIL_IMAP_1_NAME=mail.ru             # optional label for the digest
+
+Usage:
+    python3 mail_sort_imap.py --dry-run     # report what would move
+    python3 mail_sort_imap.py               # sort
+    python3 mail_sort_imap.py --boxes       # which boxes are configured
+"""
+from __future__ import annotations
+
+import argparse
+import email.header
+import imaplib
+import os
+import re
+import sys
+from dataclasses import dataclass
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mail_rules  # noqa: E402
+from mail_rules import MANAGED_TOP, QUARANTINE, RULES  # noqa: E402
+
+MAX_BOXES = 5
+FETCH_HEADERS = "(FROM SUBJECT LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)"
+FAIL_MSG = "⚠️ Раскладка почты сегодня не прошла — нужна проверка."
+
+
+@dataclass
+class Box:
+    name: str
+    host: str
+    user: str
+    password: str
+    port: int = 993
+
+
+def boxes_from_env() -> list[Box]:
+    out = []
+    for i in range(1, MAX_BOXES + 1):
+        host = os.environ.get(f"MAIL_IMAP_{i}_HOST", "").strip()
+        user = os.environ.get(f"MAIL_IMAP_{i}_USER", "").strip()
+        pwd = os.environ.get(f"MAIL_IMAP_{i}_PASS", "")
+        if not (host and user and pwd):
+            continue
+        out.append(Box(
+            name=os.environ.get(f"MAIL_IMAP_{i}_NAME", "").strip() or user,
+            host=host, user=user, password=pwd,
+            port=int(os.environ.get(f"MAIL_IMAP_{i}_PORT", "993") or 993),
+        ))
+    return out
+
+
+def _decode(raw: str) -> str:
+    """MIME-encoded header → plain text (mail.ru sends Base64 Cyrillic)."""
+    try:
+        parts = email.header.decode_header(raw or "")
+    except Exception:
+        return raw or ""
+    out = []
+    for text, enc in parts:
+        if isinstance(text, bytes):
+            try:
+                out.append(text.decode(enc or "utf-8", errors="replace"))
+            except LookupError:
+                out.append(text.decode("utf-8", errors="replace"))
+        else:
+            out.append(text)
+    return "".join(out)
+
+
+def parse_headers(blob: str) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    current = None
+    for line in (blob or "").splitlines():
+        if line[:1] in (" ", "\t") and current:
+            headers[current] += " " + line.strip()
+            continue
+        if ":" in line:
+            name, _, value = line.partition(":")
+            current = name.strip().lower()
+            headers[current] = value.strip()
+    return headers
+
+
+class ImapBox:
+    """Thin wrapper over imaplib: only the operations the sorter needs."""
+
+    def __init__(self, box: Box):
+        self.box = box
+        self.conn = imaplib.IMAP4_SSL(box.host, box.port)
+        self.conn.login(box.user, box.password)
+        self.delimiter = "/"
+        self._folders: set[str] = set()
+        self._read_folders()
+
+    def _read_folders(self) -> None:
+        code, rows = self.conn.list()
+        if code != "OK":
+            return
+        for row in rows or []:
+            text = row.decode(errors="replace") if isinstance(row, bytes) else str(row)
+            m = re.match(r'\(.*?\)\s+"?([^" ]+)"?\s+"?(.*?)"?$', text)
+            if not m:
+                continue
+            self.delimiter = m.group(1) if m.group(1) != "NIL" else "/"
+            self._folders.add(m.group(2))
+
+    def native(self, folder: str) -> str:
+        return folder.replace("/", self.delimiter)
+
+    def ensure_folder(self, folder: str) -> None:
+        parts = folder.split("/")
+        for i in range(1, len(parts) + 1):
+            path = self.native("/".join(parts[:i]))
+            if path in self._folders:
+                continue
+            self.conn.create(f'"{path}"')
+            self._folders.add(path)
+
+    def inbox_uids(self, days: int) -> list[bytes]:
+        self.conn.select("INBOX")
+        code, data = self.conn.uid("SEARCH", None, f'(SINCE {_since(days)})')
+        if code != "OK" or not data or not data[0]:
+            return []
+        return data[0].split()
+
+    def headers(self, uid: bytes) -> dict[str, str]:
+        code, data = self.conn.uid(
+            "FETCH", uid, f"(BODY.PEEK[HEADER.FIELDS {FETCH_HEADERS}])")
+        if code != "OK":
+            return {}
+        for part in data or []:
+            if isinstance(part, tuple) and len(part) > 1:
+                blob = part[1]
+                text = blob.decode(errors="replace") if isinstance(blob, bytes) else str(blob)
+                return parse_headers(text)
+        return {}
+
+    def move(self, uid: bytes, folder: str) -> None:
+        """MOVE when the server supports it, else copy + mark deleted."""
+        target = f'"{self.native(folder)}"'
+        code, _ = self.conn.uid("MOVE", uid, target)
+        if code == "OK":
+            return
+        code, _ = self.conn.uid("COPY", uid, target)
+        if code != "OK":
+            raise RuntimeError("copy failed")
+        self.conn.uid("STORE", uid, "+FLAGS", "(\\Deleted)")
+        self.conn.expunge()
+
+    def close(self) -> None:
+        try:
+            self.conn.logout()
+        except Exception:
+            pass
+
+
+def _since(days: int) -> str:
+    from datetime import date, timedelta
+    return (date.today() - timedelta(days=max(1, days))).strftime("%d-%b-%Y")
+
+
+def pick_folder(headers: dict[str, str]) -> str | None:
+    """The folder this message belongs to, or None to leave it in the inbox."""
+    sender = _decode(headers.get("from", ""))
+    subject = _decode(headers.get("subject", ""))
+    bulk = mail_rules.bulk_mail(headers)
+    for rule in RULES:
+        if not mail_rules.matches(rule, sender, subject):
+            continue
+        # Marketing never lands in a working folder — same order as in Gmail.
+        if bulk and not rule.promo_ok:
+            return QUARANTINE
+        return rule.folder
+    return QUARANTINE if bulk else None
+
+
+def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[str, int], list[str]]:
+    counts: dict[str, int] = {}
+    samples: list[str] = []
+    for uid in client.inbox_uids(days)[-cap:]:
+        headers = client.headers(uid)
+        if not headers:
+            continue
+        folder = pick_folder(headers)
+        if not folder:
+            continue
+        if not dry_run:
+            client.ensure_folder(folder)
+            client.move(uid, folder)
+        counts[folder] = counts.get(folder, 0) + 1
+        if len(samples) < 6:
+            samples.append(
+                f"      — {_decode(headers.get('from', '?'))[:26]} → {folder}")
+    return counts, samples
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Sort IMAP mailboxes into folders.")
+    ap.add_argument("--days", type=int, default=90)
+    ap.add_argument("--max", type=int, default=400, help="Max messages per box.")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--boxes", action="store_true", help="List configured boxes.")
+    args = ap.parse_args()
+
+    boxes = boxes_from_env()
+    if args.boxes:
+        if not boxes:
+            print("Ящики по IMAP не подключены.")
+        for b in boxes:
+            print(f"• {b.name} — {b.host}")
+        return 0
+    if not boxes:
+        return 0  # nothing configured yet: the cron stays silent
+
+    out: list[str] = []
+    total = 0
+    quarantined = 0
+    for box in boxes:
+        try:
+            client = ImapBox(box)
+        except Exception as exc:
+            # Never print the password or the raw server text.
+            sys.stderr.write(f"[mail_sort_imap] {box.name}: {type(exc).__name__}\n")
+            out.append(f"  • {box.name}: не удалось войти — проверь пароль приложения.")
+            continue
+        try:
+            counts, samples = sort_box(client, args.days, args.max, args.dry_run)
+        except Exception as exc:
+            sys.stderr.write(f"[mail_sort_imap] {box.name}: {type(exc).__name__}: {exc}\n")
+            out.append(f"  • {box.name}: раскладка прервалась — нужна проверка.")
+            continue
+        finally:
+            client.close()
+        moved = sum(counts.values())
+        total += moved
+        quarantined += counts.get(QUARANTINE, 0)
+        if not moved:
+            continue
+        out.append(f"  *{box.name}* — {moved}")
+        out += [f"      {folder}: {n}" for folder, n in sorted(counts.items())]
+        out += samples[:2]
+
+    if not out:
+        if args.dry_run:
+            print("📭 Раскладывать нечего — всё уже по папкам.")
+        return 0
+    head = "🗂 *Раскладка почты*" + (" — примерка, ничего не тронуто" if args.dry_run else "")
+    body = [head, "", f"{'Разложилось бы' if args.dry_run else 'Разложено'}: *{total}*"] + out
+    if quarantined:
+        body += ["", f"🚦 В «{QUARANTINE}»: *{quarantined}* — письма целы, лежат в папке."]
+    print("\n".join(body))
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as exc:  # a cron job must never crash with a traceback
+        sys.stderr.write(f"[mail_sort_imap] failed: {type(exc).__name__}: {exc}\n")
+        print(FAIL_MSG)
+        raise SystemExit(0)

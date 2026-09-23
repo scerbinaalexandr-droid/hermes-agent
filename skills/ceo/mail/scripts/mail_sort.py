@@ -34,64 +34,9 @@ except Exception as exc:  # pragma: no cover - prod-only path
     print("⚠️ Раскладка почты сейчас недоступна — не удалось подключиться к Google.")
     raise SystemExit(0)
 
-QUARANTINE = "Карантин"
-
-# (folder, gmail query) — ORDER MATTERS, first match wins.
-# `quarantine=True` also takes the mail out of the inbox.
-RULES: list[tuple[str, str, bool]] = [
-    # --- Безопасность: всегда мимо карантина, даже если Google зовёт это «промо»
-    ("Безопасность", "from:(accounts.google.com OR no-reply@accounts.google.com OR "
-                     "appleid.apple.com OR security-noreply@ OR account-security-noreply@)", False),
-    # --- Банки и платежи
-    ("Банки/Revolut", "from:revolut.com", False),
-    ("Банки/Wise", "from:wise.com", False),
-    ("Банки/PayPal", "from:paypal.", False),
-    ("Банки/Stripe", "from:stripe.com", False),
-    ("Банки/Raiffeisen", "from:raiffeisen", False),
-    ("Банки/Erste", "from:(erstebank OR sparkasse OR georgebank)", False),
-    ("Банки/BCR", "from:bcr.ro", False),
-    ("Банки/BRD", "from:brd.ro", False),
-    ("Банки/ING", "from:ing.", False),
-    ("Банки/MAIB", "from:maib.md", False),
-    ("Банки/Victoriabank", "from:victoriabank.md", False),
-    ("Банки/Прочие", "from:(bank OR banca OR banking) -from:(revolut OR wise OR paypal)", False),
-    # --- Путешествия
-    ("Путешествия/Билеты", "from:(turkishairlines.com OR wizzair.com OR ryanair.com OR "
-                           "lufthansa.com OR austrian.com OR aegeanair.com OR kiwi.com OR "
-                           "edreams OR skyscanner OR omio OR flixbus OR cfrcalatori)", False),
-    ("Путешествия/Отели", "from:(booking.com OR airbnb.com OR hotels.com OR expedia OR "
-                          "agoda.com OR trivago OR marriott OR hilton)", False),
-    ("Путешествия/Авто", "from:(rentalcars.com OR sixt OR avis OR hertz OR europcar OR "
-                         "carwiz OR autoeurope)", False),
-    # --- Жильё и недвижимость
-    ("Жильё", "from:(immobilienscout24 OR willhaben.at OR olx. OR imobiliare.ro OR "
-              "999.md OR remax OR engelvoelkers)", False),
-    # --- Документы: счета, инвойсы, договоры
-    ("Документы", "subject:(invoice OR receipt OR factura OR factură OR счёт OR счет OR "
-                  "квитанция OR contract OR договор) -category:promotions", False),
-    # --- Подписки и сервисы (после банков и безопасности — порядок важен)
-    ("Подписки", "from:(evernote.com OR apple.com OR microsoft.com OR openai.com OR "
-                 "anthropic.com OR adobe.com OR spotify.com OR netflix.com OR "
-                 "dropbox.com OR notion.so OR github.com OR railway.app)", False),
-    # --- Карантин: шум. Последним, чтобы всё полезное успело разобраться выше
-    (QUARANTINE, "category:promotions", True),
-    (QUARANTINE, "category:social", True),
-    (QUARANTINE, "unsubscribe category:updates -subject:(invoice OR receipt OR factura OR "
-                 "счёт OR счет OR contract OR договор)", True),
-]
-
-
-# Every folder this script owns. A message that already carries one of them is
-# skipped by ALL rules: that is what makes repeat runs idempotent and keeps the
-# first-match order stable between runs (a bank receipt labelled today must not
-# be pulled into «Карантин» tomorrow by the promotions rule).
-MANAGED_TOP = sorted({folder.split("/")[0] for folder, _q, _quar in RULES})
-
-# Folders that accept mail even when Google tags it as promotions/social:
-# a security alert, a bank statement or an invoice matters whatever tab it
-# landed in. Everywhere else marketing belongs in «Карантин», not in the
-# working folder (an airline newsletter is not a ticket).
-PROMO_ALLOWED = {"Безопасность", "Банки", "Документы", QUARANTINE}
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import mail_rules  # noqa: E402  (path juggling above is required on prod)
+from mail_rules import MANAGED_TOP, QUARANTINE, RULES  # noqa: E402
 
 
 def _svc():
@@ -145,10 +90,7 @@ def _sample(svc, ids: list[str], n: int = 2) -> list[str]:
 
 
 def _print_rules() -> int:
-    print("📂 Папки почты и правила\n")
-    for folder, query, quar in RULES:
-        mark = " → в карантин (из входящих)" if quar else ""
-        print(f"• {folder}{mark}\n    {query}")
+    print(mail_rules.describe())
     return 0
 
 
@@ -185,11 +127,14 @@ def _sort(args) -> int:
     quarantined = 0
 
     skip_sorted = " ".join(f"-label:{top}" for top in MANAGED_TOP)
-    for folder, query, quar in RULES:
+    for rule in RULES:
+        folder, quar = rule.folder, rule.quarantine
         # Already-sorted mail is skipped entirely, so re-runs are cheap and the
         # owner's own filing is never overwritten.
-        full = f"{window} ({query}) {skip_sorted}"
-        if folder.split("/")[0] not in PROMO_ALLOWED:
+        full = f"{window} ({mail_rules.gmail_query(rule)}) {skip_sorted}"
+        if not rule.promo_ok:
+            # Marketing belongs in «Карантин», not in a working folder
+            # (an airline newsletter is not a ticket).
             full += " -category:promotions -category:social"
         ids = [i for i in _ids_for(svc, full, args.max) if i not in seen]
         if not ids:

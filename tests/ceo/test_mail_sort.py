@@ -1,4 +1,9 @@
-"""mail_sort.py: ordered rules, quarantine, idempotency, dry-run."""
+"""mail_sort.py: ordered rules, quarantine, idempotency, dry-run.
+
+The Gmail stub matches a rule by looking for the message's tags as substrings
+of the query the script built, so a tag is written the way it appears there
+(e.g. "revolut.com", which `from:(revolut.com)` contains).
+"""
 import importlib.util
 import sys
 import types
@@ -110,7 +115,7 @@ def _load(service):
 @pytest.fixture
 def svc():
     s = FakeService({
-        "bank": ["from:revolut.com", "category:promotions"],   # bank rule comes first
+        "bank": ["revolut.com", "category:promotions"],   # bank rule comes first
         "promo": ["category:promotions"],
         "flight": ["turkishairlines.com"],
         "airline_ad": ["turkishairlines.com", "category:promotions"],

@@ -93,11 +93,13 @@ if [ -f /opt/hermes/skills/ceo/inbox/scripts/inbox_triage.py ]; then
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/inbox_triage.py" 2>/dev/null || true
   echo "[ceo-os-init] Staged inbox_triage.py → $HERMES_HOME/scripts/inbox_triage.py"
 fi
-if [ -f /opt/hermes/skills/ceo/mail/scripts/mail_sort.py ]; then
-  cp /opt/hermes/skills/ceo/mail/scripts/mail_sort.py "$HERMES_HOME/scripts/mail_sort.py"
-  chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/mail_sort.py" 2>/dev/null || true
-  echo "[ceo-os-init] Staged mail_sort.py → $HERMES_HOME/scripts/mail_sort.py"
-fi
+for mail_script in mail_rules.py mail_sort.py mail_sort_imap.py; do
+  if [ -f "/opt/hermes/skills/ceo/mail/scripts/$mail_script" ]; then
+    cp "/opt/hermes/skills/ceo/mail/scripts/$mail_script" "$HERMES_HOME/scripts/$mail_script"
+    chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/$mail_script" 2>/dev/null || true
+    echo "[ceo-os-init] Staged $mail_script → $HERMES_HOME/scripts/$mail_script"
+  fi
+done
 if [ -f /opt/hermes/skills/ceo/birthday/scripts/birthday.py ]; then
   cp /opt/hermes/skills/ceo/birthday/scripts/birthday.py "$HERMES_HOME/scripts/birthday.py"
   chown "${HERMES_UID:-10000}:${HERMES_GID:-10000}" "$HERMES_HOME/scripts/birthday.py" 2>/dev/null || true
