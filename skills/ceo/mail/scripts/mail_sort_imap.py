@@ -6,7 +6,7 @@ Difference: IMAP has folders, not labels, so filing MOVES the message out of
 the inbox into its folder. Nothing is deleted, and a move back is one drag in
 any mail client.
 
-Boxes are configured through Railway Variables, numbered from 1:
+Boxes are configured through Railway Variables, numbered from 1 to 10:
 
     MAIL_IMAP_1_HOST=imap.mail.ru        # SMTP is not needed here
     MAIL_IMAP_1_USER=<адрес>
@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mail_rules  # noqa: E402
 from mail_rules import MANAGED_TOP, QUARANTINE, RULES  # noqa: E402
 
-MAX_BOXES = 5
+MAX_BOXES = 10
 FETCH_HEADERS = "(FROM SUBJECT LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)"
 FAIL_MSG = "⚠️ Раскладка почты сегодня не прошла — нужна проверка."
 
@@ -130,8 +130,10 @@ class ImapBox:
             self._folders.add(path)
 
     def inbox_uids(self, days: int) -> list[bytes]:
+        """UIDs in the inbox; days<=0 means the whole inbox, however old."""
         self.conn.select("INBOX")
-        code, data = self.conn.uid("SEARCH", None, f'(SINCE {_since(days)})')
+        criteria = "ALL" if days <= 0 else f"(SINCE {_since(days)})"
+        code, data = self.conn.uid("SEARCH", None, criteria)
         if code != "OK" or not data or not data[0]:
             return []
         return data[0].split()
@@ -190,7 +192,7 @@ def pick_folder(headers: dict[str, str]) -> str | None:
 def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[str, int], list[str]]:
     counts: dict[str, int] = {}
     samples: list[str] = []
-    for uid in client.inbox_uids(days)[-cap:]:
+    for uid in client.inbox_uids(days)[:cap]:
         headers = client.headers(uid)
         if not headers:
             continue
@@ -209,12 +211,17 @@ def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Sort IMAP mailboxes into folders.")
-    ap.add_argument("--days", type=int, default=90)
-    ap.add_argument("--max", type=int, default=400, help="Max messages per box.")
+    ap.add_argument("--days", type=int, default=90,
+                    help="How far back to look; 0 = the whole inbox.")
+    ap.add_argument("--all", action="store_true",
+                    help="Sort the whole inbox regardless of age (same as --days 0).")
+    ap.add_argument("--max", type=int, default=500, help="Max messages per box.")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--boxes", action="store_true", help="List configured boxes.")
     args = ap.parse_args()
 
+    if args.all:
+        args.days = 0
     boxes = boxes_from_env()
     if args.boxes:
         if not boxes:
