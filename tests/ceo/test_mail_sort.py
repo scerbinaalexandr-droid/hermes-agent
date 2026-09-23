@@ -64,11 +64,14 @@ class FakeService:
     def match(self, q: str) -> list[str]:
         # Drop negated terms before matching: "-category:promotions" must not
         # read as the positive "category:promotions".
-        positive = " ".join(w for w in q.replace("(", " ").replace(")", " ").split()
-                            if not w.startswith("-"))
+        words = q.replace("(", " ").replace(")", " ").split()
+        positive = " ".join(w for w in words if not w.startswith("-"))
+        negated = {w[1:] for w in words if w.startswith("-")}
         hits = []
         for mid, tags in self.mail.items():
             if not any(t in positive for t in tags):
+                continue
+            if any(t in negated for t in tags):
                 continue
             # honour the "-label:<top>" exclusion the script adds
             excluded = False
@@ -110,6 +113,7 @@ def svc():
         "bank": ["from:revolut.com", "category:promotions"],   # bank rule comes first
         "promo": ["category:promotions"],
         "flight": ["turkishairlines.com"],
+        "airline_ad": ["turkishairlines.com", "category:promotions"],
         "security": ["accounts.google.com", "category:promotions"],
     })
     return s
@@ -133,11 +137,13 @@ def test_first_matching_rule_wins_and_quarantine_leaves_inbox(svc):
     assert labels_of("security") == {"Безопасность"}       # security beats promotions
     assert labels_of("flight") == {"Путешествия/Билеты"}
     assert labels_of("promo") == {"Карантин"}
+    # An airline newsletter is marketing, not a ticket.
+    assert labels_of("airline_ad") == {"Карантин"}
 
     # Only quarantined mail loses INBOX.
     quarantine_calls = [m for m in svc.modified if "removeLabelIds" in m]
     assert all(m["removeLabelIds"] == ["INBOX"] for m in quarantine_calls)
-    assert {i for m in quarantine_calls for i in m["ids"]} == {"promo"}
+    assert {i for m in quarantine_calls for i in m["ids"]} == {"promo", "airline_ad"}
     # Nested folder creates its parent too.
     assert "Банки" in svc.created and "Банки/Revolut" in svc.created
 

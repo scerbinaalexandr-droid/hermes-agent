@@ -87,6 +87,12 @@ RULES: list[tuple[str, str, bool]] = [
 # be pulled into «Карантин» tomorrow by the promotions rule).
 MANAGED_TOP = sorted({folder.split("/")[0] for folder, _q, _quar in RULES})
 
+# Folders that accept mail even when Google tags it as promotions/social:
+# a security alert, a bank statement or an invoice matters whatever tab it
+# landed in. Everywhere else marketing belongs in «Карантин», not in the
+# working folder (an airline newsletter is not a ticket).
+PROMO_ALLOWED = {"Безопасность", "Банки", "Документы", QUARANTINE}
+
 
 def _svc():
     return gws.build_service("gmail", "v1")
@@ -183,6 +189,8 @@ def _sort(args) -> int:
         # Already-sorted mail is skipped entirely, so re-runs are cheap and the
         # owner's own filing is never overwritten.
         full = f"{window} ({query}) {skip_sorted}"
+        if folder.split("/")[0] not in PROMO_ALLOWED:
+            full += " -category:promotions -category:social"
         ids = [i for i in _ids_for(svc, full, args.max) if i not in seen]
         if not ids:
             continue
