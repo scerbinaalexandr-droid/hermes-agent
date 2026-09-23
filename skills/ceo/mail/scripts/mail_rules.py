@@ -71,10 +71,13 @@ RULES: tuple[Rule, ...] = (
     # Invoices, contracts, statements.
     Rule("Документы", promo_ok=True, subjects=INVOICE_WORDS),
     # Services and subscriptions — after banks and security, order matters.
+    # Only service senders, never a whole mail provider: "yandex" used to put
+    # a live person writing from @yandex.ru into «Подписки».
     Rule("Подписки", senders=(
         "evernote.com", "apple.com", "microsoft.com", "openai.com", "anthropic.com",
         "adobe.com", "spotify.com", "netflix.com", "dropbox.com", "notion.so",
-        "github.com", "railway.app", "yandex", "vk.com")),
+        "github.com", "railway.app", "noreply@yandex", "no-reply@yandex",
+        "notify@vk.com", "noreply@vk.com")),
     # Noise last, so everything useful is filed before it.
     Rule(QUARANTINE, quarantine=True, promo_ok=True, gmail_query="category:promotions"),
     Rule(QUARANTINE, quarantine=True, promo_ok=True, gmail_query="category:social"),

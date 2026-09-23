@@ -126,3 +126,14 @@ def test_password_never_reaches_stdout(monkeypatch, capsys):
     out = capsys.readouterr()
     assert "s3cret-value" not in out.out and "s3cret-value" not in out.err
     assert "проверь пароль приложения" in out.out
+
+
+@pytest.mark.parametrize("sender, expected", [
+    # A live person writing from a mail provider is not a subscription.
+    ("Сергей <shyrbu@yandex.ru>", None),
+    ("Друг <ivan@vk.com>", None),
+    # The providers' own service mail still is.
+    ("Yandex <noreply@yandex.ru>", "Подписки"),
+])
+def test_mail_provider_domain_is_not_a_subscription(sender, expected):
+    assert mod.pick_folder({"from": sender, "subject": "Привет"}) == expected
