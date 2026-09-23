@@ -197,6 +197,9 @@ def main() -> int:
             if ok:
                 done.append(f"  {entry['count']:4}  {addr}")
                 ledger[f"{box.user}|{addr}"] = {"ok": True, "how": detail}
+                # Written straight away: a dropped connection mid-run must not
+                # lose the record and make us poke the same sender again.
+                save_ledger(ledger)
             elif entry["urls"]:
                 manual.append(f"  {entry['count']:4}  {addr} → {entry['urls'][0]}")
             else:
@@ -222,8 +225,6 @@ def main() -> int:
                 print(f"\nУже были отписаны раньше: {skipped}")
         print()
 
-    if not args.dry_run:
-        save_ledger(ledger)
     return 0
 
 

@@ -202,3 +202,76 @@ def test_mutf7_encode_known_values(name, encoded):
 def test_mutf7_roundtrip_with_nested_path():
     name = "Банки/Прочие"
     assert mod.mutf7_decode(mod.mutf7_encode(name)) == name
+
+
+class SizeClient(FakeFolderClient):
+    def __init__(self, per_folder):
+        super().__init__({})
+        self.per_folder = per_folder          # folder -> [(uid, size)]
+        self.headers_by_uid = {}
+
+    def sizes_in(self, folder):
+        return self.per_folder.get(folder, [])
+
+    def headers(self, uid):
+        return self.headers_by_uid.get(uid, {"from": "x@y.z", "subject": "s"})
+
+
+def test_folder_sizes_sorted_by_weight_and_skips_empty():
+    client = SizeClient({
+        "INBOX": [(b"1", 1000), (b"2", 2000)],
+        "Отправленные": [(b"3", 9000)],
+        "Пусто": [],
+    })
+    rows = folder_rows = mod.folder_sizes(client, ["INBOX", "Отправленные", "Пусто"])
+    assert rows[0] == ("Отправленные", 1, 9000)
+    assert ("Пусто", 0, 0) not in folder_rows
+    assert rows[1] == ("INBOX", 2, 3000)
+
+
+def test_heaviest_returns_biggest_first_with_headers():
+    client = SizeClient({"INBOX": [(b"small", 10), (b"big", 5_000_000)]})
+    client.headers_by_uid = {
+        b"big": {"from": "=?UTF-8?B?0J/QtdGC0Y8=?= <p@x.io>", "subject": "Договор"},
+        b"small": {"from": "a@b.c", "subject": "hi"},
+    }
+    rows = mod.heaviest(client, "INBOX", 1)
+    assert rows[0][0] == 5_000_000
+    assert "Петя" in rows[0][1] and rows[0][2] == "Договор"
+
+
+def test_sizes_parser_reads_uid_and_size_in_any_order():
+    class Conn:
+        def __init__(self, rows): self.rows = rows
+        def select(self, folder): return "OK", [b"2"]
+        def uid(self, *a): return "OK", self.rows
+
+    client = object.__new__(mod.ImapBox)
+    client.conn = Conn([b"1 (UID 11 RFC822.SIZE 2048)", b"2 (RFC822.SIZE 4096 UID 22)"])
+    client.delimiter = "/"
+    client._folders = {"INBOX"}
+    assert client.sizes_in("INBOX") == [(b"11", 2048), (b"22", 4096)]
+
+
+def test_duplicates_keeps_one_copy_per_group():
+    client = SizeClient({"Отправленные": [(b"1", 100), (b"2", 100), (b"3", 100),
+                                          (b"4", 200)]})
+    same = {"to": "client@x.io", "subject": "КП по кухне"}
+    client.headers_by_uid = {
+        b"1": same, b"2": same, b"3": same,
+        b"4": {"to": "other@x.io", "subject": "КП по кухне"},   # other recipient
+    }
+    groups = mod.duplicates(client, "Отправленные", 100)
+    assert len(groups) == 1
+    label, extra = groups[0]
+    assert extra == [b"2", b"3"]          # the first copy is kept
+    assert "КП по кухне" in label and "client@x.io" in label
+
+
+def test_duplicates_ignores_same_subject_with_different_size():
+    client = SizeClient({"Отправленные": [(b"1", 100), (b"2", 900)]})
+    client.headers_by_uid = {
+        b"1": {"to": "a@x.io", "subject": "Договор"},
+        b"2": {"to": "a@x.io", "subject": "Договор"},   # edited version, not a dupe
+    }
+    assert mod.duplicates(client, "Отправленные", 100) == []

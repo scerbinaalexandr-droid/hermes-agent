@@ -37,7 +37,7 @@ MAX_BOXES = 10
 ARCHIVE = "Архив"
 # Folders whose mail is never archived and never purged: money, access, papers.
 PROTECTED_TOPS = {"Банки", "Безопасность", "Документы"}
-FETCH_HEADERS = "(FROM SUBJECT LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)"
+FETCH_HEADERS = "(FROM TO SUBJECT DATE MESSAGE-ID LIST-UNSUBSCRIBE LIST-ID PRECEDENCE)"
 FAIL_MSG = "⚠️ Раскладка почты сегодня не прошла — нужна проверка."
 
 
@@ -252,6 +252,27 @@ class ImapBox:
                 return name
         return ""
 
+    def folder_names(self) -> list[str]:
+        """Folders as the owner would read them, not as the wire spells them."""
+        return sorted(mutf7_decode(f) for f in self._folders)
+
+    def sizes_in(self, folder: str) -> list[tuple[bytes, int]]:
+        """(uid, bytes) for every message in the folder — one round trip."""
+        if self.select_folder(folder) == 0:
+            return []
+        code, data = self.conn.uid("FETCH", "1:*", "(RFC822.SIZE)")
+        if code != "OK":
+            return []
+        out = []
+        for row in data or []:
+            text = row.decode(errors="replace") if isinstance(row, bytes) else str(row)
+            # Servers put UID and SIZE in either order — read each on its own.
+            uid = re.search(r"UID (\d+)", text)
+            size = re.search(r"RFC822\.SIZE (\d+)", text)
+            if uid and size:
+                out.append((uid.group(1).encode(), int(size.group(1))))
+        return out
+
     def move(self, uid: bytes, folder: str) -> None:
         """MOVE when the server supports it, else copy + mark deleted."""
         target = f'"{self.native(folder)}"'
@@ -329,6 +350,53 @@ def bulk_report(client: ImapBox, folder: str, cap: int) -> list[tuple[str, int, 
                   key=lambda x: -x[1])
 
 
+def folder_sizes(client: ImapBox, folders: list[str]) -> list[tuple[str, int, int]]:
+    """(folder, messages, bytes) for each folder that exists."""
+    out = []
+    for folder in folders:
+        rows = client.sizes_in(folder)
+        if not rows:
+            continue
+        out.append((folder, len(rows), sum(size for _u, size in rows)))
+    return sorted(out, key=lambda x: -x[2])
+
+
+def heaviest(client: ImapBox, folder: str, top: int) -> list[tuple[int, str, str]]:
+    """The `top` biggest messages: (bytes, sender, subject)."""
+    rows = sorted(client.sizes_in(folder), key=lambda x: -x[1])[:top]
+    out = []
+    for uid, size in rows:
+        headers = client.headers(uid)
+        out.append((size, _decode(headers.get("from", "?")),
+                    _decode(headers.get("subject", "(без темы)"))))
+    return out
+
+
+def duplicates(client: ImapBox, folder: str, cap: int) -> list[tuple[str, list[bytes]]]:
+    """Groups of identical messages: same recipient, subject and byte size.
+
+    Returns (label, uids) with the FIRST uid of each group left out — that copy
+    is the one worth keeping.
+    """
+    sizes = dict(client.sizes_in(folder))
+    groups: dict[tuple, list[bytes]] = {}
+    labels: dict[tuple, str] = {}
+    for uid in list(sizes)[:cap]:
+        headers = client.headers(uid)
+        if not headers:
+            continue
+        key = (_decode(headers.get("to", "")).lower().strip(),
+               _decode(headers.get("subject", "")).strip(),
+               sizes.get(uid, 0))
+        groups.setdefault(key, []).append(uid)
+        labels[key] = f"{key[1][:44] or '(без темы)'} → {key[0][:26]}"
+    out = []
+    for key, uids in groups.items():
+        if len(uids) > 1:
+            out.append((labels[key], uids[1:]))
+    return sorted(out, key=lambda x: -len(x[1]))
+
+
 def archive_old(client: ImapBox, days: int, cap: int,
                 dry_run: bool) -> tuple[int, list[str]]:
     """Old personal mail from the inbox into one flat «Архив» folder.
@@ -382,6 +450,15 @@ def main() -> int:
                     help="Who floods a folder (default «Карантин») — for unsubscribing.")
     ap.add_argument("--purge", metavar="FOLDER", nargs="?", const=QUARANTINE,
                     help="Move that folder's old mail to the trash (default «Карантин»).")
+    ap.add_argument("--dupes", metavar="FOLDER", nargs="?", const="Отправленные",
+                    help="Find identical copies in a folder (default «Отправленные»).")
+    ap.add_argument("--sizes", action="store_true",
+                    help="How much space each folder takes (in MB).")
+    ap.add_argument("--heavy", metavar="FOLDER", nargs="?", const="INBOX",
+                    help="The biggest messages in a folder (default the inbox).")
+    ap.add_argument("--top", type=int, default=20, help="With --heavy: how many.")
+    ap.add_argument("--purge-dupes", action="store_true",
+                    help="With --dupes: move the extra copies to the trash.")
     ap.add_argument("--archive-older", type=int, metavar="DAYS",
                     help="Move inbox mail older than DAYS that no rule claims into «Архив».")
     ap.add_argument("--older-than", type=int, default=30,
@@ -406,6 +483,12 @@ def main() -> int:
         return run_purge(boxes, args)
     if args.archive_older is not None:
         return run_archive(boxes, args)
+    if args.dupes:
+        return run_dupes(boxes, args)
+    if args.sizes:
+        return run_sizes(boxes, args)
+    if args.heavy:
+        return run_heavy(boxes, args)
 
     out: list[str] = []
     total = 0
@@ -503,6 +586,71 @@ def run_archive(boxes: list[Box], args) -> int:
 
 def _mb(kb: int) -> int:
     return kb // 1024
+
+
+def run_sizes(boxes: list[Box], args) -> int:
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        try:
+            names = client.folder_names()
+            rows = folder_sizes(client, ["INBOX"] + [n for n in names if n != "INBOX"])
+        finally:
+            client.close()
+        total = sum(b for _f, _n, b in rows)
+        print(f"📐 *{box.name}* — {total / 1048576:.0f} МБ всего")
+        for folder, count, size in rows[:15]:
+            print(f"  {size / 1048576:8.1f} МБ  {count:5} писем  {folder}")
+        print()
+    return 0
+
+
+def run_dupes(boxes: list[Box], args) -> int:
+    """Report duplicates, and with --purge-dupes move the extra copies to trash."""
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        try:
+            groups = duplicates(client, args.dupes, args.max)
+            trash = client.trash_folder()
+            extra = sum(len(uids) for _lbl, uids in groups)
+            if extra and args.purge_dupes and trash and not args.dry_run:
+                for _lbl, uids in groups:
+                    for uid in uids:
+                        client.move(uid, trash)
+        finally:
+            client.close()
+        if not groups:
+            print(f"👬 {box.name}: дублей в «{args.dupes}» нет.")
+            continue
+        verb = ("перенесено в корзину" if args.purge_dupes and not args.dry_run
+                else "лишних копий")
+        print(f"👬 *{box.name}* — «{args.dupes}»: {verb} *{extra}* "
+              f"в {len(groups)} группах")
+        for label, uids in groups[:12]:
+            print(f"  ×{len(uids) + 1}  {label}")
+        if not args.purge_dupes:
+            print("  (чтобы убрать лишние копии: добавь --purge-dupes)")
+        print()
+    return 0
+
+
+def run_heavy(boxes: list[Box], args) -> int:
+    for box in boxes:
+        client = _connect(box)
+        if not client:
+            continue
+        try:
+            rows = heaviest(client, args.heavy, args.top)
+        finally:
+            client.close()
+        print(f"🏋️ *{box.name}* — самые тяжёлые письма в «{args.heavy}»")
+        for size, sender, subject in rows:
+            print(f"  {size / 1048576:6.1f} МБ  {sender[:28]:28} {subject[:40]}")
+        print()
+    return 0
 
 
 def run_purge(boxes: list[Box], args) -> int:

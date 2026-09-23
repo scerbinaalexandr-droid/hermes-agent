@@ -120,6 +120,33 @@ def test_one_click_sender_is_posted_once(mod, monkeypatch, capsys):
     assert mod.load_ledger()["a@mail.ru|news@shop.io"]["ok"] is True
 
 
+def test_ledger_is_written_immediately_after_each_success(mod, monkeypatch, tmp_path):
+    monkeypatch.setenv("MAIL_IMAP_1_HOST", "imap.mail.ru")
+    monkeypatch.setenv("MAIL_IMAP_1_USER", "a@mail.ru")
+    monkeypatch.setenv("MAIL_IMAP_1_PASS", "x")
+    client = FakeClient({
+        b"1": {"from": "A <a@shop.io>", "list-unsubscribe": "<https://shop.io/a>",
+               "list-unsubscribe-post": "List-Unsubscribe=One-Click"},
+        b"2": {"from": "B <b@shop.io>", "list-unsubscribe": "<https://shop.io/b>",
+               "list-unsubscribe-post": "List-Unsubscribe=One-Click"},
+    })
+    monkeypatch.setattr(mod.engine, "_connect", lambda box: client)
+    seen = []
+
+    def flaky(url):
+        seen.append(url)
+        if len(seen) == 2:
+            raise KeyboardInterrupt  # the run dies right after the first success
+        return True, "200"
+
+    monkeypatch.setattr(mod, "one_click", flaky)
+    monkeypatch.setattr(sys, "argv", ["mail_unsubscribe.py"])
+    with pytest.raises(KeyboardInterrupt):
+        mod.main()
+    # The first sender is already on disk although the run never finished.
+    assert len(mod.load_ledger()) == 1
+
+
 def test_dry_run_sends_nothing(mod, monkeypatch, capsys):
     monkeypatch.setenv("MAIL_IMAP_1_HOST", "imap.mail.ru")
     monkeypatch.setenv("MAIL_IMAP_1_USER", "a@mail.ru")
