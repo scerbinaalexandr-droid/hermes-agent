@@ -5,6 +5,7 @@ of the query the script built, so a tag is written the way it appears there
 (e.g. "revolut.com", which `from:(revolut.com)` contains).
 """
 import importlib.util
+import re
 import sys
 import types
 from pathlib import Path
@@ -72,22 +73,21 @@ class FakeService:
         words = q.replace("(", " ").replace(")", " ").split()
         positive = " ".join(w for w in words if not w.startswith("-"))
         negated = {w[1:] for w in words if w.startswith("-")}
+        # Excluded labels, quoted («-label:"От/mail.ru"») or bare («-label:Банки»).
+        excluded_labels = [m.group(1) or m.group(2) for m in
+                           re.finditer(r'-label:"([^"]+)"|-label:(\S+)', q)]
         hits = []
         for mid, tags in self.mail.items():
             if not any(t in positive for t in tags):
                 continue
             if any(t in negated for t in tags):
                 continue
-            # honour the "-label:<top>" exclusion the script adds
-            excluded = False
-            for part in q.split():
-                if part.startswith("-label:"):
-                    top = part[len("-label:"):]
-                    have = {n for n, i in self.store.items() if i in self.labels_on.get(mid, set())}
-                    if any(n.split("/")[0] == top for n in have):
-                        excluded = True
-            if not excluded:
-                hits.append(mid)
+            have = {n for n, i in self.store.items()
+                    if i in self.labels_on.get(mid, set())}
+            if any(name in have or any(n.split("/")[0] == name for n in have)
+                   for name in excluded_labels):
+                continue
+            hits.append(mid)
         return hits
 
     def users(self):
@@ -167,3 +167,29 @@ def test_dry_run_changes_nothing(svc):
     args.dry_run = True
     mod._sort(args)
     assert svc.modified == [] and svc.created == []
+
+
+def test_source_labels_mark_forwarded_mail(svc):
+    """Hub mail gets «От/…» by the box it was forwarded from."""
+    svc.mail["fwd_mailru"] = ["deliveredto:ascerbina@mail.ru"]
+    svc.mail["fwd_office"] = ["deliveredto:beldepofarm@gmail.com"]
+    mod = _load(svc)
+    mod._sort(Args())
+
+    def labels_of(mid):
+        return {n for n, i in svc.store.items() if i in svc.labels_on.get(mid, set())}
+
+    assert "От/mail.ru" in labels_of("fwd_mailru")
+    assert "От/Офис" in labels_of("fwd_office")
+    # A source label never moves mail out of the inbox — it is only a marker.
+    marks = [m for m in svc.modified if svc.store.get("От/mail.ru") in m.get("addLabelIds", [])]
+    assert marks and all("removeLabelIds" not in m for m in marks)
+
+
+def test_source_label_is_not_applied_twice(svc):
+    svc.mail["fwd_mailru"] = ["deliveredto:ascerbina@mail.ru"]
+    mod = _load(svc)
+    mod._sort(Args())
+    before = len(svc.modified)
+    mod._sort(Args())
+    assert len(svc.modified) == before

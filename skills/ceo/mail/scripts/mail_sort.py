@@ -116,6 +116,23 @@ def main() -> int:
         return 0
 
 
+def _mark_sources(svc, cache: dict[str, str], dry_run: bool) -> list[str]:
+    """Label hub mail by the box it was forwarded from."""
+    lines = []
+    for label, address in mail_rules.SOURCES:
+        ids = _ids_for(svc, mail_rules.source_query(label, address), 500)
+        if not ids:
+            continue
+        if not dry_run:
+            label_id = _ensure_label(svc, label, cache)
+            for i in range(0, len(ids), 1000):
+                svc.users().messages().batchModify(
+                    userId="me", body={"ids": ids[i:i + 1000],
+                                       "addLabelIds": [label_id]}).execute()
+        lines.append(f"  • {label}: {len(ids)}")
+    return lines
+
+
 def _sort(args) -> int:
     svc = _svc()
     cache = _labels(svc)
@@ -124,6 +141,7 @@ def _sort(args) -> int:
     seen: set[str] = set()
     lines: list[str] = []
     moved_total = 0
+    source_lines = _mark_sources(svc, cache, args.dry_run)
     quarantined = 0
 
     skip_sorted = " ".join(f"-label:{top}" for top in MANAGED_TOP)
@@ -155,9 +173,12 @@ def _sort(args) -> int:
         lines.append(f"  • {folder}: {len(ids)}")
         lines += [f"      — {s}" for s in sample]
 
-    if moved_total == 0:
+    if moved_total == 0 and not source_lines:
         if args.dry_run:
             print("📭 Раскладывать нечего — всё уже по папкам.")
+        return 0
+    if source_lines and moved_total == 0:
+        print("🏷 *Метки ящиков*\n" + "\n".join(source_lines))
         return 0
 
     head = "🗂 *Раскладка почты*" + (" — примерка, ничего не тронуто" if args.dry_run else "")
@@ -165,6 +186,8 @@ def _sort(args) -> int:
     out += lines
     if quarantined:
         out += ["", f"🚦 В «{QUARANTINE}»: *{quarantined}* — из входящих убраны, письма целы."]
+    if source_lines:
+        out += ["", "🏷 Метки ящиков:"] + source_lines
     inbox_left = len(_ids_for(svc, "in:inbox is:unread", 300))
     out += ["", f"⭐️ Непрочитанных во входящих: *{inbox_left}*"]
     print("\n".join(out))

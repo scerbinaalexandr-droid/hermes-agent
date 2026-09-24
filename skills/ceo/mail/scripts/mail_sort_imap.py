@@ -273,6 +273,16 @@ class ImapBox:
                 out.append((uid.group(1).encode(), int(size.group(1))))
         return out
 
+    def raw_message(self, uid: bytes) -> bytes | None:
+        """The whole message, for reading its attachments."""
+        code, data = self.conn.uid("FETCH", uid, "(BODY.PEEK[])")
+        if code != "OK":
+            return None
+        for part in data or []:
+            if isinstance(part, tuple) and len(part) > 1 and isinstance(part[1], bytes):
+                return part[1]
+        return None
+
     def move(self, uid: bytes, folder: str) -> None:
         """MOVE when the server supports it, else copy + mark deleted."""
         target = f'"{self.native(folder)}"'
