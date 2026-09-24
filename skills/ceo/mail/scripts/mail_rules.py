@@ -87,8 +87,10 @@ RULES: tuple[Rule, ...] = (
 )
 
 # The hub: every box forwards new mail to scerbina21@gmail.com, so a label
-# says where each letter came from. Gmail's `deliveredto:` sees the forwarding
-# address, which survives the forward; the owner reads «От/…» at a glance.
+# says where each letter came from. The marker is the ORIGINAL recipient
+# (`to:`): a forwarded letter keeps «To: ascerbina@mail.ru», and Gmail indexes
+# that header. `deliveredto:` looked like the natural choice but returns
+# nothing for forwarded mail (checked live on 2026-09-24).
 SOURCES: tuple[tuple[str, str], ...] = (
     ("От/mail.ru", "ascerbina@mail.ru"),
     ("От/Gmail основной", "scerbinaalexandr@gmail.com"),
@@ -102,7 +104,7 @@ SOURCES: tuple[tuple[str, str], ...] = (
 
 def source_query(label: str, address: str) -> str:
     """Gmail search for mail forwarded from one box and not yet marked."""
-    return f'deliveredto:{address} -label:"{label}"'
+    return f'(to:{address} OR cc:{address}) -label:"{label}"'
 
 
 # Every folder these rules own; a message already in one of them is left alone.

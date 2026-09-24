@@ -171,8 +171,8 @@ def test_dry_run_changes_nothing(svc):
 
 def test_source_labels_mark_forwarded_mail(svc):
     """Hub mail gets «От/…» by the box it was forwarded from."""
-    svc.mail["fwd_mailru"] = ["deliveredto:ascerbina@mail.ru"]
-    svc.mail["fwd_office"] = ["deliveredto:beldepofarm@gmail.com"]
+    svc.mail["fwd_mailru"] = ["to:ascerbina@mail.ru"]
+    svc.mail["fwd_office"] = ["to:beldepofarm@gmail.com"]
     mod = _load(svc)
     mod._sort(Args())
 
@@ -187,7 +187,7 @@ def test_source_labels_mark_forwarded_mail(svc):
 
 
 def test_source_label_is_not_applied_twice(svc):
-    svc.mail["fwd_mailru"] = ["deliveredto:ascerbina@mail.ru"]
+    svc.mail["fwd_mailru"] = ["to:ascerbina@mail.ru"]
     mod = _load(svc)
     mod._sort(Args())
     before = len(svc.modified)
