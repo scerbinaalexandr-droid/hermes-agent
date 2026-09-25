@@ -75,7 +75,7 @@ def test_decode_mime_encoded_cyrillic_subject():
     ({"from": "Turkish Airlines <info@turkishairlines.com>",
       "subject": "Your ticket"}, "Путешествия/Билеты"),
     # An invoice is filed by subject, whatever the sender.
-    ({"from": "Some Vendor <billing@vendor.io>", "subject": "Invoice 42"}, "Документы"),
+    ({"from": "Some Vendor <billing@vendor.io>", "subject": "Invoice 42"}, "Чеки"),
     # Unknown newsletter → quarantine.
     ({"from": "Shop <hi@shop.io>", "subject": "-50%", "precedence": "bulk"}, "Карантин"),
     # Ordinary personal mail stays in the inbox.
@@ -316,3 +316,20 @@ def test_headers_all_parses_a_real_fetch_response():
     client._folders = {"INBOX"}
     got = client.headers_all("INBOX")
     assert got[b"11"]["from"] == "a@b.c" and got[b"22"]["subject"] == "Two"
+
+
+@pytest.mark.parametrize("sender, subject, expected", [
+    # A subscription receipt is not a document — checked on the real mailbox,
+    # where «Документы» had turned into 124 Apple receipts.
+    ("Apple <no_reply@email.apple.com>", "Your receipt from Apple", "Чеки"),
+    ("Orange <notif@notifications.orange.ro>", "Factura ta Orange", "Чеки"),
+    # A contract from a human stays a document.
+    ("Elena <elena@partner.md>", "Договор аренды на подпись", "Документы"),
+    ("Tudor <tudor@bpro.md>", "Contract de prestari servicii", "Документы"),
+    # Named banks get their own folder instead of «Прочие».
+    ("OTP <noreply@otpbank.md>", "Extras de cont", "Банки/OTP"),
+    ("UniCredit <info@unicredit.ro>", "Notificare", "Банки/UniCredit"),
+    ("BT <info@bancatransilvania.ro>", "Extras", "Банки/Transilvania"),
+])
+def test_bank_and_paper_split(sender, subject, expected):
+    assert mod.pick_folder({"from": sender, "subject": subject}) == expected

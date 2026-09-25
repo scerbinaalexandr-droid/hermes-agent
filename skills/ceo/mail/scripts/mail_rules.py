@@ -31,8 +31,14 @@ class Rule:
     promo_ok: bool = field(default=False)
 
 
-INVOICE_WORDS = ("invoice", "receipt", "factura", "factură", "счёт", "счет",
-                 "квитанция", "contract", "договор")
+# A receipt for a subscription and a signed contract are different things and
+# belong in different folders: checked on the owner's working mailbox, where
+# «Документы» was 124 Apple receipts before this split.
+RECEIPT_WORDS = ("invoice", "receipt", "factura", "factură", "счёт", "счет",
+                 "квитанция", "чек", "payment", "оплата", "платёж", "bon fiscal")
+CONTRACT_WORDS = ("contract", "договор", "акт ", "соглашение", "agreement",
+                  "nda", "оферта", "приложение к договору")
+INVOICE_WORDS = RECEIPT_WORDS + CONTRACT_WORDS
 
 RULES: tuple[Rule, ...] = (
     # Security first: an alert about the account outranks every other rule.
@@ -52,6 +58,11 @@ RULES: tuple[Rule, ...] = (
     Rule("Банки/ING", promo_ok=True, senders=("ing.",)),
     Rule("Банки/MAIB", promo_ok=True, senders=("maib.md",)),
     Rule("Банки/Victoriabank", promo_ok=True, senders=("victoriabank.md",)),
+    Rule("Банки/OTP", promo_ok=True, senders=("otpbank", "otp-bank")),
+    Rule("Банки/UniCredit", promo_ok=True, senders=("unicredit",)),
+    Rule("Банки/Transilvania", promo_ok=True, senders=("bancatransilvania", "btrl.ro")),
+    Rule("Банки/Fincombank", promo_ok=True, senders=("fincombank",)),
+    Rule("Банки/Moldindconbank", promo_ok=True, senders=("micb.md", "moldindconbank")),
     Rule("Банки/Прочие", promo_ok=True, senders=("bank", "banca", "banking"),
          exclude_senders=("revolut", "wise", "paypal")),
     # Travel.
@@ -68,8 +79,10 @@ RULES: tuple[Rule, ...] = (
     Rule("Жильё", senders=(
         "immobilienscout24", "willhaben.at", "olx.", "imobiliare.ro", "999.md",
         "remax", "engelvoelkers", "cian.ru", "avito.ru")),
-    # Invoices, contracts, statements.
-    Rule("Документы", promo_ok=True, subjects=INVOICE_WORDS),
+    # Papers worth keeping: contracts and acts.
+    Rule("Документы", promo_ok=True, subjects=CONTRACT_WORDS),
+    # Money paid: receipts, invoices, utility bills.
+    Rule("Чеки", promo_ok=True, subjects=RECEIPT_WORDS),
     # Services and subscriptions — after banks and security, order matters.
     # Only service senders, never a whole mail provider: "yandex" used to put
     # a live person writing from @yandex.ru into «Подписки».
