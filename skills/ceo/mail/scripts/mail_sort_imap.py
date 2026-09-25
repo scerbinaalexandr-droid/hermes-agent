@@ -273,6 +273,32 @@ class ImapBox:
                 out.append((uid.group(1).encode(), int(size.group(1))))
         return out
 
+    def headers_all(self, folder: str) -> dict[bytes, dict[str, str]]:
+        """Headers for a whole folder in ONE round trip.
+
+        Fetching per message meant thousands of requests for a big mailbox:
+        the server connection died halfway through both the mail.ru sort and
+        the duplicate scan. One FETCH keeps a 3000-message folder to seconds.
+        """
+        if self.select_folder(folder) == 0:
+            return {}
+        code, data = self.conn.uid(
+            "FETCH", "1:*", f"(BODY.PEEK[HEADER.FIELDS {FETCH_HEADERS}])")
+        if code != "OK":
+            return {}
+        out: dict[bytes, dict[str, str]] = {}
+        for part in data or []:
+            if not (isinstance(part, tuple) and len(part) > 1):
+                continue
+            prefix = part[0].decode(errors="replace") if isinstance(part[0], bytes) else str(part[0])
+            uid = re.search(r"UID (\d+)", prefix)
+            if not uid:
+                continue
+            blob = part[1]
+            text = blob.decode(errors="replace") if isinstance(blob, bytes) else str(blob)
+            out[uid.group(1).encode()] = parse_headers(text)
+        return out
+
     def raw_message(self, uid: bytes) -> bytes | None:
         """The whole message, for reading its attachments."""
         code, data = self.conn.uid("FETCH", uid, "(BODY.PEEK[])")
@@ -325,8 +351,10 @@ def pick_folder(headers: dict[str, str]) -> str | None:
 def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[str, int], list[str]]:
     counts: dict[str, int] = {}
     samples: list[str] = []
-    for uid in client.inbox_uids(days)[:cap]:
-        headers = client.headers(uid)
+    wanted = client.inbox_uids(days)[:cap]
+    bulk = client.headers_all("INBOX")
+    for uid in wanted:
+        headers = bulk.get(uid) or client.headers(uid)
         if not headers:
             continue
         folder = pick_folder(headers)
@@ -346,8 +374,9 @@ def bulk_report(client: ImapBox, folder: str, cap: int) -> list[tuple[str, int, 
     """Who floods this folder: (sender, count, offers unsubscribe), busiest first."""
     counts: dict[str, int] = {}
     unsub: dict[str, bool] = {}
+    bulk = client.headers_all(folder)
     for uid in client.uids_in(folder)[:cap]:
-        headers = client.headers(uid)
+        headers = bulk.get(uid) or client.headers(uid)
         if not headers:
             continue
         sender = _decode(headers.get("from", "")).strip()
@@ -389,10 +418,11 @@ def duplicates(client: ImapBox, folder: str, cap: int) -> list[tuple[str, list[b
     is the one worth keeping.
     """
     sizes = dict(client.sizes_in(folder))
+    bulk = client.headers_all(folder)
     groups: dict[tuple, list[bytes]] = {}
     labels: dict[tuple, str] = {}
     for uid in list(sizes)[:cap]:
-        headers = client.headers(uid)
+        headers = bulk.get(uid) or client.headers(uid)
         if not headers:
             continue
         key = (_decode(headers.get("to", "")).lower().strip(),
@@ -416,8 +446,9 @@ def archive_old(client: ImapBox, days: int, cap: int,
     """
     moved = 0
     samples: list[str] = []
+    bulk = client.headers_all("INBOX")
     for uid in client.uids_in("INBOX", days)[:cap]:
-        headers = client.headers(uid)
+        headers = bulk.get(uid) or client.headers(uid)
         if not headers:
             continue
         folder = pick_folder(headers)

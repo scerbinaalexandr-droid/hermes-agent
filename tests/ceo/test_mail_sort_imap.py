@@ -31,7 +31,12 @@ class FakeClient:
     def inbox_uids(self, days):
         return list(self.messages)
 
+    def headers_all(self, folder):
+        self.bulk_calls = getattr(self, "bulk_calls", 0) + 1
+        return dict(self.messages)
+
     def headers(self, uid):
+        self.single_calls = getattr(self, "single_calls", 0) + 1
         return self.messages[uid]
 
     def ensure_folder(self, folder):
@@ -213,6 +218,9 @@ class SizeClient(FakeFolderClient):
     def sizes_in(self, folder):
         return self.per_folder.get(folder, [])
 
+    def headers_all(self, folder):
+        return dict(self.headers_by_uid)
+
     def headers(self, uid):
         return self.headers_by_uid.get(uid, {"from": "x@y.z", "subject": "s"})
 
@@ -275,3 +283,36 @@ def test_duplicates_ignores_same_subject_with_different_size():
         b"2": {"to": "a@x.io", "subject": "Договор"},   # edited version, not a dupe
     }
     assert mod.duplicates(client, "Отправленные", 100) == []
+
+
+def test_sort_reads_headers_in_one_batch_not_per_message():
+    """A big folder must cost one FETCH, not one per message."""
+    client = FakeClient({
+        b"1": {"from": "x@revolut.com", "subject": "Statement"},
+        b"2": {"from": "news@turkishairlines.com", "subject": "Deals",
+               "list-unsubscribe": "<mailto:u@x>"},
+        b"3": {"from": "mama@mail.ru", "subject": "Позвони"},
+    })
+    mod.sort_box(client, days=90, cap=100, dry_run=True)
+    assert client.bulk_calls == 1
+    assert getattr(client, "single_calls", 0) == 0
+
+
+def test_headers_all_parses_a_real_fetch_response():
+    class Conn:
+        def select(self, folder):
+            return "OK", [b"2"]
+
+        def uid(self, cmd, *a):
+            return "OK", [
+                (b"1 (UID 11 BODY[HEADER.FIELDS (FROM SUBJECT)] {42}",
+                 b"From: a@b.c\r\nSubject: One\r\n\r\n"), b")",
+                (b"2 (UID 22 BODY[HEADER.FIELDS (FROM SUBJECT)] {42}",
+                 b"From: d@e.f\r\nSubject: Two\r\n\r\n"), b")"]
+
+    client = object.__new__(mod.ImapBox)
+    client.conn = Conn()
+    client.delimiter = "/"
+    client._folders = {"INBOX"}
+    got = client.headers_all("INBOX")
+    assert got[b"11"]["from"] == "a@b.c" and got[b"22"]["subject"] == "Two"
