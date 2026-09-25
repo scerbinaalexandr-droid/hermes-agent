@@ -46,6 +46,16 @@ HERMES_HOME=/opt/data /opt/hermes/.venv/bin/python \
 
 Sub-actions: `search QUERY --max N` · `get <id>` · `send` · `reply` · `labels` · `modify`.
 
+## Два контура почты (решение владельца 2026-09-25)
+
+| Контур | Ящик | Что в него шлётся | Кто ведёт |
+|---|---|---|---|
+| **Важный** | `scerbinaalexandr@gmail.com` (5 ТБ) | пересылка с `alexandr.scerbina@gmail.com` | владелец сам; Гермес раскладывает по папкам через IMAP |
+| **Прочее** | `scerbina21@gmail.com` | `ascerbina@mail.ru`, `bodaro@bk.ru`, `alex.potiomkin@bk.ru`, `beldepofarm@gmail.com`, `alexscerbina@gmail.com` | Гермес полностью: папки, карантин, чистка, метки «От/…» |
+
+Отвечать на важное — с `scerbinaalexandr`. Письма контура «прочее» в важный ящик
+не пересылаются: смысл разделения в том, чтобы шум не попадал к важному.
+
 ## Что подключено (2026-09-23)
 
 Ящик **scerbina21@gmail.com**. Права токена: почта — чтение, отправка, ярлыки и

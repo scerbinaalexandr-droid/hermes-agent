@@ -91,14 +91,17 @@ RULES: tuple[Rule, ...] = (
 # (`to:`): a forwarded letter keeps «To: ascerbina@mail.ru», and Gmail indexes
 # that header. `deliveredto:` looked like the natural choice but returns
 # nothing for forwarded mail (checked live on 2026-09-24).
+# Two contours, by the owner's decision (2026-09-25):
+#   важный  — scerbinaalexandr@gmail.com ← alexandr.scerbina@gmail.com
+#   прочее  — scerbina21@gmail.com ← остальные ящики (этот список)
+# The important contour is a single mailbox the owner works in himself, so it
+# needs no source labels; «прочее» is the one Hermes keeps in order.
 SOURCES: tuple[tuple[str, str], ...] = (
     ("От/mail.ru", "ascerbina@mail.ru"),
-    ("От/Gmail основной", "scerbinaalexandr@gmail.com"),
-    ("От/Gmail второй", "alexandr.scerbina@gmail.com"),
-    ("От/Gmail третий", "alexscerbina@gmail.com"),
     ("От/Бодар", "bodaro@bk.ru"),
     ("От/Потёмкин", "alex.potiomkin@bk.ru"),
     ("От/Офис", "beldepofarm@gmail.com"),
+    ("От/Gmail третий", "alexscerbina@gmail.com"),
 )
 
 
