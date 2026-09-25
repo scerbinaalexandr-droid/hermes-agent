@@ -12,6 +12,7 @@ Boxes are configured through Railway Variables, numbered from 1 to 10:
     MAIL_IMAP_1_USER=<адрес>
     MAIL_IMAP_1_PASS=<пароль приложения> # never printed, never logged
     MAIL_IMAP_1_NAME=mail.ru             # optional label for the digest
+    MAIL_IMAP_1_IMPORTANT=1              # optional: include in the daily digest
 
 Usage:
     python3 mail_sort_imap.py --dry-run     # report what would move
@@ -48,6 +49,9 @@ class Box:
     user: str
     password: str
     port: int = 993
+    # Only important boxes reach the owner's digest; the rest are kept in
+    # order silently (his rule, 2026-09-26). MAIL_IMAP_<n>_IMPORTANT=1.
+    important: bool = False
 
 
 def boxes_from_env() -> list[Box]:
@@ -58,10 +62,12 @@ def boxes_from_env() -> list[Box]:
         pwd = os.environ.get(f"MAIL_IMAP_{i}_PASS", "")
         if not (host and user and pwd):
             continue
+        flag = os.environ.get(f"MAIL_IMAP_{i}_IMPORTANT", "").strip().lower()
         out.append(Box(
             name=os.environ.get(f"MAIL_IMAP_{i}_NAME", "").strip() or user,
             host=host, user=user, password=pwd,
             port=int(os.environ.get(f"MAIL_IMAP_{i}_PORT", "993") or 993),
+            important=flag in ("1", "true", "yes", "да"),
         ))
     return out
 
@@ -193,6 +199,14 @@ class ImapBox:
         self.conn.select("INBOX")
         criteria = "ALL" if days <= 0 else f"(SINCE {_since(days)})"
         code, data = self.conn.uid("SEARCH", None, criteria)
+        if code != "OK" or not data or not data[0]:
+            return []
+        return data[0].split()
+
+    def unseen_uids(self, days: int) -> list[bytes]:
+        """Unread mail in the inbox from the last `days` — what a digest reports."""
+        self.conn.select("INBOX")
+        code, data = self.conn.uid("SEARCH", None, f"(UNSEEN SINCE {_since(days)})")
         if code != "OK" or not data or not data[0]:
             return []
         return data[0].split()
