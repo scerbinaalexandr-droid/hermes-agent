@@ -309,6 +309,28 @@ class ImapBox:
                 return part[1]
         return None
 
+    def move_many(self, uids: list[bytes], folder: str) -> int:
+        """Move a whole group in one command per 400 messages.
+
+        One command per message made the connection die halfway through a big
+        mailbox; a folder's worth of mail now moves in a single round trip.
+        """
+        if not uids:
+            return 0
+        target = f'"{self.native(folder)}"'
+        moved = 0
+        for i in range(0, len(uids), 400):
+            chunk = b",".join(uids[i:i + 400]).decode()
+            code, _ = self.conn.uid("MOVE", chunk, target)
+            if code != "OK":
+                code, _ = self.conn.uid("COPY", chunk, target)
+                if code != "OK":
+                    raise RuntimeError("copy failed")
+                self.conn.uid("STORE", chunk, "+FLAGS", "(\\Deleted)")
+                self.conn.expunge()
+            moved += len(uids[i:i + 400])
+        return moved
+
     def move(self, uid: bytes, folder: str) -> None:
         """MOVE when the server supports it, else copy + mark deleted."""
         target = f'"{self.native(folder)}"'
@@ -353,6 +375,7 @@ def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[
     samples: list[str] = []
     wanted = client.inbox_uids(days)[:cap]
     bulk = client.headers_all("INBOX")
+    groups: dict[str, list[bytes]] = {}
     for uid in wanted:
         headers = bulk.get(uid) or client.headers(uid)
         if not headers:
@@ -360,13 +383,15 @@ def sort_box(client: ImapBox, days: int, cap: int, dry_run: bool) -> tuple[dict[
         folder = pick_folder(headers)
         if not folder:
             continue
-        if not dry_run:
-            client.ensure_folder(folder)
-            client.move(uid, folder)
+        groups.setdefault(folder, []).append(uid)
         counts[folder] = counts.get(folder, 0) + 1
         if len(samples) < 6:
             samples.append(
                 f"      — {_decode(headers.get('from', '?'))[:26]} → {folder}")
+    if not dry_run:
+        for folder, uids in groups.items():
+            client.ensure_folder(folder)
+            client.move_many(uids, folder)
     return counts, samples
 
 

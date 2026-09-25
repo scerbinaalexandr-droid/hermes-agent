@@ -45,6 +45,12 @@ class FakeClient:
     def move(self, uid, folder):
         self.moved.append((uid, folder))
 
+    def move_many(self, uids, folder):
+        self.batch_moves = getattr(self, "batch_moves", 0) + 1
+        for uid in uids:
+            self.moved.append((uid, folder))
+        return len(uids)
+
     def close(self):
         pass
 
@@ -333,3 +339,16 @@ def test_headers_all_parses_a_real_fetch_response():
 ])
 def test_bank_and_paper_split(sender, subject, expected):
     assert mod.pick_folder({"from": sender, "subject": subject}) == expected
+
+
+def test_sort_moves_each_folder_in_one_batch():
+    """Filing costs one command per folder, not one per message."""
+    client = FakeClient({
+        b"1": {"from": "a@revolut.com", "subject": "Statement"},
+        b"2": {"from": "b@revolut.com", "subject": "Statement"},
+        b"3": {"from": "news@shop.io", "subject": "-50%", "precedence": "bulk"},
+    })
+    counts, _ = mod.sort_box(client, days=0, cap=100, dry_run=False)
+    assert counts == {"Банки/Revolut": 2, "Карантин": 1}
+    assert client.batch_moves == 2          # one per folder
+    assert len(client.moved) == 3           # all three letters still filed
